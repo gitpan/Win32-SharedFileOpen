@@ -3,6 +3,21 @@ ________________________________________________________________________________
 Revision history for Perl extension Win32::SharedFileOpen.
 _________________
 
+v2.10 20 Jun 2002
+
+	- Implemented the "First-Class Filehandle Trick" in the function new_fh(),
+	  and re-exported the function gensym() from the Symbol module, for
+	  convenience.
+
+	- Added $Max_Tries, $Retry_Timeout and INFINITE so that the file open can be
+	  retried if it failed due to a sharing violation.
+
+	- Updated documentation for these changes.
+
+	- Localised the changes made to $! within AUTOLOAD() as per Perl Bug ID
+	  20020614.002: see http://bugs.perl.org/ for more details.
+_________________
+
 v2.00 27 May 2002
 
 	- Changed arguments and return values of fsopen() and sopen() to require a

@@ -16,7 +16,7 @@ use Config;
 use ExtUtils::MakeMaker;
 
 BEGIN {
-	unless ($Config{osname} =~ /MSWin32/i and $Config{libc} =~ /msvcrt/i) {
+	unless ($Config{osname} =~ /MSWin32/i and $Config{cc} =~ /cl/i) {
 		die "This module requires Microsoft Visual C to build.\n";
 	}
 }
@@ -31,13 +31,15 @@ MAIN: {
 		NAME			=> 'Win32::SharedFileOpen',
 		ABSTRACT_FROM	=> 'SharedFileOpen.pm',
 		VERSION_FROM	=> 'SharedFileOpen.pm',
-		PREREQ_PM		=> { AutoLoader	=> 0,
-							 Carp		=> 0,
-							 DynaLoader	=> 0,
-							 Errno		=> 0,
-							 Exporter	=> 0,
-							 Symbol		=> 0,
-							 Win32		=> 0 },
+		PREREQ_PM		=> { AutoLoader			=> 0,
+							 Carp				=> 0,
+							 DynaLoader			=> 0,
+							 Errno				=> 0,
+							 Exporter			=> 0,
+							 POSIX				=> 0,
+							 Symbol				=> 0,
+							 Win32				=> 0,
+							 Win32::WinError	=> 0 },
 		dist			=> { DIST_CP => 'cp' }
 	);
 }

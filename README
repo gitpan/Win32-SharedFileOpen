@@ -1,5 +1,5 @@
 
-Win32::SharedFileOpen Version 2.00
+Win32::SharedFileOpen Version 2.10
 ==================================
 
 NAME
@@ -8,19 +8,55 @@ Win32::SharedFileOpen - Open a file for shared reading and/or writing
 
 SYNOPSIS
 
+	# Read and write files a la open(), but with mandatory file locking:
+	# ------------------------------------------------------------------
+
 	use Win32::SharedFileOpen;
 
-	# Open files for reading, denying write access to other processes.
-	fsopen(FH1, 'one.txt', 'r', SH_DENYWR) or
-			die "Cannot read 'one.txt' and take write-lock: $^E\n";
-	sopen(FH2, 'two.txt', O_RDONLY, SH_DENYWR) or
-			die "Cannot read 'two.txt' and take write-lock: $^E\n";
+	fsopen(FH1, 'readme', 'r', SH_DENYWR) or
+			die "Can't read 'readme' and take write-lock: $^E\n";
 
-	# Open files for writing, denying read and write access to other processes.
-	fsopen(FH3, 'three.txt', 'w', SH_DENYRW) or
-			die "Cannot write 'three.txt' and take read/write-lock: $^E\n";
-	sopen(FH4, 'four.txt', O_WRONLY | O_CREAT | O_TRUNC, SH_DENYRW, S_IWRITE) or
-			die "Cannot write 'four.txt' and take read/write-lock: $^E\n";
+	fsopen(FH2, 'writeme', 'w', SH_DENYRW) or
+			die "Can't write 'writeme' and take read/write-lock: $^E\n";
+
+	# Read and write files a la sysopen(), but with mandatory file locking:
+	# ---------------------------------------------------------------------
+
+	use Win32::SharedFileOpen;
+
+	sopen(FH1, 'readme', O_RDONLY, SH_DENYWR) or
+			die "Can't read 'readme' and take write-lock: $^E\n";
+
+	sopen(FH2, 'writeme', O_WRONLY | O_CREAT | O_TRUNC, SH_DENYRW, S_IWRITE) or
+			die "Can't write 'writeme' and take read/write-lock: $^E\n";
+
+	# Retry opening the file if it fails due to a sharing violation:
+	# --------------------------------------------------------------
+
+	use Win32::SharedFileOpen qw(:DEFAULT :retry);
+
+	$Max_Tries     = 10;	# Try opening the file upto 10 times
+	$Retry_Timeout = 500;	# Wait 500 milliseconds between each try
+
+	sopen(FH, 'readme', 'r', SH_DENYNO) or
+		die "Can't read 'readme' after $Max_Tries tries: $^E\n";
+
+	# Use a lexical indirect filehandle that closes itself when destroyed:
+	# --------------------------------------------------------------------
+
+	use Win32::SharedFileOpen qw(:DEFAULT new_fh);
+
+	{
+		my $fh = new_fh();
+
+		sopen($fh, 'readme', 'r', SH_DENYNO) or
+			die "Can't read 'readme': $^E\n";
+
+		while (<$fh>) {
+			# ... Do some stuff ...
+		}
+
+	}	# ... $fh is automatically closed here
 
 WARNING
 
@@ -30,6 +66,23 @@ WARNING
 	* resolved, the sopen() function should generally be used instead.      *
 	* See the file WARNING-FSOPEN.TXT for more details.                     *
 	*************************************************************************
+
+WHAT'S NEW
+
+New features introduced since version 2.00 of this module:
+
+	- A new function, new_fh(), has been added for generating anonymous
+	  typeglobs for use as indirect filehandles. The gensym() function from the
+	  Symbol module is also made available for this purpose.
+
+	- Two new variables, $Max_Tries and $Retry_Timeout, have been added to
+	  specify how many times and at what frequency fsopen() and sopen() should
+	  automatically retry opening a file if it can't be opened due to a sharing
+	  violation. (The default setting is to try only once.)
+
+	- A new constant, INFINITE, has also been added. This can be assigned to
+	  $Max_Tries to indicate that such retries should continue ad infinitum if
+	  necessary.
 
 COMPATIBILITY
 
@@ -63,15 +116,20 @@ To install this module type the following:
 	nmake test
 	nmake install
 
-Note that tests 510-513 in "08_fsopen_fh_leak.t" currently fail, as desribed in
+Note that tests 510-513 in "10_fsopen_fh_leak.t" currently fail, as described in
 the warning above.
 
 DEPENDENCIES
 
-No non-standard modules are required by this module, but obviously it only runs
-on Microsoft platforms and requires Microsoft Visual C to build it since other C
-build environments (e.g. Cygwin/GCC) do not provide the Microsoft-specific
-functions wrapped by this module.
+The only non-standard module required by this module is Win32::WinError. This is
+part of the "libwin32" bundle, which is almost invariably present in Perl
+installations on Microsoft Windows platforms anyway, and is available from CPAN
+at the URL http://www.perl.com/CPAN/.
+
+Obviously this module only works on Microsoft Windows platforms, and requires
+Microsoft Visual C to build it since other C build environments (e.g.
+Cygwin/GCC) do not implement the Microsoft-specific functions which this module
+provides wrappers to.
 
 COPYRIGHT AND LICENCE
 

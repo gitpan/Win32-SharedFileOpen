@@ -18,22 +18,22 @@ The bug can be seen by running the following program:
 	for (my $i = 1; $i <= 512; $i++) {
 		local *FH;
 		unless (fsopen(FH, $file, 'w', SH_DENYNO)) {
-			print STDERR "Cannot open '$file' for writing at i = $i: $!\n";
+			print STDERR "Can't open '$file' for writing at i = $i: $!\n";
 			last;
 		}
 		unless (close FH) {
-			print STDERR "Cannot close '$file' after writing at i = $i: $!\n";
+			print STDERR "Can't close '$file' after writing at i = $i: $!\n";
 			last;
 		}
 	}
 
 	unless (unlink $file) {
-		print STDERR "Cannot delete '$file' after writing: $!\n";
+		print STDERR "Can't delete '$file' after writing: $!\n";
 	}
 
 This program fails with the error:
 
-	Cannot open 'test.txt' for writing at i = 509:
+	Can't open 'test.txt' for writing at i = 509:
 
 That the error is related to a wasting of filehandles can be seen by inserting
 the line:
@@ -42,7 +42,7 @@ the line:
 
 above the "for" loop. This causes the program to fail with the error:
 
-	Cannot open 'test.txt' for writing at i = 508:
+	Can't open 'test.txt' for writing at i = 508:
 
 The program fails one iteration sooner for every extra filehandle that is
 opened before the "for" loop.
@@ -118,18 +118,18 @@ and exhibits the same behaviour for the same reason:
 			FILE *fp;
 
 			if ((fd = my_fsopen(file)) == -1) {
-				sprintf(err, "Cannot open '%s' for writing at i = %d",
+				sprintf(err, "Can't open '%s' for writing at i = %d",
 						file, i);
 				perror(err);
 				break;
 			}
 
 			if ((fp = fdopen(fd, "w")) == NULL) {
-				sprintf(err, "Cannot open '%s' for writing at i = %d",
+				sprintf(err, "Can't open '%s' for writing at i = %d",
 						file, i);
 				perror(err);
 				if (close(fd) != 0) {
-					sprintf(err, "Cannot close file descriptor %d at i = %d",
+					sprintf(err, "Can't close file descriptor %d at i = %d",
 							fd, i);
 					perror(err);
 				}
@@ -137,7 +137,7 @@ and exhibits the same behaviour for the same reason:
 			}
 
 			if (fclose(fp) != 0) {
-				sprintf(err, "Cannot close '%s' after writing at i = %d",
+				sprintf(err, "Can't close '%s' after writing at i = %d",
 						file, i);
 				perror(err);
 				break;
@@ -145,7 +145,7 @@ and exhibits the same behaviour for the same reason:
 		}
 
 		if (unlink(file) != 0) {
-			sprintf(err, "Cannot delete '%s' after writing", file);
+			sprintf(err, "Can't delete '%s' after writing", file);
 			perror(err);
 		}
 	}

@@ -3,7 +3,7 @@
 # Copyright (c)	2001-2002, Steve Hay. All rights reserved.
 #
 # Module Name:	Win32::SharedFileOpen
-# Source File:	05_sopen_access.t
+# Source File:	07_sopen_access.t
 # Description:	Test program to check sopen() access modes
 #-------------------------------------------------------------------------------
 
@@ -13,16 +13,12 @@ use strict;
 use warnings;
 
 use Errno;
-use FindBin qw($Bin);
 use Test;
 use Win32::WinError;
 
-use lib $Bin;
-use FCFH;
-
 BEGIN { plan tests => 39 };				# Number of tests to be executed
 
-use Win32::SharedFileOpen;
+use Win32::SharedFileOpen qw(:DEFAULT new_fh);
 
 #-------------------------------------------------------------------------------
 #
@@ -45,20 +41,20 @@ MAIN: {
 	$str    = 'Hello, world.';
 	$strlen = length $str;
 
-	unlink $file or die "Cannot delete file '$file': $!\n" if -e $file;
+	unlink $file or die "Can't delete file '$file': $!\n" if -e $file;
 
 										# Tests 2-11: Check O_RDONLY/O_WRONLY
-	$fh = fcfh();
+	$fh = new_fh();
 	$ret = sopen($fh, $file, O_RDONLY, SH_DENYNO);
 	ok(not defined $ret and $!{ENOENT} and $ == ERROR_FILE_NOT_FOUND);
 
-	$fh = fcfh();
+	$fh = new_fh();
 	$ret = sopen($fh, $file, O_WRONLY, SH_DENYNO);
 	ok(not defined $ret and $!{ENOENT} and $ == ERROR_FILE_NOT_FOUND);
 
-	$fh = fcfh();
+	$fh = new_fh();
 	$ret = sopen($fh, $file, O_WRONLY | O_CREAT, SH_DENYNO, S_IWRITE);
-	ok(defined $ret and $ret != 0);
+	ok($ret);
 
 	ok(print $fh "$str\n");
 
@@ -71,9 +67,9 @@ MAIN: {
 	close $fh;
 	ok(-s $file == $strlen + 2);
 
-	$fh = fcfh();
+	$fh = new_fh();
 	$ret = sopen($fh, $file, O_RDONLY, SH_DENYNO);
-	ok(defined $ret and $ret != 0);
+	ok($ret);
 
 	{
 		no warnings 'io';
@@ -88,9 +84,9 @@ MAIN: {
 	ok(-s $file == $strlen + 2);
 
 										# Tests 12-15: Check O_WRONLY | O_APPEND
-	$fh = fcfh();
+	$fh = new_fh();
 	$ret = sopen($fh, $file, O_WRONLY | O_APPEND, SH_DENYNO);
-	ok(defined $ret and $ret != 0);
+	ok($ret);
 
 	ok(print $fh "$str\n");
 
@@ -106,13 +102,13 @@ MAIN: {
 	unlink $file;
 
 										# Tests 16-24: Check O_RDWR
-	$fh = fcfh();
+	$fh = new_fh();
 	$ret = sopen($fh, $file, O_RDWR, SH_DENYNO);
 	ok(not defined $ret and $!{ENOENT} and $ == ERROR_FILE_NOT_FOUND);
 
-	$fh = fcfh();
+	$fh = new_fh();
 	$ret = sopen($fh, $file, O_RDWR | O_CREAT, SH_DENYNO, S_IWRITE);
-	ok(defined $ret and $ret != 0);
+	ok($ret);
 
 	ok(print $fh "$str\n");
 
@@ -123,9 +119,9 @@ MAIN: {
 	close $fh;
 	ok(-s $file == $strlen + 2);
 
-	$fh = fcfh();
+	$fh = new_fh();
 	$ret = sopen($fh, $file, O_RDWR, SH_DENYNO);
-	ok(defined $ret and $ret != 0);
+	ok($ret);
 
 	ok(print $fh "$str\n");
 
@@ -137,9 +133,9 @@ MAIN: {
 	ok(-s $file == $strlen + 2);
 
 										# Tests 25-28: Check O_RDWR | O_APPEND
-	$fh = fcfh();
+	$fh = new_fh();
 	$ret = sopen($fh, $file, O_RDWR | O_APPEND, SH_DENYNO);
-	ok(defined $ret and $ret != 0);
+	ok($ret);
 
 	ok(print $fh "$str\n");
 
@@ -153,20 +149,20 @@ MAIN: {
 	unlink $file;
 
 										# Tests 29-31: Check O_TEXT/O_BINARY
-	$fh = fcfh();
+	$fh = new_fh();
 	sopen($fh, $file, O_WRONLY | O_CREAT | O_TEXT, SH_DENYNO, S_IWRITE);
 	print $fh "$str\n";
 	close $fh;
 	ok(-s $file == $strlen + 2);
 
-	$fh = fcfh();
+	$fh = new_fh();
 	sopen($fh, $file, O_WRONLY | O_TRUNC | O_TEXT, SH_DENYNO);
 	binmode $fh;
 	print $fh "$str\n";
 	close $fh;
 	ok(-s $file == $strlen + 1);
 
-	$fh = fcfh();
+	$fh = new_fh();
 	sopen($fh, $file, O_WRONLY | O_TRUNC | O_BINARY, SH_DENYNO);
 	print $fh "$str\n";
 	close $fh;
@@ -175,30 +171,30 @@ MAIN: {
 	unlink $file;
 
 										# Test 32-33: Check O_CREAT | O_EXCL
-	$fh = fcfh();
+	$fh = new_fh();
 	$ret = sopen($fh, $file, O_WRONLY | O_CREAT | O_EXCL, SH_DENYNO, S_IWRITE);
-	ok(defined $ret and $ret != 0);
+	ok($ret);
 	close $fh;
 
-	$fh = fcfh();
+	$fh = new_fh();
 	$ret = sopen($fh, $file, O_WRONLY | O_CREAT | O_EXCL, SH_DENYNO, S_IWRITE);
 	ok(not defined $ret and $!{EEXIST} and $ == ERROR_FILE_EXISTS);
 
 										# Test 34: Check O_TEMPORARY
-	$fh = fcfh();
+	$fh = new_fh();
 	sopen($fh, $file, O_WRONLY | O_CREAT | O_TEMPORARY, SH_DENYNO, S_IWRITE);
 	print $fh "$str\n";
 	close $fh;
 	ok(not -e $file);
 
 										# Test 35-36: Check O_TRUNC
-	$fh = fcfh();
+	$fh = new_fh();
 	sopen($fh, $file, O_WRONLY | O_CREAT, SH_DENYNO, S_IWRITE);
 	print $fh "$str\n";
 	close $fh;
 	ok(-s $file == $strlen + 2);
 
-	$fh = fcfh();
+	$fh = new_fh();
 	sopen($fh, $file, O_WRONLY | O_TRUNC, SH_DENYNO);
 	close $fh;
 	ok(-e $file and -s $file == 0);
@@ -206,22 +202,22 @@ MAIN: {
 	unlink $file;
 
 										# Tests 37-40: Check permissions
-	$fh = fcfh();
+	$fh = new_fh();
 	$ret = sopen($fh, '.', O_RDONLY, SH_DENYNO);
 	ok(not defined $ret and $!{EACCES} and $ == ERROR_ACCESS_DENIED);
 
-	$fh = fcfh();
+	$fh = new_fh();
 	sopen($fh, $file, O_WRONLY | O_CREAT, SH_DENYNO, S_IWRITE);
 	print $fh "$str\n";
 	close $fh;
 	chmod 0444, $file;
 
-	$fh = fcfh();
+	$fh = new_fh();
 	$ret = sopen($fh, $file, O_RDONLY, SH_DENYNO);
-	ok(defined $ret and $ret != 0);
+	ok($ret);
 	close $fh;
 
-	$fh = fcfh();
+	$fh = new_fh();
 	$ret = sopen($fh, $file, O_WRONLY, SH_DENYNO);
 	ok(not defined $ret and $!{EACCES} and $ == ERROR_ACCESS_DENIED);
 

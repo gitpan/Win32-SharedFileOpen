@@ -14,9 +14,9 @@ use warnings;
 
 use Test;
 
-BEGIN { plan tests => 21 };				# Number of tests to be executed
+BEGIN { plan tests => 22 };				# Number of tests to be executed
 
-use Win32::SharedFileOpen;
+use Win32::SharedFileOpen qw(:DEFAULT :retry);
 
 #-------------------------------------------------------------------------------
 #
@@ -52,6 +52,9 @@ MAIN: {
 	ok(defined SH_DENYRD);
 	ok(defined SH_DENYWR);
 	ok(defined SH_DENYRW);
+
+										# Test 22: Check INFINITE constant
+	ok(defined INFINITE);
 }
 
 #-------------------------------------------------------------------------------

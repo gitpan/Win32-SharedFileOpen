@@ -3,7 +3,7 @@
 # Copyright (c)	2001-2002, Steve Hay. All rights reserved.
 #
 # Module Name:	Win32::SharedFileOpen
-# Source File:	04_fsopen_access.t
+# Source File:	06_fsopen_access.t
 # Description:	Test program to check fsopen() access modes
 #-------------------------------------------------------------------------------
 
@@ -13,16 +13,12 @@ use strict;
 use warnings;
 
 use Errno;
-use FindBin qw($Bin);
 use Test;
 use Win32::WinError;
 
-use lib $Bin;
-use FCFH;
-
 BEGIN { plan tests => 33 };				# Number of tests to be executed
 
-use Win32::SharedFileOpen;
+use Win32::SharedFileOpen qw(:DEFAULT new_fh);
 
 #-------------------------------------------------------------------------------
 #
@@ -45,16 +41,16 @@ MAIN: {
 	$str    = 'Hello, world.';
 	$strlen = length $str;
 
-	unlink $file or die "Cannot delete file '$file': $!\n" if -e $file;
+	unlink $file or die "Can't delete file '$file': $!\n" if -e $file;
 
 										# Tests 2-10: Check 'r'/'w'
-	$fh = fcfh();
+	$fh = new_fh();
 	$ret = fsopen($fh, $file, 'r', SH_DENYNO);
 	ok(not defined $ret and $!{ENOENT} and $ == ERROR_FILE_NOT_FOUND);
 
-	$fh = fcfh();
+	$fh = new_fh();
 	$ret = fsopen($fh, $file, 'w', SH_DENYNO);
-	ok(defined $ret and $ret != 0);
+	ok($ret);
 
 	ok(print $fh "$str\n");
 
@@ -67,9 +63,9 @@ MAIN: {
 	close $fh;
 	ok(-s $file == $strlen + 2);
 
-	$fh = fcfh();
+	$fh = new_fh();
 	$ret = fsopen($fh, $file, 'r', SH_DENYNO);
-	ok(defined $ret and $ret != 0);
+	ok($ret);
 
 	{
 		no warnings 'io';
@@ -84,9 +80,9 @@ MAIN: {
 	ok(-s $file == $strlen + 2);
 
 										# Tests 11-14: Check 'a'
-	$fh = fcfh();
+	$fh = new_fh();
 	$ret = fsopen($fh, $file, 'a', SH_DENYNO);
-	ok(defined $ret and $ret != 0);
+	ok($ret);
 
 	ok(print $fh "$str\n");
 
@@ -102,13 +98,13 @@ MAIN: {
 	unlink $file;
 
 										# Tests 15-23: Check 'r+'/'w+'
-	$fh = fcfh();
+	$fh = new_fh();
 	$ret = fsopen($fh, $file, 'r+', SH_DENYNO);
 	ok(not defined $ret and $!{ENOENT} and $ == ERROR_FILE_NOT_FOUND);
 
-	$fh = fcfh();
+	$fh = new_fh();
 	$ret = fsopen($fh, $file, 'w+', SH_DENYNO);
-	ok(defined $ret and $ret != 0);
+	ok($ret);
 
 	ok(print $fh "$str\n");
 
@@ -119,9 +115,9 @@ MAIN: {
 	close $fh;
 	ok(-s $file == $strlen + 2);
 
-	$fh = fcfh();
+	$fh = new_fh();
 	$ret = fsopen($fh, $file, 'r+', SH_DENYNO);
-	ok(defined $ret and $ret != 0);
+	ok($ret);
 
 	ok(print $fh "$str\n");
 
@@ -133,9 +129,9 @@ MAIN: {
 	ok(-s $file == $strlen + 2);
 
 										# Tests 24-27: Check 'a+'
-	$fh = fcfh();
+	$fh = new_fh();
 	$ret = fsopen($fh, $file, 'a+', SH_DENYNO);
-	ok(defined $ret and $ret != 0);
+	ok($ret);
 
 	ok(print $fh "$str\n");
 
@@ -149,20 +145,20 @@ MAIN: {
 	unlink $file;
 
 										# Tests 28-30: Check 't'/'b'
-	$fh = fcfh();
+	$fh = new_fh();
 	fsopen($fh, $file, 'wt', SH_DENYNO);
 	print $fh "$str\n";
 	close $fh;
 	ok(-s $file == $strlen + 2);
 
-	$fh = fcfh();
+	$fh = new_fh();
 	fsopen($fh, $file, 'wt', SH_DENYNO);
 	binmode $fh;
 	print $fh "$str\n";
 	close $fh;
 	ok(-s $file == $strlen + 1);
 
-	$fh = fcfh();
+	$fh = new_fh();
 	fsopen($fh, $file, 'wb', SH_DENYNO);
 	print $fh "$str\n";
 	close $fh;
@@ -171,22 +167,22 @@ MAIN: {
 	unlink $file;
 
 										# Tests 31-33: Check permissions
-	$fh = fcfh();
+	$fh = new_fh();
 	$ret = fsopen($fh, '.', 'r', SH_DENYNO);
 	ok(not defined $ret and $!{EACCES} and $ == ERROR_ACCESS_DENIED);
 
-	$fh = fcfh();
+	$fh = new_fh();
 	fsopen($fh, $file, 'w', SH_DENYNO);
 	print $fh "$str\n";
 	close $fh;
 	chmod 0444, $file;
 
-	$fh = fcfh();
+	$fh = new_fh();
 	$ret = fsopen($fh, $file, 'r', SH_DENYNO);
-	ok(defined $ret and $ret != 0);
+	ok($ret);
 	close $fh;
 
-	$fh = fcfh();
+	$fh = new_fh();
 	$ret = fsopen($fh, $file, 'w', SH_DENYNO);
 	ok(not defined $ret and $!{EACCES} and $ == ERROR_ACCESS_DENIED);
 
