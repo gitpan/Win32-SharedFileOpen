@@ -3,6 +3,23 @@ ________________________________________________________________________________
 Revision history for Perl extension Win32::SharedFileOpen.
 _________________
 
+v2.12 05 Sep 2002
+
+	- Fixes for Perl Version 5.8.0:
+
+	  * Explicitly quoted Win32::WinError in Makefile.PL otherwise it now dies
+	    with an error about 'Bareword not allowed while "strict subs" in use';
+
+	  * Explicitly put fdopen()'d Perl filehandle into binary mode because it no
+	    longer inherits this mode from the C filehandle opened in the XS.
+
+	- Removed use() of AutoLoader since no use was being made of it.
+
+	- Improved definition of @EXPORT, @EXPORT_OK and %EXPORT_TAGS.
+
+	- Corrected documentation typos in the README and the POD.
+_________________
+
 v2.11 02 Jul 2002
 
 	- Imported the INFINITE flag from <winbase.h> like other Win32 modules do,
@@ -15,6 +32,8 @@ v2.11 02 Jul 2002
 	  necessary because local()'ising a tie()'d variable currently leaves it
 	  tie()'d but initially undefined. It is also useful anyway to indicate the
 	  variable is not in use.
+
+	- Updated documentation for these changes.
 _________________
 
 v2.10 20 Jun 2002

@@ -1,5 +1,5 @@
 
-Win32::SharedFileOpen Version 2.11
+Win32::SharedFileOpen Version 2.12
 ==================================
 
 NAME
@@ -38,7 +38,7 @@ SYNOPSIS
 	$Max_Time      = 10;	# Try opening the file for up to 10 seconds
 	$Retry_Timeout = 500;	# Wait 500 milliseconds between each try
 
-	sopen(FH, 'readme', 'r', SH_DENYNO) or
+	sopen(FH, 'readme', O_RDONLY, SH_DENYNO) or
 		die "Can't read 'readme' after retrying for $Max_Time seconds: $^E\n";
 
 	# Use a lexical indirect filehandle that closes itself when destroyed:
@@ -49,7 +49,7 @@ SYNOPSIS
 	{
 		my $fh = new_fh();
 
-		sopen($fh, 'readme', 'r', SH_DENYNO) or
+		sopen($fh, 'readme', O_RDONLY, SH_DENYNO) or
 			die "Can't read 'readme': $^E\n";
 
 		while (<$fh>) {

@@ -13,7 +13,6 @@ use 5.006;
 use strict;
 use warnings;
 
-use AutoLoader;
 use Carp;
 use DynaLoader		qw();
 use Errno;
@@ -37,15 +36,9 @@ BEGIN {
 
 our @ISA = qw(Exporter DynaLoader);
 
-our @EXPORT      = qw(	O_APPEND O_BINARY O_CREAT O_EXCL O_NOINHERIT O_RANDOM
-						O_RDONLY O_RDWR O_SEQUENTIAL O_SHORT_LIVED O_TEMPORARY
-						O_TEXT O_TRUNC O_WRONLY
-						S_IREAD S_IWRITE
-						SH_DENYNO SH_DENYRD SH_DENYRW SH_DENYWR
-						fsopen sopen
+our @EXPORT      = qw(	fsopen sopen
 						);
 our @EXPORT_OK   = qw(	gensym new_fh
-						INFINITE $Max_Time $Max_Tries $Retry_Timeout
 						);
 our %EXPORT_TAGS =   (	oflags	=> [ qw(O_APPEND O_BINARY O_CREAT O_EXCL
 										O_NOINHERIT O_RANDOM O_RDONLY O_RDWR
@@ -61,8 +54,10 @@ our %EXPORT_TAGS =   (	oflags	=> [ qw(O_APPEND O_BINARY O_CREAT O_EXCL
 										$Max_Time $Max_Tries $Retry_Timeout
 										) ]
 						);
+Exporter::export_tags(qw(oflags pmodes shflags));
+Exporter::export_ok_tags(qw(retry));
 
-our $VERSION = '2.11';
+our $VERSION = '2.12';
 
 # Debug setting. (Boolean.)
 our $Debug = 0;
@@ -103,10 +98,8 @@ sub AUTOLOAD {
 	# An error occurred looking up the constant.
 	if ($! != 0) {
 		if ($!{EINVAL}) {
-			# The constant has an invalid name, i.e. it is not one of ours, so
-			# propagate this call to the AUTOLOAD() in AutoLoader.
-			$AutoLoader::AUTOLOAD = $AUTOLOAD;
-			goto &AutoLoader::AUTOLOAD;
+			# The constant is not one of ours.
+			croak("The symbol '$AUTOLOAD' is not defined");
 		}
 		elsif ($!{ENOENT}) {
 			# The constant is one of ours, but is not defined in the C code.
@@ -196,6 +189,9 @@ sub fsopen(*$$$) {
 
 		if (defined $ret and $ret != 0) {
 			print STDERR "open() on '$name' succeeded.\n" if $Debug;
+
+			# Put the Perl filehandle into binary mode if required.
+			binmode $fh if $mode =~ /b$/;
 
 			return $ret;
 		}
@@ -299,13 +295,16 @@ sub sopen(*$$$;$) {
 		if (defined $ret and $ret != 0) {
 			print STDERR "open() on '$name' succeeded.\n" if $Debug;
 
+			# Put the Perl filehandle into binary mode if required.
+			binmode $fh if $oflag & O_BINARY();
+
 			return $ret;
 		}
 		else {
 			print STDERR "open() on '$name' failed ($!).\n" if $Debug;
 
 			# The open() above has failed but the _sopen() succeeded, so we must
-			# close the file descriptor returned from _fsopen(). Don't try to
+			# close the file descriptor returned from _sopen(). Don't try to
 			# fdopen() the file descriptor to get a Perl filehandle that we can
 			# close, because we just tried an fdopen() and that failed!
 			# Instead, use the lowio-level close() function in the POSIX module.
@@ -430,7 +429,7 @@ Win32::SharedFileOpen - Open a file for shared reading and/or writing
 	$Max_Time      = 10;	# Try opening the file for up to 10 seconds
 	$Retry_Timeout = 500;	# Wait 500 milliseconds between each try
 
-	sopen(FH, 'readme', 'r', SH_DENYNO) or
+	sopen(FH, 'readme', O_RDONLY, SH_DENYNO) or
 		die "Can't read 'readme' after retrying for $Max_Time seconds: $^E\n";
 
 	# Use a lexical indirect filehandle that closes itself when destroyed:
@@ -441,7 +440,7 @@ Win32::SharedFileOpen - Open a file for shared reading and/or writing
 	{
 		my $fh = new_fh();
 
-		sopen($fh, 'readme', 'r', SH_DENYNO) or
+		sopen($fh, 'readme', O_RDONLY, SH_DENYNO) or
 			die "Can't read 'readme': $^E\n";
 
 		while (<$fh>) {
@@ -457,7 +456,7 @@ Win32::SharedFileOpen - Open a file for shared reading and/or writing
 	* it to waste a filehandle every time it is called. Until this issue is *
 	* resolved, the sopen() function should generally be used instead.      *
 	* See the file WARNING-FSOPEN.TXT in the original distribution archive, *
-	* Win32-SharedFileOpen-2.11.tar.gz, for more details.                   *
+	* Win32-SharedFileOpen-2.12.tar.gz, for more details.                   *
 	*************************************************************************
 
 =head1 WHAT'S NEW
@@ -1070,7 +1069,8 @@ Text/binary modes are specified for C<sopen()> by using C<O_TEXT> or C<O_BINARY>
 respectively in bitwise-OR combination with other C<O_*> flags in the
 L<I<$oflag>|"O_* Flags"> argument, for example:
 
-	my $fh = sopen($file, O_WRONLY | O_TEXT, SH_DENYNO);
+	my $fh = sopen($file, O_WRONLY | O_CREAT | O_TRUNC | O_TEXT, SH_DENYNO,
+				S_IWRITE);
 
 =back
 
@@ -1233,10 +1233,14 @@ value of the corresponding constant). The error set by C<eval()> is also given.
 (F) An attempt was made to set the specified variable to something other than a
 natural number (i.e. a non-negative integer). This is not allowed.
 
+=item The symbol '%s' is not defined
+
+(F) The specified symbol is not known by this module.
+
 =item The symbol '%s' is not defined on this system
 
-(F) The specified symbol is not provided by the C environment used to build this
-module.
+(F) The specified symbol is known by this module but was not provided by the C
+environment used to build it.
 
 =item Unexpected error autoloading '%s()': %s
 
@@ -1516,7 +1520,6 @@ The following modules are C<use()>'d by this module:
 
 =item Standard Modules
 
-AutoLoader,
 Carp,
 DynaLoader,
 Errno,
@@ -1546,7 +1549,7 @@ significant bug in the implementation of the C<fsopen()> function which causes
 it to waste a filehandle every time it is called.
 
 See the file F<WARNING-FSOPEN.TXT> in the original distribution archive,
-F<Win32-SharedFileOpen-2.11.tar.gz>, for more details.
+F<Win32-SharedFileOpen-2.12.tar.gz>, for more details.
 
 =item *
 
@@ -1599,12 +1602,12 @@ the same terms as Perl itself.
 
 =head1 VERSION
 
-Win32::SharedFileOpen, Version 2.11
+Win32::SharedFileOpen, Version 2.12
 
 =head1 HISTORY
 
 See the file F<Changes> in the original distribution archive,
-F<Win32-SharedFileOpen-2.11.tar.gz>.
+F<Win32-SharedFileOpen-2.12.tar.gz>.
 
 =cut
 

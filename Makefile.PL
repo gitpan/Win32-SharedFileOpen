@@ -31,15 +31,14 @@ MAIN: {
 		NAME			=> 'Win32::SharedFileOpen',
 		ABSTRACT_FROM	=> 'SharedFileOpen.pm',
 		VERSION_FROM	=> 'SharedFileOpen.pm',
-		PREREQ_PM		=> { AutoLoader			=> 0,
-							 Carp				=> 0,
+		PREREQ_PM		=> { Carp				=> 0,
 							 DynaLoader			=> 0,
 							 Errno				=> 0,
 							 Exporter			=> 0,
 							 POSIX				=> 0,
 							 Symbol				=> 0,
 							 Win32				=> 0,
-							 Win32::WinError	=> 0 },
+							 'Win32::WinError'	=> 0 },
 		dist			=> { DIST_CP => 'cp' }
 	);
 }
