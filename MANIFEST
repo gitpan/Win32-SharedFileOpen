@@ -5,7 +5,6 @@ README
 SharedFileOpen.pm
 SharedFileOpen.xs
 typemap
-WARNING-FSOPEN.TXT
 t/01_constants.t
 t/02_gensym.t
 t/03_new_fh.t

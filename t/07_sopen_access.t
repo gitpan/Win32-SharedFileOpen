@@ -16,7 +16,7 @@ use Errno;
 use Test;
 use Win32::WinError;
 
-BEGIN { plan tests => 39 };				# Number of tests to be executed
+BEGIN { plan tests => 40 };				# Number of tests to be executed
 
 use Win32::SharedFileOpen qw(:DEFAULT new_fh);
 
@@ -78,7 +78,7 @@ MAIN: {
 
 	seek $fh, 0, 0;
 	chomp($line = <$fh>);
-	ok(length $line == $strlen);
+	ok($line eq $str);
 
 	close $fh;
 	ok(-s $file == $strlen + 2);
@@ -114,7 +114,7 @@ MAIN: {
 
 	seek $fh, 0, 0;
 	chomp($line = <$fh>);
-	ok(length $line == $strlen);
+	ok($line eq $str);
 
 	close $fh;
 	ok(-s $file == $strlen + 2);
@@ -127,7 +127,7 @@ MAIN: {
 
 	seek $fh, 0, 0;
 	chomp($line = <$fh>);
-	ok(length $line == $strlen);
+	ok($line eq $str);
 
 	close $fh;
 	ok(-s $file == $strlen + 2);
@@ -141,14 +141,14 @@ MAIN: {
 
 	seek $fh, 0, 0;
 	chomp($line = <$fh>);
-	ok(length $line == $strlen);
+	ok($line eq $str);
 
 	close $fh;
 	ok(-s $file == ($strlen + 2) * 2);
 
 	unlink $file;
 
-										# Tests 29-31: Check O_TEXT/O_BINARY
+										# Tests 29-32: Check O_TEXT/O_BINARY
 	$fh = new_fh();
 	sopen($fh, $file, O_WRONLY | O_CREAT | O_TEXT, SH_DENYNO, S_IWRITE);
 	print $fh "$str\n";
@@ -157,7 +157,7 @@ MAIN: {
 
 	$fh = new_fh();
 	sopen($fh, $file, O_WRONLY | O_TRUNC | O_TEXT, SH_DENYNO);
-	binmode $fh;
+	binmode $fh, ':raw';
 	print $fh "$str\n";
 	close $fh;
 	ok(-s $file == $strlen + 1);
@@ -168,9 +168,16 @@ MAIN: {
 	close $fh;
 	ok(-s $file == $strlen + 1);
 
+	$fh = new_fh();
+	sopen($fh, $file, O_WRONLY | O_TRUNC | O_BINARY, SH_DENYNO);
+	binmode $fh, ':crlf';
+	print $fh "$str\n";
+	close $fh;
+	ok(-s $file == $strlen + 2);
+
 	unlink $file;
 
-										# Tests 32-33: Check O_CREAT | O_EXCL
+										# Tests 33-34: Check O_CREAT | O_EXCL
 	$fh = new_fh();
 	$ret = sopen($fh, $file, O_WRONLY | O_CREAT | O_EXCL, SH_DENYNO, S_IWRITE);
 	ok($ret);
@@ -180,14 +187,14 @@ MAIN: {
 	$ret = sopen($fh, $file, O_WRONLY | O_CREAT | O_EXCL, SH_DENYNO, S_IWRITE);
 	ok(not defined $ret and $!{EEXIST} and $ == ERROR_FILE_EXISTS);
 
-										# Test 34: Check O_TEMPORARY
+										# Test 35: Check O_TEMPORARY
 	$fh = new_fh();
 	sopen($fh, $file, O_WRONLY | O_CREAT | O_TEMPORARY, SH_DENYNO, S_IWRITE);
 	print $fh "$str\n";
 	close $fh;
 	ok(not -e $file);
 
-										# Tests 35-36: Check O_TRUNC
+										# Tests 36-37: Check O_TRUNC
 	$fh = new_fh();
 	sopen($fh, $file, O_WRONLY | O_CREAT, SH_DENYNO, S_IWRITE);
 	print $fh "$str\n";
@@ -201,7 +208,7 @@ MAIN: {
 
 	unlink $file;
 
-										# Tests 37-40: Check permissions
+										# Tests 38-40: Check permissions
 	$fh = new_fh();
 	$ret = sopen($fh, '.', O_RDONLY, SH_DENYNO);
 	ok(not defined $ret and $!{EACCES} and $ == ERROR_ACCESS_DENIED);

@@ -16,7 +16,15 @@ use Errno;
 use Test;
 use Win32::WinError;
 
-BEGIN { plan tests => 33 };				# Number of tests to be executed
+BEGIN {
+	if ($] >= 5.007) {
+		plan tests => 34,				# Number of tests to be executed
+		     todo => [29];				# Test 29 currently fails in Perl 5.8.0
+	}
+	else {
+		plan tests => 34;				# Number of tests to be executed
+	}
+};
 
 use Win32::SharedFileOpen qw(:DEFAULT new_fh);
 
@@ -74,7 +82,7 @@ MAIN: {
 
 	seek $fh, 0, 0;
 	chomp($line = <$fh>);
-	ok(length $line == $strlen);
+	ok($line eq $str);
 
 	close $fh;
 	ok(-s $file == $strlen + 2);
@@ -110,7 +118,7 @@ MAIN: {
 
 	seek $fh, 0, 0;
 	chomp($line = <$fh>);
-	ok(length $line == $strlen);
+	ok($line eq $str);
 
 	close $fh;
 	ok(-s $file == $strlen + 2);
@@ -123,7 +131,7 @@ MAIN: {
 
 	seek $fh, 0, 0;
 	chomp($line = <$fh>);
-	ok(length $line == $strlen);
+	ok($line eq $str);
 
 	close $fh;
 	ok(-s $file == $strlen + 2);
@@ -137,14 +145,14 @@ MAIN: {
 
 	seek $fh, 0, 0;
 	chomp($line = <$fh>);
-	ok(length $line == $strlen);
+	ok($line eq $str);
 
 	close $fh;
 	ok(-s $file == ($strlen + 2) * 2);
 
 	unlink $file;
 
-										# Tests 28-30: Check 't'/'b'
+										# Tests 28-31: Check 't'/'b'
 	$fh = new_fh();
 	fsopen($fh, $file, 'wt', SH_DENYNO);
 	print $fh "$str\n";
@@ -153,7 +161,7 @@ MAIN: {
 
 	$fh = new_fh();
 	fsopen($fh, $file, 'wt', SH_DENYNO);
-	binmode $fh;
+	binmode $fh, ':raw';
 	print $fh "$str\n";
 	close $fh;
 	ok(-s $file == $strlen + 1);
@@ -164,9 +172,16 @@ MAIN: {
 	close $fh;
 	ok(-s $file == $strlen + 1);
 
+	$fh = new_fh();
+	fsopen($fh, $file, 'wb', SH_DENYNO);
+	binmode $fh, ':crlf';
+	print $fh "$str\n";
+	close $fh;
+	ok(-s $file == $strlen + 2);
+
 	unlink $file;
 
-										# Tests 31-33: Check permissions
+										# Tests 32-34: Check permissions
 	$fh = new_fh();
 	$ret = fsopen($fh, '.', 'r', SH_DENYNO);
 	ok(not defined $ret and $!{EACCES} and $ == ERROR_ACCESS_DENIED);

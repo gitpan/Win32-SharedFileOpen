@@ -16,7 +16,7 @@ use Errno;
 use Test;
 use Win32::WinError;
 
-BEGIN { plan tests => 53 };				# Number of tests to be executed
+BEGIN { plan tests => 60 };				# Number of tests to be executed
 
 use Win32::SharedFileOpen qw(:DEFAULT :retry new_fh);
 
@@ -46,7 +46,42 @@ MAIN: {
 
 	$stderr = tie *STDERR, '_CaptureOutput';
 
-										# Tests 2-5: Check $Debug
+										# Tests 9-12: Check $Debug
+	eval {
+		$Win32::SharedFileOpen::Debug = '';
+	};
+	ok($@ =~ $err and $1 eq '$Debug' and $2 eq '');
+
+	eval {
+		$Win32::SharedFileOpen::Debug = 'a';
+	};
+	ok($@ =~ $err and $1 eq '$Debug' and $2 eq 'a');
+
+	eval {
+		$Win32::SharedFileOpen::Debug = -1;
+	};
+	ok($@ =~ $err and $1 eq '$Debug' and $2 eq '-1');
+
+	eval {
+		$Win32::SharedFileOpen::Debug = 0.5;
+	};
+	ok($@ =~ $err and $1 eq '$Debug' and $2 eq '0.5');
+
+	eval {
+		$Win32::SharedFileOpen::Debug = undef;
+	};
+	ok($@ eq '');
+
+	eval {
+		$Win32::SharedFileOpen::Debug = 0;
+	};
+	ok($@ eq '');
+
+	eval {
+		$Win32::SharedFileOpen::Debug = 1;
+	};
+	ok($@ eq '');
+
 	$Win32::SharedFileOpen::Debug = 0;
 
 	$stderr->clear_buffer();
@@ -83,7 +118,7 @@ MAIN: {
 	$output = $stderr->read_buffer();
 	ok(defined $output and $output =~ /_sopen\(\) on '$file' succeeded/);
 
-										# Tests 6-21: Check $Max_Time
+										# Tests 13-28: Check $Max_Time
 	eval {
 		$Max_Time = '';
 	};
@@ -174,7 +209,7 @@ MAIN: {
 
 	close $fh1;
 
-										# Tests 22-37: Check $Max_Tries
+										# Tests 29-44: Check $Max_Tries
 	# Disable off $Max_Time to use $Max_Tries;
 	$Max_Time = undef;
 
@@ -264,7 +299,7 @@ MAIN: {
 
 	close $fh1;
 
-										# Tests 38-53: Check $Retry_Timeout
+										# Tests 45-60: Check $Retry_Timeout
 	# Use $Max_Tries to check $Retry_Timeout.
 	$Max_Time  = undef;
 	$Max_Tries = 10;

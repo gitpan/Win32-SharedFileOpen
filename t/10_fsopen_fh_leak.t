@@ -40,9 +40,6 @@ MAIN: {
 		}
 		unlink $file;
 	}
-
-	print STDERR "\n(Tests 510-513 are expected to fail: see " .
-				 "WARNING-FSOPEN.TXT for details)\n";
 }
 
 #-------------------------------------------------------------------------------

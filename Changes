@@ -3,6 +3,20 @@ ________________________________________________________________________________
 Revision history for Perl extension Win32::SharedFileOpen.
 _________________
 
+v3.00 02 Nov 2002
+
+	- Fixed the fsopen() bug by opening the Perl filehandle in the XS rather
+	  than passing a file descriptor back from the XS to the Perl and
+	  effectively fdopen()'ing that. Similarly re-coded sopen()'s XS.
+
+	- Restricted the $Debug variable to only allow non-negative integer values
+	  like the other global variables. The value 0 means off, 1 produces the
+	  same debug as previous versions of this module, and 2 produces additional
+	  information in the event of a failure revealing exactly what failed.
+
+	- Added and improved some tests.
+_________________
+
 v2.12 05 Sep 2002
 
 	- Fixes for Perl Version 5.8.0:
