@@ -3,6 +3,20 @@ ________________________________________________________________________________
 Revision history for Perl extension Win32::SharedFileOpen.
 _________________
 
+v2.11 02 Jul 2002
+
+	- Imported the INFINITE flag from <winbase.h> like other Win32 modules do,
+	  rather than defining our own constant, to avoid clashes with them.
+
+	- Added $Max_Time as a better means than $Max_Tries of controlling when to
+	  give up retrying when a file can't be opened due to a sharing violation.
+
+	- Allowed the tie()'d variables to have the undefined value: this is
+	  necessary because local()'ising a tie()'d variable currently leaves it
+	  tie()'d but initially undefined. It is also useful anyway to indicate the
+	  variable is not in use.
+_________________
+
 v2.10 20 Jun 2002
 
 	- Implemented the "First-Class Filehandle Trick" in the function new_fh(),
@@ -14,7 +28,7 @@ v2.10 20 Jun 2002
 
 	- Updated documentation for these changes.
 
-	- Localised the changes made to $! within AUTOLOAD() as per Perl Bug ID
+	- Local()'ised the changes made to $! within AUTOLOAD() as per Perl Bug ID
 	  20020614.002: see http://bugs.perl.org/ for more details.
 _________________
 

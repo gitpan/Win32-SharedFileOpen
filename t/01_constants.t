@@ -53,7 +53,7 @@ MAIN: {
 	ok(defined SH_DENYWR);
 	ok(defined SH_DENYRW);
 
-										# Test 22: Check INFINITE constant
+										# Test 22: Check INFINITE flag
 	ok(defined INFINITE);
 }
 

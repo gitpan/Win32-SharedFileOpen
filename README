@@ -1,5 +1,5 @@
 
-Win32::SharedFileOpen Version 2.10
+Win32::SharedFileOpen Version 2.11
 ==================================
 
 NAME
@@ -35,11 +35,11 @@ SYNOPSIS
 
 	use Win32::SharedFileOpen qw(:DEFAULT :retry);
 
-	$Max_Tries     = 10;	# Try opening the file upto 10 times
+	$Max_Time      = 10;	# Try opening the file for up to 10 seconds
 	$Retry_Timeout = 500;	# Wait 500 milliseconds between each try
 
 	sopen(FH, 'readme', 'r', SH_DENYNO) or
-		die "Can't read 'readme' after $Max_Tries tries: $^E\n";
+		die "Can't read 'readme' after retrying for $Max_Time seconds: $^E\n";
 
 	# Use a lexical indirect filehandle that closes itself when destroyed:
 	# --------------------------------------------------------------------
@@ -75,14 +75,15 @@ New features introduced since version 2.00 of this module:
 	  typeglobs for use as indirect filehandles. The gensym() function from the
 	  Symbol module is also made available for this purpose.
 
-	- Two new variables, $Max_Tries and $Retry_Timeout, have been added to
-	  specify how many times and at what frequency fsopen() and sopen() should
-	  automatically retry opening a file if it can't be opened due to a sharing
-	  violation. (The default setting is to try only once.)
+	- Three new variables, $Max_Time, $Max_Tries and $Retry_Timeout, have been
+	  added to specify how long for or how many times, and at what frequency,
+	  fsopen() and sopen() should automatically retry opening a file if it can't
+	  be opened due to a sharing violation. (The default setting is to try only
+	  once.)
 
 	- A new constant, INFINITE, has also been added. This can be assigned to
-	  $Max_Tries to indicate that such retries should continue ad infinitum if
-	  necessary.
+	  $Max_Time or $Max_Tries to indicate that such retries should continue ad
+	  infinitum if necessary.
 
 COMPATIBILITY
 

@@ -22,8 +22,6 @@ use POSIX			qw();
 use Symbol;
 use Win32::WinError	qw(ERROR_SHARING_VIOLATION);
 
-use constant INFINITE => 0;
-
 sub fsopen(*$$$);
 sub sopen(*$$$;$);
 sub new_fh();
@@ -47,7 +45,7 @@ our @EXPORT      = qw(	O_APPEND O_BINARY O_CREAT O_EXCL O_NOINHERIT O_RANDOM
 						fsopen sopen
 						);
 our @EXPORT_OK   = qw(	gensym new_fh
-						INFINITE $Max_Tries $Retry_Timeout
+						INFINITE $Max_Time $Max_Tries $Retry_Timeout
 						);
 our %EXPORT_TAGS =   (	oflags	=> [ qw(O_APPEND O_BINARY O_CREAT O_EXCL
 										O_NOINHERIT O_RANDOM O_RDONLY O_RDWR
@@ -59,18 +57,23 @@ our %EXPORT_TAGS =   (	oflags	=> [ qw(O_APPEND O_BINARY O_CREAT O_EXCL
 						shflags	=> [ qw(SH_DENYNO SH_DENYRD SH_DENYRW
 										SH_DENYWR
 										) ],
-						retry	=> [ qw(INFINITE $Max_Tries $Retry_Timeout
+						retry	=> [ qw(INFINITE
+										$Max_Time $Max_Tries $Retry_Timeout
 										) ]
 						);
 
-our $VERSION = '2.10';
+our $VERSION = '2.11';
 
 # Debug setting. (Boolean.)
 our $Debug = 0;
 
+# Maximum time to try and retry opening a file. (Retries are only attempted if
+# the previous try failed due to a sharing violation.)
+tie our $Max_Time, __PACKAGE__ . '::_NaturalNumber', undef, '$Max_Time';
+
 # Maximum number of times to try opening a file. (Retries are only attempted if
 # the previous try failed due to a sharing violation.)
-tie our $Max_Tries, __PACKAGE__ . '::_NaturalNumber', 1, '$Max_Tries';
+tie our $Max_Tries, __PACKAGE__ . '::_NaturalNumber', undef, '$Max_Tries';
 
 # Time to wait between tries at opening a file. (Milliseconds.)
 tie our $Retry_Timeout, __PACKAGE__ . '::_NaturalNumber', 250, '$Retry_Timeout';
@@ -137,7 +140,8 @@ sub fsopen(*$$$) {
 		$shflag							# SH_* flag specifying sharing mode
 		) = @_;
 
-	my(	$tries,							# Number of tries at opening file
+	my(	$start,							# Time started trying to open file
+		$tries,							# Number of tries at opening file
 		$fd,							# File descriptor opened
 		$name,							# Filename to effectively fdopen()
 		$ret							# Return value from open()
@@ -146,23 +150,28 @@ sub fsopen(*$$$) {
 	croak("fsopen() can't use the undefined value as an indirect filehandle")
 		unless defined $fh;
 
-	for ($tries = 0; ; Win32::Sleep($Retry_Timeout)) {
+	for ($start = time, $tries = 0; ; Win32::Sleep($Retry_Timeout)) {
 		$fd = _fsopen($file, $mode, $shflag);
 
 		$tries++;
 
 		last if $fd != -1 or $ != ERROR_SHARING_VIOLATION or
-				$Max_Tries != INFINITE and $tries >= $Max_Tries;
-
-		print STDERR "_fsopen() failed after try number $tries; retrying ...\n"
-			if $Debug;
+				(not defined $Max_Time and not defined $Max_Tries) or
+				(defined $Max_Time and $Max_Time != 0 and
+				 $Max_Time != INFINITE() and time - $start >= $Max_Time) or
+				(defined $Max_Tries and $Max_Tries != 0 and
+				 $Max_Tries != INFINITE() and $tries >= $Max_Tries);
 	}
 
 	if ($Debug) {
-		printf STDERR "_fsopen() %s after $tries %s: %s.\n",
-					  ($fd != -1 ? 'succeeded' : 'failed'),
-					  ($tries == 1 ? 'try' : 'tries'),
-					  ($fd != -1 ? "using file descriptor $fd" : $);
+		my $time = time - $start;
+
+		printf STDERR
+			"_fsopen() on '$file' %s in $time %s after $tries %s: %s.\n",
+			($fd != -1 ? 'succeeded' : 'failed'),
+			($time == 1 ? 'second' : 'seconds'),
+			($tries == 1 ? 'try' : 'tries'),
+			($fd != -1 ? "using file descriptor $fd" : $);
 	}
 
 	if ($fd != -1) {
@@ -220,7 +229,8 @@ sub sopen(*$$$;$) {
 		$pmode							# S_* flag specifying file permissions
 		) = @_;
 
-	my(	$tries,							# Number of tries at opening file
+	my(	$start,							# Time started trying to open file
+		$tries,							# Number of tries at opening file
 		$fd,							# File descriptor opened
 		$name,							# Filename to effectively fdopen()
 		$ret							# Return value from open()
@@ -229,7 +239,7 @@ sub sopen(*$$$;$) {
 	croak("sopen() can't use the undefined value as an indirect filehandle")
 		unless defined $fh;
 
-	for ($tries = 0; ; Win32::Sleep($Retry_Timeout)) {
+	for ($start = time, $tries = 0; ; Win32::Sleep($Retry_Timeout)) {
 		if (@_ > 4) {
 			$fd = _sopen($file, $oflag, $shflag, $pmode);
 		}
@@ -240,17 +250,22 @@ sub sopen(*$$$;$) {
 		$tries++;
 
 		last if $fd != -1 or $ != ERROR_SHARING_VIOLATION or
-				$Max_Tries != INFINITE and $tries >= $Max_Tries;
-
-		print STDERR "_sopen() failed after try number $tries; retrying ...\n"
-			if $Debug;
+				(not defined $Max_Time and not defined $Max_Tries) or
+				(defined $Max_Time and $Max_Time != 0 and
+				 $Max_Time != INFINITE() and time - $start >= $Max_Time) or
+				(defined $Max_Tries and $Max_Tries != 0 and
+				 $Max_Tries != INFINITE() and $tries >= $Max_Tries);
 	}
 
 	if ($Debug) {
-		printf STDERR "_sopen() %s after $tries %s: %s.\n",
-					  ($fd != -1 ? 'succeeded' : 'failed'),
-					  ($tries == 1 ? 'try' : 'tries'),
-					  ($fd != -1 ? "using file descriptor $fd" : $);
+		my $time = time - $start;
+
+		printf STDERR
+			"_sopen() on '$file' %s in $time %s after $tries %s: %s.\n",
+			($fd != -1 ? 'succeeded' : 'failed'),
+			($time == 1 ? 'second' : 'seconds'),
+			($tries == 1 ? 'try' : 'tries'),
+			($fd != -1 ? "using file descriptor $fd" : $);
 	}
 
 	if ($fd != -1) {
@@ -315,8 +330,9 @@ sub new_fh() {
 
 #-------------------------------------------------------------------------------
 #
-# Private class to restrict the values of $Max_Tries and $Retry_Timeout to the
-# set of natural numbers (i.e. the set of non-negative integers).
+# Private class to restrict the values of $Max_Time, $Max_Tries and
+# $Retry_Timeout to the set of natural numbers (i.e. the set of non-negative
+# integers).
 #
 
 package Win32::SharedFileOpen::_NaturalNumber;
@@ -356,17 +372,17 @@ sub STORE {
 		) = @_;
 
 	if (not defined $value) {
-		croak("Can't set '$self->{_name}' to the undefined value");
+		$self->{_value} = undef;
 	}
-	elsif ($value eq '') {
-		croak("Can't set '$self->{_name}' to the null string");
-	}
-	elsif ($value =~ /\D/) {
+	elsif ($value eq '' or $value =~ /\D/) {
 		croak("Invalid value for '$self->{_name}': '$value' is not a natural " .
 			  "number");
 	}
+	else {
+		$self->{_value} = 0 + $value;
+	}
 
-	$self->{_value} = 0 + $value;
+	return $self->{_value};
 }
 
 1;
@@ -411,11 +427,11 @@ Win32::SharedFileOpen - Open a file for shared reading and/or writing
 
 	use Win32::SharedFileOpen qw(:DEFAULT :retry);
 
-	$Max_Tries     = 10;	# Try opening the file upto 10 times
+	$Max_Time      = 10;	# Try opening the file for up to 10 seconds
 	$Retry_Timeout = 500;	# Wait 500 milliseconds between each try
 
 	sopen(FH, 'readme', 'r', SH_DENYNO) or
-		die "Can't read 'readme' after $Max_Tries tries: $^E\n";
+		die "Can't read 'readme' after retrying for $Max_Time seconds: $^E\n";
 
 	# Use a lexical indirect filehandle that closes itself when destroyed:
 	# --------------------------------------------------------------------
@@ -441,7 +457,7 @@ Win32::SharedFileOpen - Open a file for shared reading and/or writing
 	* it to waste a filehandle every time it is called. Until this issue is *
 	* resolved, the sopen() function should generally be used instead.      *
 	* See the file WARNING-FSOPEN.TXT in the original distribution archive, *
-	* Win32-SharedFileOpen-2.10.tar.gz, for more details.                   *
+	* Win32-SharedFileOpen-2.11.tar.gz, for more details.                   *
 	*************************************************************************
 
 =head1 WHAT'S NEW
@@ -458,16 +474,16 @@ is also made available for this purpose.
 
 =item *
 
-Two new variables, I<$Max_Tries> and I<$Retry_Timeout>, have been added to
-specify how many times and at what frequency C<fsopen()> and C<sopen()> should
-automatically retry opening a file if it can't be opened due to a sharing
-violation. (The default setting is to try only once.)
+Three new variables, I<$Max_Time>, I<$Max_Tries> and I<$Retry_Timeout>, have
+been added to specify how long for or how many times, and at what frequency,
+C<fsopen()> and C<sopen()> should automatically retry opening a file if it can't
+be opened due to a sharing violation. (The default setting is to try only once.)
 
 =item *
 
 A new constant, C<INFINITE>, has also been added. This can be assigned to
-I<$Max_Tries> to indicate that such retries should continue I<ad infinitum> if
-necessary.
+I<$Max_Time> or I<$Max_Tries> to indicate that such retries should continue I<ad
+infinitum> if necessary.
 
 =back
 
@@ -554,9 +570,10 @@ flags are exported (like the C<_fsopen()> and C<_sopen()> functions themselves)
 I<without> the leading "_" character.
 
 Both functions can be made to automatically retry opening a file (indefinitely,
-or upto a specified maximum number of times, and at a specified frequency) if
-the file could not be opened due to a sharing violation, via the L<"Variables">
-I<$Max_Tries> and I<$Retry_Timeout> and the L<Constant|"Constants"> C<INFINITE>.
+or up to a specified maximum time or number of times, and at a specified
+frequency) if the file could not be opened due to a sharing violation, via the
+L<"Variables"> I<$Max_Time>, I<$Max_Tries> and I<$Retry_Timeout> and the
+C<INFINITE> flag.
 
 =head2 Functions
 
@@ -1105,6 +1122,19 @@ Permits writing.
 Note that it is evidently not possible to deny read permission, so C<S_IWRITE>
 and C<S_IREAD | S_IWRITE> are equivalent.
 
+=head2 Other Flags
+
+=over 4
+
+=item C<INFINITE>
+
+This flag can be assigned to I<$Max_Time> and/or I<$Max_Tries> (see below) in
+order to have C<fsopen()> or C<sopen()> indefinitely retry opening a file until
+it is either opened successfully or it cannot be opened for some reason other
+than a sharing violation.
+
+=back
+
 =head2 Variables
 
 =over 4
@@ -1118,42 +1148,47 @@ Setting this variable to a true value will cause debug information to be emitted
 
 The default value is 0, i.e. debug mode is "off".
 
+=item I<$Max_Time>
+
 =item I<$Max_Tries>
 
-This variable specifies the maximum number of times to try opening a file on a
-single call to C<fsopen()> or C<sopen()>. Retries are only attempted if the
-previous try failed due to a sharing violation (specifically, when
-"C<$^E == ERROR_SHARING_VIOLATION>").
+These variables specify respectively the maximum time for which to try, and the
+maximum number of times to try, opening a file on a single call to C<fsopen()>
+or C<sopen()> while the file cannot be opened due to a sharing violation
+(specifically, when "C<$^E == ERROR_SHARING_VIOLATION>").
 
-The value must be a natural number (i.e. a non-negative integer); an exception
-is raised on any attempt to specify an invalid value. The value zero indicates
-that the retries should be continued I<ad infinitum> if necessary. The constant
-C<INFINITE> may also be used for this purpose.
+The I<$Max_Time> variable is generally more useful than I<$Max_Tries> because
+even with a common value of I<$Retry_Timeout> (see below) two processes may
+retry opening a shared file at significantly different rates. For example, if
+I<$Retry_Timeout> is 0 then a process which can access the file in question on a
+local disk may retry thousands of times per second, while a process on another
+machine trying to open the same file across a network connection may only retry
+once or twice per second. Clearly, the maximum time that a process is prepared
+to wait for is more significant than the maximum number of times to try.
 
-The default value is 1, i.e. no retries are attempted.
+For this reason, if both variables are specified then only I<$Max_Time> is used;
+I<$Max_Tries> is ignored in that case. Use the undefined value to explicitly
+have one or the other variable ignored. No retries are attempted if both
+variables are undefined. 
+
+Otherwise, the values must be natural numbers (i.e. non-negative integers); an
+exception is raised on any attempt to specify an invalid value.
+
+The C<INFINITE> flag (see above) indicates that the retries should be continued
+I<ad infinitum> if necessary. The value zero has the same meaning for backwards
+compatibility with previous versions of this module.
+
+The default values are both C<undef>, i.e. no retries are attempted.
 
 =item I<$Retry_Timeout>
 
-This variable specifies the time to wait (in milliseconds) between tries at
-opening a file (see I<$Max_Tries> above).
+Specifies the time to wait (in milliseconds) between tries at opening a file
+(see I<$Max_Time> and I<$Max_Tries> above).
 
 The value must be a natural number (i.e. a non-negative integer); an exception
 is raised on any attempt to specify an invalid value.
 
 The default value is 250, i.e. wait for one quarter of a second between tries.
-
-=back
-
-=head2 Constants
-
-=over 4
-
-=item C<INFINITE>
-
-This constant specifies the value (zero, as it happens) that I<$Max_Tries> (see
-above) can be set to in order to have it indefinitely retry opening a file until
-it is opened successfully (as long as each failure is due to a sharing
-violation).
 
 =back
 
@@ -1179,16 +1214,6 @@ that new file descriptor. To prevent the file descriptor being wasted, and the
 file being left open, the Perl function then attempted to close this new file
 descriptor, but was unable to do so. The system error message set in C<$!> is
 also given.
-
-=item Can't set '%s' to the null string
-
-(F) An attempt was made to set the specified variable to the null string. This
-is not allowed.
-
-=item Can't set '%s' to the undefined value
-
-(F) An attempt was made to set the specified variable to the undefined value.
-This is not allowed.
 
 =item %s() can't use the undefined value as an indirect filehandle
 
@@ -1342,7 +1367,7 @@ write the file.
 =item Open a file for reading, denying write access to other processes, with
 automatic open-retrying:
 
-	$Win32::SharedFileOpen::Max_Tries = 10;
+	$Win32::SharedFileOpen::Max_Time = 10;
 
 	fsopen(FH, $file, 'r', SH_DENYWR) or
 			die "Can't read '$file' and take write-lock: $^E\n";
@@ -1350,9 +1375,9 @@ automatic open-retrying:
 This example could be used in the same scenario as above, but when we actually
 I<expect> there to be other processes trying to write to the file, e.g. we are
 reading a file that is being regularly updated. In this situation we expect to
-get sharing violation errors from time to time, so we use I<$Max_Tries> to
-automatically have another go at reading the file (up to 10 times in all) when
-that happens.
+get sharing violation errors from time to time, so we use I<$Max_Time> to
+automatically have another go at reading the file (for up to 10 seconds at the
+most) when that happens.
 
 We may also want to increase I<$Win32::SharedFileOpen::Retry_Timeout> from its
 default value of 250 milliseconds if the file is fairly large and we expect the
@@ -1435,6 +1460,7 @@ C<gensym>,
 C<new_fh>
 
 C<INFINITE>,
+C<$Max_Time>,
 C<$Max_Tries>,
 C<$Retry_Timeout>
 
@@ -1474,6 +1500,7 @@ C<SH_DENYWR>
 =item C<:retry>
 
 C<INFINITE>,
+C<$Max_Time>,
 C<$Max_Tries>,
 C<$Retry_Timeout>
 
@@ -1519,7 +1546,7 @@ significant bug in the implementation of the C<fsopen()> function which causes
 it to waste a filehandle every time it is called.
 
 See the file F<WARNING-FSOPEN.TXT> in the original distribution archive,
-F<Win32-SharedFileOpen-2.10.tar.gz>, for more details.
+F<Win32-SharedFileOpen-2.11.tar.gz>, for more details.
 
 =item *
 
@@ -1572,12 +1599,12 @@ the same terms as Perl itself.
 
 =head1 VERSION
 
-Win32::SharedFileOpen, Version 2.10
+Win32::SharedFileOpen, Version 2.11
 
 =head1 HISTORY
 
 See the file F<Changes> in the original distribution archive,
-F<Win32-SharedFileOpen-2.10.tar.gz>.
+F<Win32-SharedFileOpen-2.11.tar.gz>.
 
 =cut
 

@@ -170,7 +170,7 @@ MAIN: {
 
 	unlink $file;
 
-										# Test 32-33: Check O_CREAT | O_EXCL
+										# Tests 32-33: Check O_CREAT | O_EXCL
 	$fh = new_fh();
 	$ret = sopen($fh, $file, O_WRONLY | O_CREAT | O_EXCL, SH_DENYNO, S_IWRITE);
 	ok($ret);
@@ -187,7 +187,7 @@ MAIN: {
 	close $fh;
 	ok(not -e $file);
 
-										# Test 35-36: Check O_TRUNC
+										# Tests 35-36: Check O_TRUNC
 	$fh = new_fh();
 	sopen($fh, $file, O_WRONLY | O_CREAT, SH_DENYNO, S_IWRITE);
 	print $fh "$str\n";

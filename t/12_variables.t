@@ -16,7 +16,7 @@ use Errno;
 use Test;
 use Win32::WinError;
 
-BEGIN { plan tests => 35 };				# Number of tests to be executed
+BEGIN { plan tests => 53 };				# Number of tests to be executed
 
 use Win32::SharedFileOpen qw(:DEFAULT :retry new_fh);
 
@@ -27,9 +27,7 @@ use Win32::SharedFileOpen qw(:DEFAULT :retry new_fh);
 
 MAIN: {
 	my(	$file,							# Test file
-		$err1,							# Error message 1 from STORE()
-		$err2,							# Error message 2 from STORE()
-		$err3,							# Error message 3 from STORE()
+		$err,							# Error message from STORE()
 		$stderr,						# _CaptureOutput object for STDERR
 		$fh1,							# Test filehandle 1
 		$output,						# Captured STDERR output
@@ -44,9 +42,7 @@ MAIN: {
 	ok(1);
 
 	$file = 'test.txt';
-	$err1 = qr/^Can't set '(.*?)' to the undefined value/;
-	$err2 = qr/^Can't set '(.*?)' to the null string/;
-	$err3 = qr/^Invalid value for '(.*?)': '(.*?)' is not a natural number/;
+	$err = qr/^Invalid value for '(.*?)': '(.*?)' is not a natural number/;
 
 	$stderr = tie *STDERR, '_CaptureOutput';
 
@@ -67,7 +63,7 @@ MAIN: {
 	fsopen($fh1, $file, 'w+', SH_DENYNO);
 	close $fh1;
 	$output = $stderr->read_buffer();
-	ok(defined $output and $output =~ /_fsopen\(\) succeeded after 1 try/);
+	ok(defined $output and $output =~ /_fsopen\(\) on '$file' succeeded/);
 
 	$Win32::SharedFileOpen::Debug = 0;
 
@@ -85,41 +81,140 @@ MAIN: {
 	sopen($fh1, $file, O_WRONLY | O_CREAT | O_TRUNC, SH_DENYNO, S_IWRITE);
 	close $fh1;
 	$output = $stderr->read_buffer();
-	ok(defined $output and $output =~ /_sopen\(\) succeeded after 1 try/);
+	ok(defined $output and $output =~ /_sopen\(\) on '$file' succeeded/);
 
-										# Test 6-20: Check $Max_Tries
+										# Tests 6-21: Check $Max_Time
 	eval {
-		$Max_Tries = undef;
+		$Max_Time = '';
 	};
-	ok($@ =~ $err1 and $1 eq '$Max_Tries');
+	ok($@ =~ $err and $1 eq '$Max_Time' and $2 eq '');
+
+	eval {
+		$Max_Time = 'a';
+	};
+	ok($@ =~ $err and $1 eq '$Max_Time' and $2 eq 'a');
+
+	eval {
+		$Max_Time = -1;
+	};
+	ok($@ =~ $err and $1 eq '$Max_Time' and $2 eq '-1');
+
+	eval {
+		$Max_Time = 0.5;
+	};
+	ok($@ =~ $err and $1 eq '$Max_Time' and $2 eq '0.5');
+
+	eval {
+		$Max_Time = undef;
+	};
+	ok($@ eq '');
+
+	eval {
+		$Max_Time = 0;
+	};
+	ok($@ eq '');
+
+	eval {
+		$Max_Time = 1;
+	};
+	ok($@ eq '');
+
+	eval {
+		$Max_Time = INFINITE;
+	};
+	ok($@ eq '');
+
+	$Max_Time = 1;
+
+	$fh1 = new_fh();
+	fsopen($fh1, $file, 'w+', SH_DENYRD);
+
+	$fh2 = new_fh();
+	$start = time;
+	$ret = fsopen($fh2, $file, 'r', SH_DENYNO);
+	$finish = time;
+	ok(not defined $ret and $!{EACCES} and $ == ERROR_SHARING_VIOLATION);
+	$time = $finish - $start;
+	ok($time >= 1 and $time < 2);
+
+	$Max_Time = 10;
+
+	$fh2 = new_fh();
+	$start = time;
+	$ret = fsopen($fh2, $file, 'r', SH_DENYNO);
+	$finish = time;
+	ok(not defined $ret and $!{EACCES} and $ == ERROR_SHARING_VIOLATION);
+	$time = $finish - $start;
+	ok($time >= 10 and $time < 11);
+
+	close $fh1;
+
+	$Max_Time = 1;
+
+	$fh1 = new_fh();
+	sopen($fh1, $file, O_WRONLY | O_CREAT | O_TRUNC, SH_DENYRD, S_IWRITE);
+
+	$fh2 = new_fh();
+	$start = time;
+	$ret = sopen($fh2, $file, O_RDONLY, SH_DENYNO);
+	$finish = time;
+	ok(not defined $ret and $!{EACCES} and $ == ERROR_SHARING_VIOLATION);
+	$time = $finish - $start;
+	ok($time >= 1 and $time < 2);
+
+	$Max_Time = 10;
+
+	$fh2 = new_fh();
+	$start = time;
+	$ret = sopen($fh2, $file, O_RDONLY, SH_DENYNO);
+	$finish = time;
+	ok(not defined $ret and $!{EACCES} and $ == ERROR_SHARING_VIOLATION);
+	$time = $finish - $start;
+	ok($time >= 10 and $time < 11);
+
+	close $fh1;
+
+										# Tests 22-37: Check $Max_Tries
+	# Disable off $Max_Time to use $Max_Tries;
+	$Max_Time = undef;
 
 	eval {
 		$Max_Tries = '';
 	};
-	ok($@ =~ $err2 and $1 eq '$Max_Tries');
+	ok($@ =~ $err and $1 eq '$Max_Tries' and $2 eq '');
 
 	eval {
 		$Max_Tries = 'a';
 	};
-	ok($@ =~ $err3 and $1 eq '$Max_Tries' and $2 eq 'a');
+	ok($@ =~ $err and $1 eq '$Max_Tries' and $2 eq 'a');
 
 	eval {
 		$Max_Tries = -1;
 	};
-	ok($@ =~ $err3 and $1 eq '$Max_Tries' and $2 eq '-1');
+	ok($@ =~ $err and $1 eq '$Max_Tries' and $2 eq '-1');
 
 	eval {
 		$Max_Tries = 0.5;
 	};
-	ok($@ =~ $err3 and $1 eq '$Max_Tries' and $2 eq '0.5');
+	ok($@ =~ $err and $1 eq '$Max_Tries' and $2 eq '0.5');
 
 	eval {
-		$Max_Tries = INFINITE;
+		$Max_Tries = undef;
+	};
+	ok($@ eq '');
+
+	eval {
+		$Max_Tries = 0;
 	};
 	ok($@ eq '');
 
 	eval {
 		$Max_Tries = 1;
+	};
+	ok($@ eq '');
+
+	eval {
+		$Max_Tries = INFINITE;
 	};
 	ok($@ eq '');
 
@@ -133,7 +228,7 @@ MAIN: {
 	$ret = fsopen($fh2, $file, 'r', SH_DENYNO);
 	ok(not defined $ret and $!{EACCES} and $ == ERROR_SHARING_VIOLATION);
 	$output = $stderr->read_buffer();
-	ok(defined $output and $output =~ /_fsopen\(\) failed after 1 try/);
+	ok(defined $output and $output =~ /after 1 try/);
 
 	$Max_Tries = 10;
 
@@ -142,7 +237,7 @@ MAIN: {
 	$ret = fsopen($fh2, $file, 'r', SH_DENYNO);
 	ok(not defined $ret and $!{EACCES} and $ == ERROR_SHARING_VIOLATION);
 	$output = $stderr->read_buffer();
-	ok(defined $output and $output =~ /_fsopen\(\) failed after 10 tries/);
+	ok(defined $output and $output =~ /after 10 tries/);
 
 	close $fh1;
 
@@ -156,7 +251,7 @@ MAIN: {
 	$ret = sopen($fh2, $file, O_RDONLY, SH_DENYNO);
 	ok(not defined $ret and $!{EACCES} and $ == ERROR_SHARING_VIOLATION);
 	$output = $stderr->read_buffer();
-	ok(defined $output and $output =~ /_sopen\(\) failed after 1 try/);
+	ok(defined $output and $output =~ /after 1 try/);
 
 	$Max_Tries = 10;
 
@@ -165,43 +260,52 @@ MAIN: {
 	$ret = sopen($fh2, $file, O_RDONLY, SH_DENYNO);
 	ok(not defined $ret and $!{EACCES} and $ == ERROR_SHARING_VIOLATION);
 	$output = $stderr->read_buffer();
-	ok(defined $output and $output =~ /_sopen\(\) failed after 10 tries/);
+	ok(defined $output and $output =~ /after 10 tries/);
 
 	close $fh1;
 
-										# Test 21-35: Check $Retry_Timeout
-	eval {
-		$Retry_Timeout = undef;
-	};
-	ok($@ =~ $err1 and $1 eq '$Retry_Timeout');
+										# Tests 38-53: Check $Retry_Timeout
+	# Use $Max_Tries to check $Retry_Timeout.
+	$Max_Time  = undef;
+	$Max_Tries = 10;
 
 	eval {
 		$Retry_Timeout = '';
 	};
-	ok($@ =~ $err2 and $1 eq '$Retry_Timeout');
+	ok($@ =~ $err and $1 eq '$Retry_Timeout' and $2 eq '');
 
 	eval {
 		$Retry_Timeout = 'a';
 	};
-	ok($@ =~ $err3 and $1 eq '$Retry_Timeout' and $2 eq 'a');
+	ok($@ =~ $err and $1 eq '$Retry_Timeout' and $2 eq 'a');
 
 	eval {
 		$Retry_Timeout = -1;
 	};
-	ok($@ =~ $err3 and $1 eq '$Retry_Timeout' and $2 eq '-1');
+	ok($@ =~ $err and $1 eq '$Retry_Timeout' and $2 eq '-1');
 
 	eval {
 		$Retry_Timeout = 0.5;
 	};
-	ok($@ =~ $err3 and $1 eq '$Retry_Timeout' and $2 eq '0.5');
+	ok($@ =~ $err and $1 eq '$Retry_Timeout' and $2 eq '0.5');
 
 	eval {
-		$Retry_Timeout = INFINITE;
+		$Retry_Timeout = undef;
+	};
+	ok($@ eq '');
+
+	eval {
+		$Retry_Timeout = 0;
 	};
 	ok($@ eq '');
 
 	eval {
 		$Retry_Timeout = 1;
+	};
+	ok($@ eq '');
+
+	eval {
+		$Retry_Timeout = INFINITE;
 	};
 	ok($@ eq '');
 

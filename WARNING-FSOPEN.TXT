@@ -162,4 +162,4 @@ calling _sopen(). This is simply an "int" file descriptor, which is returned to
 the Perl code to be (effectively) fdopen()'d as before. When the corresponding
 Perl filehandle obtained thus is closed by the caller this "lowio" level
 filehandle is closed, so these "lowio" level filehandles, which a process may
-have upto 2048 of, are not wasted either.
+have up to 2048 of, are not wasted either.
