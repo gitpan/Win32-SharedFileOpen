@@ -4,7 +4,7 @@
 # Makefile.PL
 #
 # DESCRIPTION
-#   Makefile creation program.
+#   Makefile creation script.
 #
 # COPYRIGHT
 #   Copyright (c) 2001-2004, Steve Hay.  All rights reserved.

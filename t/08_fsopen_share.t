@@ -4,7 +4,7 @@
 # t/08_fsopen_share.t
 #
 # DESCRIPTION
-#   Test program to check fsopen() share modes.
+#   Test script to check fsopen() share modes.
 #
 # COPYRIGHT
 #   Copyright (c) 2001-2004, Steve Hay.  All rights reserved.

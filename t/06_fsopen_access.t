@@ -4,7 +4,7 @@
 # t/06_fsopen_access.t
 #
 # DESCRIPTION
-#   Test program to check fsopen() access modes.
+#   Test script to check fsopen() access modes.
 #
 # COPYRIGHT
 #   Copyright (c) 2001-2004, Steve Hay.  All rights reserved.

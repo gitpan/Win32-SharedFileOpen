@@ -4,7 +4,7 @@
 # t/12_variables.t
 #
 # DESCRIPTION
-#   Test program to check debug, trace and retry variables.
+#   Test script to check $ErrStr, $Trace and retry variables.
 #
 # COPYRIGHT
 #   Copyright (c) 2001-2004, Steve Hay.  All rights reserved.
@@ -34,7 +34,7 @@ BEGIN {
     plan tests => 57;                   # Number of tests to be executed
 }
 
-use Win32::SharedFileOpen qw(:DEFAULT :retry new_fh);
+use Win32::SharedFileOpen qw(:DEFAULT :retry $ErrStr new_fh);
 
 #===============================================================================
 # MAIN PROGRAM
@@ -51,46 +51,30 @@ MAIN: {
 
     local $SIG{__WARN__} = \&_stderr;
 
-                                        # Tests 2-5: Check $Debug
-    $Win32::SharedFileOpen::Debug = 0;
-
-    _stderr(undef);
+                                        # Tests 2-5: Check $ErrStr
     $fh1 = new_fh();
     fsopen($fh1, $file, 'w+', SH_DENYNO);
     close $fh1;
-    $output = _stderr();
-    ok(not defined $output);
+    ok($ErrStr eq '');
 
-    $Win32::SharedFileOpen::Debug = 1;
     unlink $file;
 
-    _stderr(undef);
     $fh1 = new_fh();
     fsopen($fh1, $file, 'r', SH_DENYNO);
-    $output = _stderr();
-    ok(defined $output and $output =~ /^Can't open file '$file'/);
+    ok($ErrStr =~ /^Can't open C file stream for file '\Q$file\E'/);
 
-    $Win32::SharedFileOpen::Debug = 0;
-
-    _stderr(undef);
     $fh1 = new_fh();
     sopen($fh1, $file, O_WRONLY | O_CREAT | O_TRUNC, SH_DENYNO, S_IWRITE);
     close $fh1;
-    $output = _stderr();
-    ok(not defined $output);
+    ok($ErrStr eq '');
 
-    $Win32::SharedFileOpen::Debug = 1;
     unlink $file;
 
-    _stderr(undef);
     $fh1 = new_fh();
     sopen($fh1, $file, O_RDONLY, SH_DENYNO);
-    $output = _stderr();
-    ok(defined $output and $output =~ /^Can't open file '$file'/);
+    ok($ErrStr =~ /^Can't open C file descriptor for file '\Q$file\E'/);
 
                                         # Tests 6-9: Check $Trace
-    $Win32::SharedFileOpen::Trace = 0;
-
     _stderr(undef);
     $fh1 = new_fh();
     fsopen($fh1, $file, 'w+', SH_DENYNO);
@@ -105,7 +89,7 @@ MAIN: {
     fsopen($fh1, $file, 'w+', SH_DENYNO);
     close $fh1;
     $output = _stderr();
-    ok(defined $output and $output =~ /_fsopen\(\) on '$file' succeeded/);
+    ok(defined $output and $output =~ /_fsopen\(\) on '\Q$file\E' succeeded/);
 
     $Win32::SharedFileOpen::Trace = 0;
 
@@ -123,7 +107,7 @@ MAIN: {
     sopen($fh1, $file, O_WRONLY | O_CREAT | O_TRUNC, SH_DENYNO, S_IWRITE);
     close $fh1;
     $output = _stderr();
-    ok(defined $output and $output =~ /_sopen\(\) on '$file' succeeded/);
+    ok(defined $output and $output =~ /_sopen\(\) on '\Q$file\E' succeeded/);
 
                                         # Tests 10-25: Check $Max_Time
     eval {

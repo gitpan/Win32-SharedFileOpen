@@ -4,7 +4,7 @@
 # t/11_sopen_fh_leak.t
 #
 # DESCRIPTION
-#   Test program to check if sopen() leaks filehandles.
+#   Test script to check if sopen() leaks filehandles.
 #
 # COPYRIGHT
 #   Copyright (c) 2002-2004, Steve Hay.  All rights reserved.

@@ -4,7 +4,7 @@
 # t/01_constants.t
 #
 # DESCRIPTION
-#   Test program to check autoloading of constants.
+#   Test script to check autoloading of constants.
 #
 # COPYRIGHT
 #   Copyright (c) 2001-2004, Steve Hay.  All rights reserved.
@@ -41,34 +41,34 @@ MAIN: {
     ok(1);
 
                                         # Tests 2-16: Check O_* flags
-    ok(defined O_APPEND);
-    ok(defined O_BINARY);
-    ok(defined O_CREAT);
-    ok(defined O_EXCL);
-    ok(defined O_NOINHERIT);
-    ok(defined O_RANDOM);
-    ok(defined O_RAW);
-    ok(defined O_RDONLY);
-    ok(defined O_RDWR);
-    ok(defined O_SEQUENTIAL);
-    ok(defined O_SHORT_LIVED);
-    ok(defined O_TEMPORARY);
-    ok(defined O_TEXT);
-    ok(defined O_TRUNC);
-    ok(defined O_WRONLY);
+    ok(eval { O_APPEND();      1 });
+    ok(eval { O_BINARY();      1 });
+    ok(eval { O_CREAT();       1 });
+    ok(eval { O_EXCL();        1 });
+    ok(eval { O_NOINHERIT();   1 });
+    ok(eval { O_RANDOM();      1 });
+    ok(eval { O_RAW();         1 });
+    ok(eval { O_RDONLY();      1 });
+    ok(eval { O_RDWR();        1 });
+    ok(eval { O_SEQUENTIAL();  1 });
+    ok(eval { O_SHORT_LIVED(); 1 });
+    ok(eval { O_TEMPORARY();   1 });
+    ok(eval { O_TEXT();        1 });
+    ok(eval { O_TRUNC();       1 });
+    ok(eval { O_WRONLY();      1 });
 
                                         # Tests 17-18: Check S_* flags
-    ok(defined S_IREAD);
-    ok(defined S_IWRITE);
+    ok(eval { S_IREAD();       1 });
+    ok(eval { S_IWRITE();      1 });
 
                                         # Tests 19-22: Check SH_* flags
-    ok(defined SH_DENYNO);
-    ok(defined SH_DENYRD);
-    ok(defined SH_DENYWR);
-    ok(defined SH_DENYRW);
+    ok(eval { SH_DENYNO();     1 });
+    ok(eval { SH_DENYRD();     1 });
+    ok(eval { SH_DENYWR();     1 });
+    ok(eval { SH_DENYRW();     1 });
 
                                         # Test 23: Check INFINITE flag
-    ok(defined INFINITE);
+    ok(eval { INFINITE();      1 });
 }
 
 #===============================================================================

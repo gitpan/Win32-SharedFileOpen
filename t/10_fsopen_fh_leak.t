@@ -4,7 +4,7 @@
 # t/10_fsopen_fh_leak.t
 #
 # DESCRIPTION
-#   Test program to check if fsopen() leaks filehandles.
+#   Test script to check if fsopen() leaks filehandles.
 #
 # COPYRIGHT
 #   Copyright (c) 2002-2004, Steve Hay.  All rights reserved.

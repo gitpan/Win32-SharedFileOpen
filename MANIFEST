@@ -9,6 +9,7 @@ MANIFEST.SKIP
 META.yml
 README
 SharedFileOpen.xs
+ppport.h
 typemap
 fallback/const-c.inc
 fallback/const-xs.inc

@@ -21,10 +21,36 @@
 #include <fcntl.h>                      /* For the O_* and _O_* flags.        */
 #include <io.h>                         /* For _sopen().                      */
 #include <share.h>                      /* For the SH_DENY* flags.            */
+#include <stdarg.h>                     /* For va_list/va_start()/va_end().   */
 #include <stdio.h>                      /* For _fsopen().                     */
 #include <stdlib.h>                     /* For errno.                         */
 #include <string.h>                     /* For strchr() and strerror().       */
 #include <sys/stat.h>                   /* For the S_* flags.                 */
+
+#define WIN32_LEAN_AND_MEAN             /* Don't pull in too much crap when   */
+                                        /* including <windows.h> next.        */
+#include <windows.h>                    /* For the DWORD typedef (in          */
+                                        /* <windef.h>) and the INFINITE flag  */
+                                        /* (in <winbase.h>).                  */
+
+#define PERL_NO_GET_CONTEXT             /* See the "perlguts" manpage.        */
+
+#include "patchlevel.h"                 /* Get the version numbers first.     */
+
+#if PERL_REVISION == 5
+#  if PERL_VERSION == 6
+#    ifdef PERL_IMPLICIT_SYS
+#      define PerlIO FILE               /* See the comments below.            */
+#    endif
+#  else
+#    define PERLIO_NOT_STDIO 0          /* See the "perlapio" manpage.        */
+#  endif
+#endif
+
+#include "EXTERN.h"
+#include "perl.h"
+#include "XSUB.h"
+#include "ppport.h"
 
 /* We export _O_SHORT_LIVED without the leading "_", so define O_SHORT_LIVED
  * here, *before* we pull in "const-c.inc" below.
@@ -35,19 +61,13 @@
 #  define O_RAW _O_RAW
 #endif
 
-#define WIN32_LEAN_AND_MEAN             /* Don't pull in too much crap when   */
-                                        /* including <windows.h> next.        */
-#include <windows.h>                    /* For the DWORD typedef (in          */
-                                        /* <windef.h>) and the INFINITE flag  */
-                                        /* (in <winbase.h>).                  */
+#include "const-c.inc"
 
 /* Prior to __MINGW32_VERSION 3.3, MinGW also omits the declaration of _fsopen.
  * (The definition itself, however, is thankfully provided in "libmsvcrt.a".) */
 #ifndef _fsopen
   _CRTIMP FILE * __cdecl _fsopen(const char *, const char *, int);
 #endif
-
-#define PERL_NO_GET_CONTEXT             /* See the "perlguts" manpage.        */
 
 /* Note: We only support Perl 5.6.x upwards -- the Perl scripts and modules
  * (including "Makefile.PL") all enforce this with "use 5.006".
@@ -65,73 +85,78 @@
  * if PERL_IMPLICIT_SYS is defined then this symbol is declared "extern" but
  * never actually defined.  We therefore provide the standard "perlsdio.h"
  * definition for it here, i.e. a no-op macro.
+ *
  * Under Perl 5.8.0 a "real" PerlIO was introduced which raised questions
  * concerning the co-existence of PerlIO with the original stdio, which are
- * dealt with according to whether or not PERLIO_NOT_STDIO is defined and, if it
- * is, whether or not it is true.  (See the "perlapio" manpage in Perl 5.8.0 for
- * more details on this.)  The original stdio functions should now properly be
+ * dealt with according to whether or not PERLIO_IS_STDIO and PERLIO_NOT_STDIO
+ * are defined and, if the latter is, whether or not it is true.  (If
+ * PERLIO_IS_STDIO is defined then PerlIO is as close to the original stdio as
+ * possible; if PERLIO_NOT_STDIO is defined and true then the original stdio is
+ * disabled (all the functions are undefined and made into errors), while if
+ * PERLIO_NOT_STDIO is defined but false then co-existence is allowed.  See the
+ * "perlapio" manpage and comments in "perlsdio.h" in Perl 5.8.0 for more
+ * details on this.)  The original stdio functions should now properly be
  * accessed via the PerlSIO_*() macros.  Those macros did not exist under Perl
  * 5.6.x, so we provide suitable definitions for the two such macros that we
  * use, namely, PerlSIO_fclose() and PerlSIO_fileno.  (The lowio functions
  * should similarly be accessed via the PerlLIO_*() macros.  Those macros are
  * available in Perl 5.6.x anyway so we do not need to worry about the
  * PerlLIO_close() and PerlLIO_setmode() macros that we use.)
+ *
  * The definitions that we have provided here for PerlIO_importFILE(),
  * PerlSIO_fclose() and PerlSIO_fileno() under Perl 5.6.x are based on the
  * assumption that PerlIO _is_ the original stdio.  While this is essentially
- * the case, it is not quite literally true when PERL_IMPLICIT_SYS is defined,
- * and the compiler will produce various warnings about "incompatible types -
- * from 'struct _iobuf *' to 'struct _PerlIO *'" (i.e. from 'FILE *' to
- * 'PerlIO *').  To silence these warnings we also define a 'PerlIO' to be a
- * 'FILE' in that case.  This is the same definition that is provided by
- * "perlsdio.h" in the case where PERL_IMPLICIT_SYS is not defined.
+ * the case under Perl 5.6.x, it is not quite literally true when
+ * PERL_IMPLICIT_SYS is defined, and the compiler will produce various warnings
+ * about "incompatible types - from 'struct _iobuf *' to 'struct _PerlIO *'"
+ * (i.e. from 'FILE *' to 'PerlIO *').  To silence these warnings we have
+ * defined a 'PerlIO' to be a 'FILE' in that case.  This definition, which is
+ * the same as that provided by "perlsdio.h" in the case where PERL_IMPLICIT_SYS
+ * is not defined, is placed above, *before* including the Perl header files so
+ * that all the PerlIO functions are effectively declared to use 'FILE *'s.
+ *
  * See the exchanges between myself and Nick Ing-Simmons on the "perl-xs"
- * mailing list, 20-24 Jan 2003, for more details on all of this.             */
+ * mailing list, 20-24 Jan 2003, for more details on all of this. */
 
-#include "patchlevel.h"                 /* Get the version numbers first.     */
-
-#if PERL_REVISION == 5
-#  if PERL_VERSION == 6
-#    if PERL_SUBVERSION == 0
-#      define IoTYPE_RDONLY '<'
-#      define IoTYPE_WRONLY '>'
-#      define IoTYPE_RDWR   '+'
-#      define IoTYPE_APPEND 'a'
-#    endif
-#    ifdef PERL_IMPLICIT_SYS
-#      define PerlIO FILE
-#      define PerlIO_importFILE(f, fl) (f)
-#    endif
-#    define PerlSIO_fclose(f) fclose(f)
-#    define PerlSIO_fileno(f) fileno(f)
-#  elif PERL_VERSION > 6
-#    define PERLIO_NOT_STDIO 0
+#if(PERL_REVISION == 5 && PERL_VERSION == 6)
+#  if PERL_SUBVERSION == 0
+#    define IoTYPE_RDONLY '<'
+#    define IoTYPE_WRONLY '>'
+#    define IoTYPE_RDWR   '+'
+#    define IoTYPE_APPEND 'a'
 #  endif
+#  ifdef PERL_IMPLICIT_SYS
+#    define PerlIO_importFILE(f, fl) (f)
+#  endif
+#  define PerlSIO_fclose(f) fclose(f)
+#  define PerlSIO_fileno(f) fileno(f)
 #endif
 
-#include "EXTERN.h"
-#include "perl.h"
-#include "XSUB.h"
-#include "const-c.inc"
+#define MY_CXT_KEY "Win32::SharedFileOpen::_guts" XS_VERSION
 
-static int   _saved_errno;
-static DWORD _saved_error;
-#define SAVE_ERRS    STMT_START { \
-    _saved_errno = errno; _saved_error = GetLastError(); \
+typedef struct {
+    int saved_errno;
+} my_cxt_t;
+
+START_MY_CXT
+
+/* Macro to save and restore the value of the standard C library errno variable
+ * for use when cleaning up before returning failure. */
+#define WIN32_SHAREDFILEOPEN_SAVE_ERR    STMT_START { \
+    MY_CXT.saved_errno = errno;                       \
 } STMT_END
-#define RESTORE_ERRS STMT_START { \
-    errno = _saved_errno; SetLastError(_saved_error); \
+#define WIN32_SHAREDFILEOPEN_RESTORE_ERR STMT_START { \
+    errno = MY_CXT.saved_errno;                       \
 } STMT_END
 
-#define _SYS_ERR_STR (strerror(errno))
-#define _WIN_ERR_STR (_StrWinError(aTHX_ GetLastError()))
+#define WIN32_SHAREDFILEOPEN_SYS_ERR_STR (strerror(errno))
 
-static const char *_OFlagToBinMode(int oflag);
-static const char *_ModeToBinMode(const char *mode);
-static char _ModeToType(const char *mode);
-static void _StorePerlIO(pTHX_ SV *fh, PerlIO **pio_fp, const char *mode);
-static char *_StrWinError(pTHX_ DWORD err_num);
-static bool _Debug(pTHX);
+static const char *Win32SharedFileOpen_OFlagToBinMode(int oflag);
+static const char *Win32SharedFileOpen_ModeToBinMode(const char *mode);
+static char Win32SharedFileOpen_ModeToType(const char *mode);
+static void Win32SharedFileOpen_StorePerlIO(pTHX_ SV *fh, PerlIO **pio_fp,
+    const char *mode);
+static void Win32SharedFileOpen_SetErrStr(pTHX_ const char *value, ...);
 
 /*
  * Function to convert an oflag understood by C lowio-level open functions to a
@@ -139,8 +164,7 @@ static bool _Debug(pTHX);
  * mode character appended.
  */
 
-static const char *_OFlagToBinMode(int oflag)
-{
+static const char *Win32SharedFileOpen_OFlagToBinMode(int oflag) {
     const char *binmode;
 
     /* Note: We cannot check for the O_RDONLY bit being set in oflag because
@@ -164,8 +188,7 @@ static const char *_OFlagToBinMode(int oflag)
  * into "binary" mode.
  */
 
-static const char *_ModeToBinMode(const char *mode)
-{
+static const char *Win32SharedFileOpen_ModeToBinMode(const char *mode) {
     const char *binmode;
 
     if (strchr(mode, 'r') != NULL)
@@ -185,8 +208,7 @@ static const char *_ModeToBinMode(const char *mode)
  * to an integer type as defined in the Perl header file "sv.h".
  */
 
-static char _ModeToType(const char *mode)
-{
+static char Win32SharedFileOpen_ModeToType(const char *mode) {
     if (strchr(mode, '+') != NULL)
         return IoTYPE_RDWR;
     else if (strchr(mode, 'r') != NULL)
@@ -205,7 +227,8 @@ static char _ModeToType(const char *mode)
  * Creates the IO member if it does not already exist.
  */
 
-static void _StorePerlIO(pTHX_ SV *fh, PerlIO **pio_fp, const char *mode)
+static void Win32SharedFileOpen_StorePerlIO(pTHX_ SV *fh, PerlIO **pio_fp,
+    const char *mode)
 {
     IO *io;
     char type;
@@ -215,7 +238,7 @@ static void _StorePerlIO(pTHX_ SV *fh, PerlIO **pio_fp, const char *mode)
     io = GvIOn((GV *)SvRV(fh));
 
     /* Convert the stdio mode string to a type understood by Perl. */
-    if ((type = _ModeToType(mode)) == -1) {
+    if ((type = Win32SharedFileOpen_ModeToType(mode)) == -1) {
         PerlIO_close(*pio_fp);
         croak("Unknown mode '%s'", mode);
     }
@@ -253,60 +276,20 @@ static void _StorePerlIO(pTHX_ SV *fh, PerlIO **pio_fp, const char *mode)
 }
 
 /*
- * Function to get a message string for the given Win32 API last-error code.
- * Returns a pointer to a buffer containing the string.
- * Note that the buffer is a function-static variable so subsequent calls to
- * this function will overwrite the string.
- *
- * This function is based on Perl's win32_str_os_error() function.
+ * Function to set the Perl module's $ErrStr variable to the given value.
  */
 
-static char *_StrWinError(pTHX_ DWORD err_num) {
-    static char _err_str[BUFSIZ];
-    char *err_str;
-    DWORD len;
+static void Win32SharedFileOpen_SetErrStr(pTHX_ const char *value, ...) {
+    va_list args;
 
-    len = FormatMessage(FORMAT_MESSAGE_ALLOCATE_BUFFER |
-        FORMAT_MESSAGE_IGNORE_INSERTS | FORMAT_MESSAGE_FROM_SYSTEM, NULL,
-        err_num, 0, (char *)&err_str, 1, NULL);
-
-    if (len > 0) {
-        /* Remove the trailing newline (and any other whitespace).  Note that
-         * the len returned by FormatMessage() does not include the null-
-         * terminator, so decrement len by one immediately. */
-        do {
-            --len;
-        } while (len > 0 && isSPACE(err_str[len]));
-
-        /* Increment len by one unless the last character is a period, and then
-         * add a null-terminator, so that any trailing peiod is also removed. */
-        if (err_str[len] != '.')
-            ++len;
-
-        err_str[len] = '\0';
-    }
-
-    if (len == 0) {
-        sprintf(_err_str, "Unknown error #0x%lX", err_num);
-    }
-    else {
-        strncpy(_err_str, err_str, sizeof(_err_str) - 1);
-        _err_str[len] = '\0';
-        LocalFree(err_str);
-    }
-
-    return _err_str;
+    /* Get the Perl module's $ErrStr variable and set an appropriate value in
+     * it. */
+    va_start(args, value);
+    sv_vsetpvf(get_sv("Win32::SharedFileOpen::ErrStr", TRUE), value, &args);
+    va_end(args);
 }
 
-/*
- * Function to retrieve the Perl module's $Debug variable.
- */
-
-static bool _Debug(pTHX) {
-    /* Get the Perl module's global $Debug variable and coerce it into a
-     * bool. */
-    return SvTRUE(get_sv("Win32::SharedFileOpen::Debug", FALSE));
-}
+/*============================================================================*/
 
 MODULE = Win32::SharedFileOpen PACKAGE = Win32::SharedFileOpen     
 
@@ -318,6 +301,18 @@ PROTOTYPES:   ENABLE
 VERSIONCHECK: ENABLE
 
 INCLUDE: const-xs.inc
+
+BOOT:
+{
+    MY_CXT_INIT;
+}
+
+void
+CLONE(...)
+    PPCODE:
+    {
+        MY_CXT_CLONE;
+    }
 
 # Version 3.00 of this module had a bug whereby under Perl 5.8.0, if a file was
 # opened in "text" mode by fsopen() then it could not subsequently be changed to
@@ -376,27 +371,31 @@ _fsopen(fh, file, mode, shflag)
 
     PPCODE:
     {
+        dMY_CXT;
         FILE *fp;
         const char *binmode;
         PerlIO *pio_fp;
 
         /* Call the MSVC function _fsopen() to get a C file stream. */
-        fp = _fsopen(file, mode, shflag);
-
-        if (fp != Null(FILE *)) {
+        if ((fp = _fsopen(file, mode, shflag)) != Null(FILE *)) {
             /* Set the C file stream into "binary" mode if it wasn't opened that
              * way already.  (See comments above for why.) */
             if (strchr(mode, 'b') == NULL) {
                 if (PerlLIO_setmode(PerlSIO_fileno(fp), O_BINARY) == -1) {
-                    if (_Debug(aTHX))
-                        warn("Can't set binary mode on C file stream for file "
-                             "'%s': %s", file, _SYS_ERR_STR);
+                    Win32SharedFileOpen_SetErrStr(aTHX_
+                        "Can't set binary mode on C file descriptor for file "
+                        "'%s': %s", file, WIN32_SHAREDFILEOPEN_SYS_ERR_STR
+                    );
+                    WIN32_SHAREDFILEOPEN_SAVE_ERR;
+                    PerlSIO_fclose(fp);
+                    WIN32_SHAREDFILEOPEN_RESTORE_ERR;
+                    XSRETURN_EMPTY;
                 }
             }
 
             /* Convert the stdio mode string to a stdio mode string in "binary"
              * mode. */
-            if ((binmode = _ModeToBinMode(mode)) == NULL) {
+            if ((binmode = Win32SharedFileOpen_ModeToBinMode(mode)) == NULL) {
                 PerlSIO_fclose(fp);
                 croak("Unknown mode '%s'", mode);
             }
@@ -404,36 +403,29 @@ _fsopen(fh, file, mode, shflag)
             /* Call the Perl API function PerlIO_importFILE() to get a PerlIO
              * file stream.  Use the new "binary" mode string to be sure that it
              * is still in "binary" mode. */
-            pio_fp = PerlIO_importFILE(fp, binmode);
-
-            if (pio_fp != Nullfp) {
+            if ((pio_fp = PerlIO_importFILE(fp, binmode)) != Nullfp) {
                 /* Store the PerlIO file stream in the IO member of the supplied
                  * glob (i.e. the Perl filehandle (or indirect filehandle)
                  * passed to us). */
-                _StorePerlIO(aTHX_ fh, &pio_fp, binmode);
-
+                Win32SharedFileOpen_StorePerlIO(aTHX_ fh, &pio_fp, binmode);
                 XSRETURN_YES;
             }
             else {
-                if (_Debug(aTHX))
-                    warn("Can't get PerlIO file stream from C file stream for "
-                         "file '%s'", file);
-
-                /* Close the C file stream before returning, making sure that we
-                 * don't affect the value of either the standard C library errno
-                 * variable or the Win32 API last-error code. */
-                SAVE_ERRS;
+                Win32SharedFileOpen_SetErrStr(aTHX_
+                    "Can't get PerlIO file stream from C file stream for file "
+                    "'%s'", file
+                );
+                WIN32_SHAREDFILEOPEN_SAVE_ERR;
                 PerlSIO_fclose(fp);
-                RESTORE_ERRS;
-
+                WIN32_SHAREDFILEOPEN_RESTORE_ERR;
                 XSRETURN_EMPTY;
             }
         }
         else {
-            if (_Debug(aTHX))
-                warn("Can't open file '%s' in mode '%s' with share flag '%d': "
-                     "%s", file, mode, shflag, _SYS_ERR_STR);
-
+            Win32SharedFileOpen_SetErrStr(aTHX_
+                "Can't open C file stream for file '%s': %s",
+                file, WIN32_SHAREDFILEOPEN_SYS_ERR_STR
+            );
             XSRETURN_EMPTY;
         }
     }
@@ -452,14 +444,14 @@ _sopen(fh, file, oflag, shflag, ...)
 
     PPCODE:
     {
-        int pmode;
+        dMY_CXT;
         int fd;
         const char *binmode;
         PerlIO *pio_fp;
 
         /* Call the MSVC function _sopen() to get a C file descriptor. */
         if (items > 4) {
-            pmode = SvIV(ST(4));
+            int pmode = SvIV(ST(4));
             fd = _sopen(file, oflag, shflag, pmode);
         }
         else {
@@ -471,49 +463,47 @@ _sopen(fh, file, oflag, shflag, ...)
              * that way already.  (See comments above _fsopen() for why.) */
             if (!(oflag & O_BINARY)) {
                 if (PerlLIO_setmode(fd, O_BINARY) == -1) {
-                    if (_Debug(aTHX))
-                        warn("Can't set binary mode on C file stream for file "
-                             "'%s': %s", file, _SYS_ERR_STR);
+                    Win32SharedFileOpen_SetErrStr(aTHX_
+                        "Can't set binary mode on C file descriptor for file "
+                        "'%s': %s", file, WIN32_SHAREDFILEOPEN_SYS_ERR_STR
+                    );
+                    WIN32_SHAREDFILEOPEN_SAVE_ERR;
+                    PerlLIO_close(fd);
+                    WIN32_SHAREDFILEOPEN_RESTORE_ERR;
+                    XSRETURN_EMPTY;
                 }
             }
 
             /* Convert the lowio oflag to a stdio mode string in "binary"
              * mode. */
-            binmode = _OFlagToBinMode(oflag);
+            binmode = Win32SharedFileOpen_OFlagToBinMode(oflag);
 
             /* Call the Perl API function PerlIO_fdopen() to get a PerlIO file
              * stream.  Use the new "binary" mode string to be sure that it is
              * still in "binary" mode. */
-            pio_fp = PerlIO_fdopen(fd, binmode);
-
-            if (pio_fp != Nullfp) {
+            if ((pio_fp = PerlIO_fdopen(fd, binmode)) != Nullfp) {
                 /* Store the PerlIO file stream in the IO member of the supplied
                  * glob (i.e. the Perl filehandle (or indirect filehandle)
                  * passed to us). */
-                _StorePerlIO(aTHX_ fh, &pio_fp, binmode);
-
+                Win32SharedFileOpen_StorePerlIO(aTHX_ fh, &pio_fp, binmode);
                 XSRETURN_YES;
             }
             else {
-                if (_Debug(aTHX))
-                    warn("Can't get PerlIO file stream from C file descriptor "
-                         "for file '%s': %s", file, _SYS_ERR_STR);
-
-                /* Close the C file descriptor before returning, making sure
-                 * that we don't affect the value of either the standard C
-                 * library errno variable or the Win32 API last-error code. */
-                SAVE_ERRS;
+                Win32SharedFileOpen_SetErrStr(aTHX_
+                    "Can't get PerlIO file stream from C file descriptor for "
+                    "file '%s': %s", file, WIN32_SHAREDFILEOPEN_SYS_ERR_STR
+                );
+                WIN32_SHAREDFILEOPEN_SAVE_ERR;
                 PerlLIO_close(fd);
-                RESTORE_ERRS;
-
+                WIN32_SHAREDFILEOPEN_RESTORE_ERR;
                 XSRETURN_EMPTY;
             }
         }
         else {
-            if (_Debug(aTHX))
-                warn("Can't open file '%s' in mode '%d' with share flag '%d': "
-                     "%s", file, oflag, shflag, _SYS_ERR_STR);
-
+            Win32SharedFileOpen_SetErrStr(aTHX_
+                "Can't open C file descriptor for file '%s': %s",
+                file, WIN32_SHAREDFILEOPEN_SYS_ERR_STR
+            );
             XSRETURN_EMPTY;
         }
     }

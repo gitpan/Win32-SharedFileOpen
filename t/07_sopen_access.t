@@ -4,7 +4,7 @@
 # t/07_sopen_access.t
 #
 # DESCRIPTION
-#   Test program to check sopen() access modes.
+#   Test script to check sopen() access modes.
 #
 # COPYRIGHT
 #   Copyright (c) 2001-2004, Steve Hay.  All rights reserved.

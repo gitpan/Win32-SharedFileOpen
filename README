@@ -1,6 +1,6 @@
 ________________________________________________________________________________
 
-                      Win32::SharedFileOpen, Version 3.19
+                      Win32::SharedFileOpen, Version 3.30
 ________________________________________________________________________________
 
 NAME
@@ -10,32 +10,32 @@ NAME
 SYNOPSIS
 
     # Open files a la C fopen()/Perl open(), but with mandatory file locking:
-    use Win32::SharedFileOpen;
+    use Win32::SharedFileOpen qw(:DEFAULT $ErrStr);
     fsopen(FH1, 'readme', 'r', SH_DENYWR) or
-        die "Can't read 'readme' and take write-lock: $^E\n";
+        die "Can't read 'readme' and take write-lock: $ErrStr\n";
     fsopen(FH2, 'writeme', 'w', SH_DENYRW) or
-        die "Can't write 'writeme' and take read/write-lock: $^E\n";
+        die "Can't write 'writeme' and take read/write-lock: $ErrStr\n";
 
     # Open files a la C open()/Perl sysopen(), but with mandatory file locking:
-    use Win32::SharedFileOpen;
+    use Win32::SharedFileOpen qw(:DEFAULT $ErrStr);
     sopen(FH1, 'readme', O_RDONLY, SH_DENYWR) or
-        die "Can't read 'readme' and take write-lock: $^E\n";
+        die "Can't read 'readme' and take write-lock: $ErrStr\n";
     sopen(FH2, 'writeme', O_WRONLY | O_CREAT | O_TRUNC, SH_DENYRW, S_IWRITE) or
-        die "Can't write 'writeme' and take read/write-lock: $^E\n";
+        die "Can't write 'writeme' and take read/write-lock: $ErrStr\n";
 
     # Retry opening the file if it fails due to a sharing violation:
-    use Win32::SharedFileOpen qw(:DEFAULT :retry);
+    use Win32::SharedFileOpen qw(:DEFAULT :retry $ErrStr);
     $Max_Time      = 10;    # Try opening the file for up to 10 seconds
     $Retry_Timeout = 500;   # Wait 500 milliseconds between each try
     fsopen(FH, 'readme', 'r', SH_DENYNO) or
-        die "Can't read 'readme' after retrying for $Max_Time seconds: $^E\n";
+        die "Can't read 'readme' after retrying for $Max_Time secs: $ErrStr\n";
 
     # Use a lexical indirect filehandle that closes itself when destroyed:
-    use Win32::SharedFileOpen qw(:DEFAULT new_fh);
+    use Win32::SharedFileOpen qw(:DEFAULT new_fh $ErrStr);
     {
         my $fh = new_fh();
         fsopen($fh, 'readme', 'r', SH_DENYNO) or
-            die "Can't read 'readme': $^E\n";
+            die "Can't read 'readme': $ErrStr\n";
         while (<$fh>) {
             # ... Do some stuff ...
         }
@@ -75,8 +75,8 @@ COPYRIGHT
 
 LICENCE
 
-    This module is free software; you can redistribute it and/or modify it under
-    the same terms as Perl itself, i.e. under the terms of either the GNU
+    This distribution is free software; you can redistribute it and/or modify it
+    under the same terms as Perl itself, i.e. under the terms of either the GNU
     General Public License or the Artistic License, as specified in the LICENCE
     file.
 ________________________________________________________________________________

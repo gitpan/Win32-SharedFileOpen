@@ -4,7 +4,7 @@
 # t/04_fsopen_fh_arg.t
 #
 # DESCRIPTION
-#   Test program to check fsopen()'s filehandle argument.
+#   Test script to check fsopen()'s filehandle argument.
 #
 # COPYRIGHT
 #   Copyright (c) 2002-2004, Steve Hay.  All rights reserved.

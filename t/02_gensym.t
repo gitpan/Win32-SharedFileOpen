@@ -4,7 +4,7 @@
 # t/02_gensym.t
 #
 # DESCRIPTION
-#   Test program to check gensym().
+#   Test script to check gensym().
 #
 # COPYRIGHT
 #   Copyright (c) 2001-2004, Steve Hay.  All rights reserved.

@@ -1,9 +1,44 @@
 ________________________________________________________________________________
 
-                      Win32::SharedFileOpen, Version 3.19
+                      Win32::SharedFileOpen, Version 3.30
 ________________________________________________________________________________
 
 Revision history for Perl extension Win32::SharedFileOpen.
+_________________
+
+v3.30 31 Oct 2004
+
+    - Removed $Debug variable and introduced new $ErrStr variable.
+
+      Instead of callers having no clue as to why a function failed unless an
+      error happens to be in $! and/or $^E or they had $Debug set to a true
+      value, they can now inspect the $ErrStr variable to obtain the reason for
+      the failure, much like the use of $! and $^E themselves, except that
+      $ErrStr will always be set when a function fails, even if the last error
+      did not relate to a system call or Win32 API call.
+
+      Note that $! and/or $^E will continue to be set as well wherever they were
+      previously being set, so existing code that inspects those variables will
+      not be affected.  Callers should simply consider inspecting $ErrStr
+      instead in the future.
+
+      The only backwards compatibility issue here is the removal of the $Debug
+      variable, which is unlikely to affect most production systems.
+
+    - Updated documentation and tests for these changes.
+
+    - Renamed some functions and macros in the XS and C code to use names that
+      are more likely to be unique to this code, namely Win32SharedFileOpen_*()
+      for functions and WIN32_SHAREDFILEOPEN_* for macros.
+
+    - Introduced use of *MY_CXT* macros etc for handling static data in the C
+      code to make the module thread-safe.
+
+    - Reinstated ppport.h to provide *MY_CXT* macros etc for Perls older than
+      5.7.3 (or 5.9.2 in the case of MY_CXT_CLONE).
+
+    - Updated Module::Install and ExtUtils::AutoInstall components from versions
+      0.36 and 0.61 of those distributions respectively.
 _________________
 
 v3.19 08 Aug 2004

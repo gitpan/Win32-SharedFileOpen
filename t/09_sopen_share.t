@@ -4,7 +4,7 @@
 # t/09_sopen_share.t
 #
 # DESCRIPTION
-#   Test program to check sopen() share modes.
+#   Test script to check sopen() share modes.
 #
 # COPYRIGHT
 #   Copyright (c) 2001-2004, Steve Hay.  All rights reserved.

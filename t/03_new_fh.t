@@ -4,7 +4,7 @@
 # t/03_new_fh.t
 #
 # DESCRIPTION
-#   Test program to check new_fh().
+#   Test script to check new_fh().
 #
 # COPYRIGHT
 #   Copyright (c) 2001-2004, Steve Hay.  All rights reserved.
