@@ -1,0 +1,15 @@
+________________________________________________________________________________
+
+Revision history for Perl extension Win32::SharedFileOpen.
+_________________
+
+v1.00 13 Aug 2001
+
+	- First released version.
+_________________
+
+v0.01 02 Jun 2001
+
+	- Original version; created by h2xs 1.21 with options:
+	  -n Win32::SharedFileOpen
+________________________________________________________________________________

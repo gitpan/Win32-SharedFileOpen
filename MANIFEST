@@ -1,0 +1,12 @@
+Changes
+Makefile.PL
+MANIFEST
+README
+SharedFileOpen.pm
+SharedFileOpen.xs
+t/01constant.t
+t/02fsopen_access.t
+t/03sopen_access.t
+t/04fsopen_share.t
+t/05sopen_share.t
+typemap
