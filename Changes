@@ -3,6 +3,16 @@ ________________________________________________________________________________
 Revision history for Perl extension Win32::SharedFileOpen.
 _________________
 
+v3.14 31 Jul 2003
+
+	- Preload some ERROR_* constants that our use()'rs might need otherwise the
+	  value of $ gets interfered with when they are autoloaded by
+	  Win32::WinError in libwin32-0.191 and earlier when using debug builds of
+	  Perl.
+
+	- Added META.yml (courtesy of ExtUtils::MakeMaker 6.12).
+_________________
+
 v3.13 28 May 2003
 
 	- Regenerated constant() and AUTOLOAD() using h2xs 1.22 with options:

@@ -245,7 +245,7 @@ INCLUDE: const-xs.inc
 # This behaviour is a characteristic of PerlIO_importFILE(): the "PerlIO *"
 # created by it potentially has a "text" mode base layer, when perhaps it would
 # be better to always have a "binary" mode base layer with a "text" mode layer
-# pushed on top if appropriate. Perl 5.8.1 may be changed to operate this way,
+# pushed on top if appropriate. Later Perls may be changed to operate this way,
 # but in order to get this working with Perl 5.8.0 we employ exactly that
 # strategy here: thus, fsopen() has been modified to *always* set the "FILE *"
 # to "binary" mode *before* it is imported into the "PerlIO *", and then push a

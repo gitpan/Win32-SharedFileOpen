@@ -17,7 +17,14 @@ use Carp;
 use Exporter qw();
 use Symbol;
 use Win32;
-use Win32::WinError qw(ERROR_SHARING_VIOLATION);
+use Win32::WinError qw(
+	ERROR_ACCESS_DENIED
+	ERROR_SHARING_VIOLATION
+	ERROR_FILE_EXISTS
+	ERROR_ENVVAR_NOT_FOUND
+	ERROR_TOO_MANY_OPEN_FILES
+	ERROR_FILE_NOT_FOUND
+);
 use XSLoader qw();
 
 sub fsopen(*$$$);
@@ -30,7 +37,15 @@ BEGIN {
 	# the value of $! (which we might also want to test) because the constant is
 	# autoloaded by Win32::WinError and the AUTOLOAD() subroutine in that module
 	# resets $! in the versions included in libwin32-0.18 and earlier.
-	my $dummy = ERROR_SHARING_VIOLATION;
+	# Likewise preload some other ERROR_* constants that our use()'rs might need
+	# otherwise loading them later can similarly interfere with the value of $
+	# in libwin32-0.191 and earlier with debug builds of Perl.
+	ERROR_ACCESS_DENIED;
+	ERROR_SHARING_VIOLATION;
+	ERROR_FILE_EXISTS;
+	ERROR_ENVVAR_NOT_FOUND;
+	ERROR_TOO_MANY_OPEN_FILES;
+	ERROR_FILE_NOT_FOUND;
 }
 
 our @ISA = qw(Exporter);
@@ -88,7 +103,7 @@ Exporter::export_tags(qw(oflags pmodes shflags));
 
 Exporter::export_ok_tags(qw(retry));
 
-our $VERSION = '3.13';
+our $VERSION = '3.14';
 
 # Debug setting. (0 = No debug, 1 = summary of what fsopen() or sopen() did, 2 =
 # additional information revealing exactly what failed.)
@@ -850,9 +865,9 @@ The default value is 250, i.e. wait for one quarter of a second between tries.
 The following diagnostic messages may be produced by this module. They are
 classified as follows (a la L<perldiag>):
 
-	(W) A warning
-	(F) A fatal error
-	(I) An internal error that you should never see
+	(W) A warning (optional).
+	(F) A fatal error (trappable).
+	(I) An internal error that you should never see (trappable).
 
 =over 4
 
@@ -1459,9 +1474,9 @@ Some of the XS code used in the re-write for version 3.00 is based on that in
 the standard library module VMS::Stdio (version 2.3).
 
 Thanks to Nick Ing-Simmons for help in getting this XS to build under different
-flavours of Perl (Perl 5.6.0, 5.6.1 and 5.8.0, both with and without
-PERL_IMPLICIT_CONTEXT and/or PERL_IMPLICIT_SYS enabled, are all now supported),
-and for help in fixing a text mode/binary mode bug in the fsopen() function.
+flavours of Perl (all "stable" Perls from 5.6.0 onwards, both with and without
+PERL_IMPLICIT_CONTEXT and/or PERL_IMPLICIT_SYS enabled, are now supported), and
+for help in fixing a text mode/binary mode bug in the fsopen() function.
 
 =head1 AUTHOR
 
@@ -1476,12 +1491,12 @@ the same terms as Perl itself.
 
 =head1 VERSION
 
-Win32::SharedFileOpen, Version 3.13
+Win32::SharedFileOpen, Version 3.14
 
 =head1 HISTORY
 
 See the file F<Changes> in the original distribution archive,
-F<Win32-SharedFileOpen-3.13.tar.gz>.
+F<Win32-SharedFileOpen-3.14.tar.gz>.
 
 =cut
 

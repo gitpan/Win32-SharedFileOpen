@@ -1,6 +1,7 @@
 Changes
 Makefile.PL
 MANIFEST
+META.yml
 ppport.h
 README
 SharedFileOpen.pm
