@@ -1,9 +1,21 @@
 ________________________________________________________________________________
 
-                      Win32::SharedFileOpen, Version 3.18
+                      Win32::SharedFileOpen, Version 3.19
 ________________________________________________________________________________
 
 Revision history for Perl extension Win32::SharedFileOpen.
+_________________
+
+v3.19 08 Aug 2004
+
+    - Added a note to the INSTALL file that if possible the same compiler should
+      be used to build this module as was used to build Perl itself.
+
+      This module does not function correctly when built using the free Visual
+      C++ Toolkit 2003 compiler in conjunction with a Perl (e.g. ActivePerl
+      Build 810) that was built using Visual C++ 6.0.  (Passing CRT resources
+      between the msvcr71.dll and msvcrt.dll C runtime libraries used by those
+      compilers respectively doesn't work.)
 _________________
 
 v3.18 01 Aug 2004

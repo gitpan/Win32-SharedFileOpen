@@ -100,7 +100,7 @@ BEGIN {
     
     Exporter::export_ok_tags(qw(retry));
     
-    $VERSION = '3.18';
+    $VERSION = '3.19';
 
     # Get the ERROR_SHARING_VIOLATION constant loaded now otherwise loading it
     # later the first time that we test for an error can actually interfere with
@@ -1417,6 +1417,12 @@ F<http://rt.cpan.org/NoAuth/ReportBug.html?Queue=Win32-SharedFileOpen>.
 Open bugs on the CPAN Request Tracker can be viewed at
 F<http://rt.cpan.org/NoAuth/Bugs.html?Dist=Win32-SharedFileOpen>.
 
+Please test this distribution.  See CPAN Testers at F<http://testers.cpan.org/>
+for details of how to get involved.
+
+Previous test results on CPAN Testers can be viewed at
+F<http://testers.cpan.org/search?request=dist&dist=Win32-SharedFileOpen>.
+
 Please rate this distribution on CPAN Ratings at
 F<http://cpanratings.perl.org/rate/?distribution=Win32-SharedFileOpen>.
 
@@ -1480,11 +1486,11 @@ License or the Artistic License, as specified in the F<LICENCE> file.
 
 =head1 VERSION
 
-Win32::SharedFileOpen, Version 3.18
+Win32::SharedFileOpen, Version 3.19
 
 =head1 DATE
 
-01 Aug 2004
+08 Aug 2004
 
 =head1 HISTORY
 
