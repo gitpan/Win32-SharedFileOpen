@@ -3,6 +3,18 @@ ________________________________________________________________________________
 Revision history for Perl extension Win32::SharedFileOpen.
 _________________
 
+v2.00 27 May 2002
+
+	- Changed arguments and return values of fsopen() and sopen() to require a
+	  "filehandle" argument and simply return a boolean, rather than returning
+	  the filehandle opened.
+
+	- Updated documentation to reflect the changes made to fsopen() and sopen()
+	  and to document a serious flaw in fsopen() :-(
+
+	- Minor cosmetic changes.
+_________________
+
 v1.00 13 Aug 2001
 
 	- First released version.

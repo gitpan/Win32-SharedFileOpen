@@ -1,5 +1,5 @@
 #-------------------------------------------------------------------------------
-# Copyright (c)	2001, Steve Hay. All rights reserved.
+# Copyright (c)	2001-2002, Steve Hay. All rights reserved.
 #
 # Module Name:	Win32::SharedFileOpen
 # Source File:	SharedFileOpen.pm
@@ -18,9 +18,11 @@ use Carp;
 use DynaLoader	qw();
 use Errno;
 use Exporter	qw();
+use POSIX		qw();
+use Symbol;
 
-sub fsopen($$$);
-sub sopen($$$;$);
+sub fsopen(*$$$);
+sub sopen(*$$$;$);
 
 our @ISA = qw(Exporter DynaLoader);
 
@@ -39,10 +41,10 @@ our %EXPORT_TAGS = (	oflags	=> [qw(	O_APPEND O_BINARY O_CREAT O_EXCL
 						shflags	=> [qw(	SH_DENYNO SH_DENYRD SH_DENYRW
 										SH_DENYWR)]);
 
-our $VERSION = '1.00';
+our $VERSION = '2.00';
 
-# Debug setting. (0 = No debug, 1 = Warnings, 2 = Warnings and messages.)
-our $Debug = 1;
+# Boolean debug setting.
+our $Debug = 0;
 
 # Autoload the O_*, S_* and SH_* flags from the _constant() XS fuction.
 sub AUTOLOAD {
@@ -57,7 +59,7 @@ sub AUTOLOAD {
 	($constant = $AUTOLOAD) =~ s/^.*:://;
 
 	# Avoid deep recursion on AUTOLOAD() if _constant() is not defined.
-	croak('Unexpected error in autoloader: _constant() is not defined.')
+	croak('Unexpected error in autoloader: _constant() is not defined')
 		if $constant eq '_constant';
 
 	# Reset any current errors.
@@ -75,7 +77,7 @@ sub AUTOLOAD {
 		}
 		elsif ($!{ENOENT}) {
 			# The constant is one of ours, but is not defined in the C code.
-			croak("The symbol '$AUTOLOAD' is not defined on this system.");
+			croak("The symbol '$AUTOLOAD' is not defined on this system");
 		}
 		else {
 			croak("Unexpected error autoloading '$AUTOLOAD()': $!");
@@ -98,20 +100,29 @@ bootstrap Win32::SharedFileOpen $VERSION;
 # Public subroutines.
 #
 
-sub fsopen($$$) {
-	my(	$file,							# File to open
+sub fsopen(*$$$) {
+	my(	$fh,							# "Filehandle" to be opened
+		$file,							# File to open
 		$mode,							# Mode string specifying access mode
 		$shflag							# SH_* flag specifying sharing mode
 		) = @_;
 
 	my(	$fd,							# File descriptor opened
 		$name,							# Filename to effectively fdopen()
-		$fh								# Perl filehandle opened
+		$ret							# Return value from open()
 		);
+
+	croak("fsopen() can't use the undefined value as an indirect filehandle")
+		unless defined $fh;
 
 	$fd = _fsopen($file, $mode, $shflag);
 
 	if ($fd != -1) {
+		print STDERR "_fsopen() succeeded (file descriptor $fd).\n" if $Debug;
+
+		# Construct a name from this file descriptor that we can open() to get
+		# a Perl filehandle to return. This effectively fdopen()'s the file
+		# descriptor.
 		$name = "&=$fd";
 
 		# Inspect the $mode, which by now we know to be valid otherwise the C
@@ -123,17 +134,43 @@ sub fsopen($$$) {
 
 		if    ($mode =~ /\+$/) { $name = "+$name";  }
 
-		open $fh, $name;
+		# Make sure the "filehandle" argument supplied is fit for purpose.
+		$fh = qualify_to_ref($fh, caller);
 
-		return $fh;
+		$ret = open $fh, $name;
+
+		if (defined $ret and $ret != 0) {
+			print STDERR "open() on '$name' succeeded.\n" if $Debug;
+
+			return $ret;
+		}
+		else {
+			print STDERR "open() on '$name' failed ($!).\n" if $Debug;
+
+			# The open() above has failed but the _fsopen() succeeded, so we
+			# must close the file descriptor returned from _fsopen(). Don't try
+			# to fdopen() the file descriptor to get a Perl filehandle that we
+			# can close, because we just tried an fdopen() and that failed!
+			# Instead, use the lowio-level close() function in the POSIX module.
+			# Localise the OS error variables so that close() does not interfere
+			# with their values as seen by the caller.
+			local($!, $);
+			POSIX::close($fd) or
+				carp("fsopen() can't close file descriptor $fd: $!");
+
+			return;
+		}
 	}
 	else {
+		print STDERR "_fsopen() failed ($).\n" if $Debug;
+
 		return;
 	}
 }
 
-sub sopen($$$;$) {
-	my(	$file,							# File to open
+sub sopen(*$$$;$) {
+	my(	$fh,							# "Filehandle" to be opened
+		$file,							# File to open
 		$oflag,							# O_* flag specifying access mode
 		$shflag,						# SH_* flag specifying sharing mode
 		$pmode							# S_* flag specifying file permissions
@@ -141,10 +178,13 @@ sub sopen($$$;$) {
 
 	my(	$fd,							# File descriptor opened
 		$name,							# Filename to effectively fdopen()
-		$fh								# Perl filehandle opened
+		$ret							# Return value from open()
 		);
 
-	if (@_ > 3) {
+	croak("sopen() can't use the undefined value as an indirect filehandle")
+		unless defined $fh;
+
+	if (@_ > 4) {
 		$fd = _sopen($file, $oflag, $shflag, $pmode);
 	}
 	else {
@@ -152,15 +192,20 @@ sub sopen($$$;$) {
 	}
 
 	if ($fd != -1) {
+		print STDERR "_sopen() succeeded (file descriptor $fd).\n" if $Debug;
+
+		# Construct a name from this file descriptor that we can open() to get
+		# a Perl filehandle to return. This effectively fdopen()'s the file
+		# descriptor.
 		$name = "&=$fd";
 
 		# Inspect the $oflag, which by now we know to be valid otherwise the C
 		# function call above would have failed with ERROR_ENVVAR_NOT_FOUND.
 
 		# We cannot explicitly test for O_RDONLY because it is 0 on Microsoft
-		# Visual C (as is traditionally the case, according to "perlopentut"),
-		# i.e. there are no bits set to look for. Therefore assume O_RDONLY if
-		# neither O_WRONLY nor O_RDWR are set.
+		# Visual C (as is traditionally the case, according to the "perlopentut"
+		# manpage), i.e. there are no bits set to look for. Therefore assume
+		# O_RDONLY if neither O_WRONLY nor O_RDWR are set.
 		if ($oflag & O_WRONLY()) {
 			$name = ($oflag & O_APPEND()) ? ">>$name"  : ">$name";
 		}
@@ -171,11 +216,36 @@ sub sopen($$$;$) {
 			$name = "<$name";
 		}
 
-		open $fh, $name;
+		# Make sure the "filehandle" argument supplied is fit for purpose.
+		$fh = qualify_to_ref($fh, caller);
 
-		return $fh;
+		$ret = open $fh, $name;
+
+		if (defined $ret and $ret != 0) {
+			print STDERR "open() on '$name' succeeded.\n" if $Debug;
+
+			return $ret;
+		}
+		else {
+			print STDERR "open() on '$name' failed ($!).\n" if $Debug;
+
+			# The open() above has failed but the _sopen() succeeded, so we must
+			# close the file descriptor returned from _fsopen(). Don't try to
+			# fdopen() the file descriptor to get a Perl filehandle that we can
+			# close, because we just tried an fdopen() and that failed!
+			# Instead, use the lowio-level close() function in the POSIX module.
+			# Localise the OS error variables so that close() does not interfere
+			# with their values as seen by the caller.
+			local($!, $);
+			POSIX::close($fd) or
+				carp("sopen() can't close file descriptor $fd: $!");
+
+			return;
+		}
 	}
 	else {
+		print STDERR "_sopen() failed ($).\n" if $Debug;
+
 		return;
 	}
 }
@@ -197,19 +267,42 @@ Win32::SharedFileOpen - Open a file for shared reading and/or writing
 
 	use Win32::SharedFileOpen;
 
-	my $file = 'C:\\Path\\To\\file.txt';
+	# Open files for reading, denying write access to other processes.
+	fsopen(FH1, 'one.txt', 'r', SH_DENYWR) or
+			die "Cannot read 'one.txt' and take write-lock: $^E\n";
+	sopen(FH2, 'two.txt', O_RDONLY, SH_DENYWR) or
+			die "Cannot read 'two.txt' and take write-lock: $^E\n";
 
-	# Open a file with write-locking a la C fopen() / Perl open().
-	my $fh = fsopen($file, "r", SH_DENYWR) or
-			die "Cannot read '$file' and take write-lock: $!\n";
+	# Open files for writing, denying read and write access to other processes.
+	fsopen(FH3, 'three.txt', 'w', SH_DENYRW) or
+			die "Cannot write 'three.txt' and take read/write-lock: $^E\n";
+	sopen(FH4, 'four.txt', O_WRONLY | O_CREAT | O_TRUNC, SH_DENYRW, S_IWRITE) or
+			die "Cannot write 'four.txt' and take read/write-lock: $^E\n";
 
-	# or open a file with write-locking a la C open() / Perl sysopen().
-	my $fh = sopen($file, O_RDONLY, SH_DENYWR) or
-			die "Cannot read '$file' and take write-lock: $!\n";
+=head1 WARNING
 
-	# ... Do some stuff ...
+	*************************************************************************
+	* The fsopen() function in this module currently has a bug which causes *
+	* it to waste a filehandle every time it is called. Until this issue is *
+	* resolved, the sopen() function should generally be used instead.      *
+	* See the file WARNING-FSOPEN.TXT in the original distribution archive, *
+	* Win32-SharedFileOpen-2.00.tar.gz, for more details.                   *
+	*************************************************************************
 
-	close $fh;
+=head1 COMPATIBILITY
+
+Prior to version 2.00 of this module, C<fsopen()> and C<sopen()> both created a
+filehandle and returned it to the caller. (C<undef> was returned instead on
+failure.)
+
+As of version 2.00 of this module, the arguments and return values of these two
+functions now more closely resemble those of the Perl built-in functions
+C<open()> and C<sysopen()>. Specifically, they now both expect a filehandle or
+an indirect filehandle as their first argument and they both return a boolean
+value to indicate success or failure.
+
+B<THIS IS AN INCOMPATIBLE CHANGE. EXISTING SOFTWARE THAT USES THESE FUNCTIONS
+WILL NEED TO BE MODIFIED.>
 
 =head1 DESCRIPTION
 
@@ -221,75 +314,300 @@ are intended for use when opening a file for subsequent shared reading and/or
 writing.
 
 The C<_fsopen()> function, like C<fopen(3)>, takes a file and a "mode string"
-(e.g. C<"r"> or C<"w">) as arguments and opens the file as a stream, returning a
-pointer to a C<FILE> structure, while C<_sopen()>, like C<open(2)>, takes an
-"oflag" (e.g. O_RDONLY or O_WRONLY) argument instead of the "mode string" and
+(e.g. C<'r'> and C<'w'>) as arguments and opens the file as a stream, returning
+a pointer to a C<FILE> structure, while C<_sopen()>, like C<open(2)>, takes an
+"oflag" (e.g. C<O_RDONLY> and C<O_WRONLY>) instead of the "mode string" and
 returns an C<int> file descriptor (which the Microsoft documentation confusingly
-refers to a "file handle", not to be confused here with Perl "filehandles").
-(The C<_sopen()> and C<open(2)> functions also take another, optional, parameter
-specifying the permission settings of the file if it has just been created.)
+refers to as a C run-time "file handle", not to be confused here with a Perl
+"filehandle" (or indeed with the operating-system "file handle" returned by the
+C<CreateFile()> function!)). The C<_sopen()> and C<open(2)> functions also take
+another, optional, "pmode" argument (e.g. C<S_IREAD> and C<S_IWRITE>) specifying
+the permission settings of the file if it has just been created.
 
-The difference between each Microsoft-specific function and their standard
+The difference between the Microsoft-specific functions and their standard
 counterparts is that the Microsoft-specific functions also take an extra
-"shflag" argument which specifies how to prepare the file for subsequent shared
-reading and/or writing. This flag can be used to specify that either, both or
-neither of read access and write access will be denied to other processes
-sharing the file.
+"shflag" argument (e.g. C<SH_DENYRD> and C<SH_DENYWR>) which specifies how to
+prepare the file for subsequent shared reading and/or writing. This flag can be
+used to specify that either, both or neither of read access and write access
+will be denied to other processes sharing the file.
 
 This share access control is thus effectively a form a file-locking which,
 unlike C<flock(3)> and C<lockf(3)> and their corresponding Perl function
-L<C<flock()>|perlfunc/flock>, is I<mandatory> rather than just I<advisory>. This
-means that if, for example, you "deny read access" to the file that you have
-opened then no other process will be able to read that file while you still have
-it open, whether or not they are playing the same ball game as you. They cannot
-gain read access to it by simply not honouring the same file opening/locking
-scheme as you.
+C<flock()>, is I<mandatory> rather than just I<advisory>. This means that if,
+for example, you "deny read access" to the file that you have opened then no
+other process will be able to read that file while you still have it open,
+whether or not they are playing the same ball game as you. They cannot gain read
+access to it by simply not honouring the same file opening/locking scheme as
+you.
 
-This module provides straightforward Perl "wrapper" functions for both of these
-Microsoft C functions, maintaining the same formal parameters, but altering the
-return values of both to be Perl filehandles. The file stream returned by
-C<_fsopen()> is converted to an C<int> file descriptor by calling C<fileno()>;
-this, and the file descriptor returned by C<_sopen()>, is then effectively
-C<fdopen(3)>'d in Perl to yield a Perl filehandle.
+This module provides straightforward Perl "wrapper" functions, C<fsopen()> and
+C<sopen()>, for both of these Microsoft Visual C functions (with the leading "_"
+character removed from their names). These Perl functions maintain the same
+formal parameters as the original C functions, except for the addition of an
+initial filehandle parameter like the Perl built-in functions C<open()> and
+C<sysopen()> have. This is used to make the Perl filehandle opened available to
+the caller (rather than using the functions' return values, which are now simple
+Booleans to indicate success or failure).
+
+The value passed to the functions in this first parameter can be a
+straight-forward filehandle (C<FH>) or any of the following: a typeglob (either
+a named typeglob like C<*FH>, or an anonymous typeglob (e.g. from
+C<Symbol::gensym()>) in a scalar variable); a reference to a typeglob (either a
+hard reference like C<\*FH>, or a name like C<'FH'> to be used as a symbolic
+reference to a typeglob in the caller's package); or a suitable IO object (e.g.
+an instance of IO::Handle, IO::File or FileHandle). These functions, however, do
+not have the ability of C<open()> and C<sysopen()> to auto-vivify the undefined
+scalar value into something that can be used as a filehandle, so calls like
+"C<fsopen(my $fh, ...)>" will C<croak()> with a message to this effect.
 
 The "oflags" and "shflags", as well as the "pmode" flags used by C<_sopen()>,
 are all made available to Perl by this module, and are all exported by default.
 Clearly this module will only build using Microsoft Visual C, so only the flags
 known to that system [as of version 6.0] are exported, rather than re-exporting
-all of the O_* and S_I* flags from the Fcntl module like, for example, IO::File
-does. In any case, Fcntl does not know about the Microsoft-specific
-_O_SHORT_LIVED flag, nor any of the _SH_* flags. These Microsoft-specific flags
-are exported I<without> the leading "_" character, as, indeed, are the
-C<_fsopen()> and C<_sopen()> functions themselves.
+all of the C<O_*> and C<S_I*> flags from the Fcntl module like, for example,
+IO::File does. In any case, Fcntl does not know about the Microsoft-specific
+C<_O_SHORT_LIVED> flag, nor any of the C<_SH_*> flags. These Microsoft-specific
+flags are exported (like the C<_fsopen()> and C<_sopen()> functions themselves)
+I<without> the leading "_" character.
 
 =head2 Functions
 
 =over 4
 
-=item C<fsopen($file, $mode, $shflag)>
+=item C<fsopen($fh, $file, $mode, $shflag)>
 
-Opens the file I<$file> in the access mode specified by
-L<I<$mode>|"Mode Strings"> and prepares the file for subsequent shared reading
-and/or writing as specified by L<I<$shflag>|"SH_* Flags">.
+Opens the file I<$file> using the
+L<filehandle (or indirect filehandle)|"Filehandles and Indirect Filehandles">
+I<$fh> in the access mode specified by L<I<$mode>|"Mode Strings"> and prepares
+the file for subsequent shared reading and/or writing as specified by
+L<I<$shflag>|"SH_* Flags">.
 
-Returns a (Perl) filehandle associated with the file descriptor obtained if the
-file was successfully opened. Returns C<undef> (and sets C<$!> and/or C<$^E>) if
-the file could not be opened.
+Returns a non-zero value if the file was successfully opened, or returns
+C<undef> and sets C<$!> and/or C<$^E> if the file could not be opened.
 
-=item C<sopen($file, $oflag, $shflag[, $pmode])>
+=item C<sopen($fh, $file, $oflag, $shflag[, $pmode])>
 
-Opens the file I<$file> in the access mode specified by
-L<I<$oflag>|"O_* Flags"> and prepares the file for subsequent shared reading
-and/or writing as specified by L<I<$shflag>|"SH_* Flags">. The optional
-L<I<$pmode>|"S_I* Flags"> argument specifies the file's permission settings if
-the file has just been created; it is only required when the access mode
-includes O_CREAT.
+Opens the file I<$file> using the
+L<filehandle (or indirect filehandle)|"Filehandles and Indirect Filehandles">
+I<$fh> in the access mode specified by L<I<$oflag>|"O_* Flags"> and prepares the
+file for subsequent shared reading and/or writing as specified by
+L<I<$shflag>|"SH_* Flags">. The optional L<I<$pmode>|"S_I* Flags"> argument
+specifies the file's permission settings if the file has just been created; it
+is only required when the access mode includes C<O_CREAT>.
 
-Returns a (Perl) filehandle associated with the same file descriptor as the (C)
-file stream obtained if the file was successfully opened. Returns C<undef> (and
-sets C<$!> and/or C<$^E>) if the file could not be opened.
+Returns a non-zero value if the file was successfully opened, or returns
+C<undef> and sets C<$!> and/or C<$^E> if the file could not be opened.
 
 =back
+
+=head2 Filehandles and Indirect Filehandles
+
+The C<fsopen()> and C<sopen()> functions both expect either a filehandle or an
+indirect filehandle as their first argument.
+
+Using a filehandle:
+
+	fsopen(FH, 'file.txt', 'r', SH_DENYWR) or
+		die "Can't read 'file.txt': $!\n";
+
+is the simplest approach, but filehandles have a big drawback: they are global
+in scope so they are always in danger of clobbering a filehandle of the same
+name being used elsewhere. For example, consider this:
+
+	fsopen(FH, 'file1.txt', 'r', SH_DENYWR) or
+		die "Can't read 'file1.txt': $!\n";
+
+	while (<FH>) {
+		chomp($line = $_);
+		my_sub($line);
+	}
+
+	...
+
+	close FH;
+
+	sub my_sub($) {
+		fsopen(FH, 'file2.txt', 'r', SH_DENYWR) or
+			die "Can't read 'file2.txt': $!\n";
+		...
+		close FH;
+	}
+
+The problem here is that when you open a filehandle that is already open it is
+closed first, so calling "C<fsopen(FH, ...)>" in C<my_sub()> causes the
+filehandle I<FH> which is already open in the caller to be closed first so that
+C<my_sub()> can use it. When C<my_sub()> returns the caller will now find that
+I<FH> is closed, causing the next read in the C<while { ... }> loop to fail. (Or
+even worse, the caller would end up mistakenly reading from the wrong file if
+C<my_sub()> hadn't closed I<FH> before returning!)
+
+One solution to this problem is to localise the typeglob of the filehandle in
+question within C<my_sub()>:
+
+	sub my_sub($) {
+		local *FH;
+		fsopen(FH, 'file2.txt', 'r', SH_DENYWR) or
+			die "Can't read 'file2.txt': $!\n";
+		...
+		close FH;
+	}
+
+but this has the unfortunate side-effect of localising all the other members of
+that typeglob as well, so if the caller had global variables I<$FH>, I<@FH> or
+I<%FH>, or even a subroutine C<FH()>, which C<my_sub()> needed then it no longer
+has access to them either. (It does, on the other hand, have the rather nicer
+side-effect that the filehandle is automatically closed when the localised
+typeglob goes out of scope, so the "C<close FH;>" above is no longer necessary.)
+
+This problem can also be addressed by using the so-called C<*foo{THING}>
+syntax. C<*foo{THING}> returns a reference to the I<THING> member of the I<*foo>
+typeglob. For example, C<*foo{SCALAR}> is equivalent to C<\$foo>, and
+C<*foo{CODE}> is equivalent to C<\&foo>. C<*foo{IO}> (or the older, now
+out-of-fashion notation C<*foo{FILEHANDLE}>) yields the actual internal
+IO::Handle object that the C<*foo> typeglob contains, so with this we can
+localise just the IO object, not the whole typeglob, so that we don't
+accidentally hide more than we meant to:
+
+	sub my_sub($) {
+		local *FH{IO};
+		fsopen(FH, 'file2.txt', 'r', SH_DENYWR) or
+			die "Can't read 'file2.txt': $!\n";
+		...
+		close FH;	# As in the example above, this is also not necessary
+	}
+
+However, this has a drawback as well: C<*FH{IO}> only works if I<FH> has already
+been used as a filehandle (or some other IO handle), because C<*foo{THING}>
+returns C<undef> if that particular I<THING> hasn't been seen by the compiler
+yet (with the exception of when I<THING> is C<SCALAR>, which is treated
+differently). This is fine in the example above, but would not necessarily have
+been if the caller of C<my_sub()> hadn't used the filehandle I<FH> first, so
+this approach would be no good if C<my_sub()> was to be put in a module to be
+used by other callers too.
+
+The answer to all of these problems is to use so-called indirect filehandles
+instead of "normal" filehandles. An indirect filehandle is anything other than a
+symbol being used in a place where a filehandle is expected, i.e. an expression
+that evaluates to something that can be used as a filehandle, namely:
+
+=over 4
+
+=item A string
+
+A name like C<'FH'> to be used as a symbolic reference to the typeglob whose IO
+member is to be used as the filehandle.
+
+=item A typeglob
+
+Either a named typeglob like C<*FH>, or an anonymous typeglob in a scalar
+variable (e.g. from C<Symbol::gensym()>), whose IO member is to be used as the
+filehandle.
+
+=item A reference to a typeglob
+
+Either a hard reference like C<\*FH>, or a symbolic reference as in the first
+case above, to a typeglob whose IO member is to be used as the filehandle.
+
+=item A suitable IO object
+
+Either the IO member of a typeglob obtained via the C<*foo{IO}> syntax, or an
+instance of IO::Handle, or of IO::File or FileHandle (which are both just
+sub-classes of IO::Handle).
+
+=back
+
+Of course, typeglobs are global in scope just like filehandles are, so if a
+named typeglob, a reference (hard or symbolic) to a named typeglob or the IO
+member of a named typeglob is used then we run into the same scoping problems
+that we saw above with filehandles. The remainder of the above, however,
+(namely, an anonymous typeglob in a scalar variable, or a suitable IO object)
+finally give us the answer that we have been looking for.
+
+So we can now write C<my_sub()> like this:
+
+	sub my_sub($) {
+		# Create "my $fh" here: see below
+		fsopen($fh, 'file2.txt', 'r', SH_DENYWR) or
+			die "Can't read 'file2.txt': $!\n";
+		...
+		close $fh;		# Not necessary again
+	}
+
+where any of the following may be used to create "C<my $fh>":
+
+	use Symbol;
+	my $fh = gensym();
+
+	use IO::Handle;
+	my $fh = IO::Handle->new();
+
+	use IO::File;
+	my $fh = IO::File->new();
+
+	use FileHandle;
+	my $fh = FileHandle->new();
+
+As we have noted in the code segment above, the "C<close $fh;>" is once again
+not necessary: the filehandle is closed automatically when the lexical variable
+I<$fh> is destroyed, i.e. when it goes out of scope (assuming there are no other
+references to it).
+
+However, there is still another point to bear in mind regarding the four
+solutions shown above: they all load a good number of extra lines of code into
+your program that might not otherwise be made use of. Note that FileHandle is a
+sub-class of IO::File, which is in turn a sub-class of IO::Handle, so using
+either of those sub-classes is particularly wasteful in this respect unless the
+methods provided by them are going to be put to use. Even the IO::Handle class
+still loads a number of other modules, including Symbol, so using the Symbol
+module is certainly the best bet here if none of the IO::Handle methods are
+required.
+
+Finally, there is another way to get an anonymous typeglob in a scalar variable
+which is even leaner and meaner than using C<Symbol::gensym()>: the "First-Class
+Filehandle Trick". It is described in an article by Mark-Jason Dominus called
+"Seven Useful Uses of Local" which first appeared in The Perl Journal, and can
+also be found (at the time of writing) on his website at the URL
+F<http://perl.plover.com/local.html>. It consists simply of the following:
+
+	my $fh = do { local *FH };
+
+It works like this: the C<do { ... }> block simply executes the commands within
+the block and returns the value of the last one. So in this case, the global
+C<*FH> typeglob is temporarily replaced with a new glob that is C<local()> to
+the C<do { ... }> block. The new, C<local()>, C<*FH> typeglob then goes out of
+scope (i.e. is no longer accessible by that name) but is not destroyed because
+it gets returned from the C<do { ... }> block. It is this, now anonymous,
+typeglob that gets assigned to "C<my $fh>", exactly as we wanted.
+
+If this trick is used only once within a program running under
+"C<use warnings;>" that doesn't mention C<*FH> or any of its members anywhere
+else then a warning like the following will be produced:
+
+	Name "main::FH" used only once: possible typo at ...
+
+This can be easily avoided by turning off that warning within the C<do { ... }>
+block:
+
+	my $fh = do { no warnings 'once'; local *FH };
+
+Note that all of the above discussion of filehandles and indirect filehandles
+applies equally to Perl's built-in C<open()> and C<sysopen()> functions. It
+should also be noted that those two functions both support one other form of
+indirect filehandle that this module's C<fsopen()> and C<sopen()> functions do
+not: the undefined value. The calls
+
+	open my $fh, 'file.txt';
+	sysopen my $fh, 'file.txt', O_RDONLY;
+
+each auto-vivify "C<my $fh>" into something that can be used as an indirect
+filehandle. (In fact, they currently auto-vivify an entire typeglob, but this
+may change in a future version of Perl to only auto-vivify the IO member.) Any
+attempt to do likewise with this module's functions:
+
+	fsopen(my $fh, 'file.txt', 'r', SH_DENYNO);
+	sopen(my $fh, 'file.txt', O_RDONLY, SH_DENYNO);
+
+causes the functions to C<croak()>.
 
 =head2 Mode Strings
 
@@ -298,31 +616,31 @@ the file, as follows:
 
 =over 4
 
-=item "r"
+=item C<'r'>
 
 Opens the file for reading only. Fails if the file does not already exist.
 
-=item "w"
+=item C<'w'>
 
 Opens the file for writing only. Creates the file if it does not already exist;
 destroys the contents of the file if it does already exist.
 
-=item "a"
+=item C<'a'>
 
 Opens the file for appending only. Creates the file if it does not already
 exist.
 
-=item "r+"
+=item C<'r+'>
 
 Opens the file for both reading and writing. Fails if the file does not already
 exist.
 
-=item "w+"
+=item C<'w+'>
 
 Opens the file for both reading and writing. Creates the file if it does not
 already exist; destroys the contents of the file if it does already exist.
 
-=item "a+"
+=item C<'a+'>
 
 Opens the file for both reading and appending. Creates the file if it does not
 already exist.
@@ -331,6 +649,23 @@ already exist.
 
 When the file is opened for appending the file pointer is always forced to the
 end of the file before any write operation is performed.
+
+The following table shows the equivalent combination of L<"O_* Flags"> for each
+mode string:
+
+	+------+-------------------------------+
+	| 'r'  | O_RDONLY                      |
+	+------+-------------------------------+
+	| 'w'  | O_WRONLY | O_CREAT | O_TRUNC  |
+	+------+-------------------------------+
+	| 'a'  | O_WRONLY | O_CREAT | O_APPEND |
+	+------+-------------------------------+
+	| 'r+' | O_RDWR                        |
+	+------+-------------------------------+
+	| 'w+' | O_RDWR | O_CREAT | O_TRUNC    |
+	+------+-------------------------------+
+	| 'a+' | O_RDWR | O_CREAT | O_APPEND   |
+	+------+-------------------------------+
 
 See also L<"Text and Binary Modes">.
 
@@ -341,15 +676,15 @@ the file, as follows:
 
 =over 4
 
-=item O_RDONLY
+=item C<O_RDONLY>
 
 Opens the file for reading only.
 
-=item O_WRONLY
+=item C<O_WRONLY>
 
 Opens the file for writing only.
 
-=item O_RDWR
+=item C<O_RDWR>
 
 Opens the file for both reading and writing.
 
@@ -361,48 +696,48 @@ bitwise-OR combination:
 
 =over 4
 
-=item O_APPEND
+=item C<O_APPEND>
 
 The file pointer is always forced to the end of the file before any write
 operation is performed.
 
-=item O_CREAT
+=item C<O_CREAT>
 
 Creates the file if it does not already exist. (Has no effect if the file does
 already exist.) The L<I<$pmode>|"S_I* Flags"> argument is required if (and only
 if) this flag is used.
 
-=item O_EXCL
+=item C<O_EXCL>
 
-Fails if the file already exists. Only applies when used with O_CREAT.
+Fails if the file already exists. Only applies when used with C<O_CREAT>.
 
-=item O_NOINHERIT
+=item C<O_NOINHERIT>
 
 Prevents creation of a shared file descriptor.
 
-=item O_RANDOM
+=item C<O_RANDOM>
 
 Specifies the disk access will be primarily random.
 
-=item O_SEQUENTIAL
+=item C<O_SEQUENTIAL>
 
 Specifies the disk access will be primarily sequential.
 
-=item O_SHORT_LIVED
+=item C<O_SHORT_LIVED>
 
-Used with O_CREAT, creates the file such that, if possible, it does not flush
+Used with C<O_CREAT>, creates the file such that, if possible, it does not flush
 the file to disk.
 
-=item O_TEMPORARY
+=item C<O_TEMPORARY>
 
-Used with O_CREAT, creates the file as temporary. The file will be deleted when
-the last file descriptor attached to it is closed.
+Used with C<O_CREAT>, creates the file as temporary. The file will be deleted
+when the last file descriptor attached to it is closed.
 
-=item O_TRUNC
+=item C<O_TRUNC>
 
 Truncates the file to zero length, destroying the contents of the file, if it
-already exists. Cannot be specified with O_RDONLY, and the file must have write
-permission.
+already exists. Cannot be specified with C<O_RDONLY>, and the file must have
+write permission.
 
 =back
 
@@ -420,22 +755,34 @@ translated to carriage return-linefeed (CR-LF) pairs.
 
 These translations are not performed if the file is opened in binary mode.
 
-Text/binary modes are specified for C<fsopen()> by inserting a C<"t"> or a
-C<"b"> respectively into the L<I<$mode>|"Mode Strings"> string, immediately
-following the C<"r">, C<"w"> or C<"a">, for example:
+If neither mode is specified then text mode is assumed by default, as is usual
+for Perl filehandles. Binary mode can still be enabled after the file has been
+opened (but only before any I/O has been performed on it) by calling
+C<binmode()> in the usual way.
+
+=over 4
+
+=item C<'t'>
+
+=item C<'b'>
+
+Text/binary modes are specified for C<fsopen()> by inserting a C<'t'> or a
+C<'b'> respectively into the L<I<$mode>|"Mode Strings"> string, immediately
+following the C<'r'>, C<'w'> or C<'a'>, for example:
 
 	my $fh = fsopen($file, 'wt', SH_DENYNO);
 
-These modes are specified in C<sopen()> calls by using O_TEXT or O_BINARY
-respectively in bitwise-OR combination with other O_* flags in the
+=item C<O_TEXT>
+
+=item C<O_BINARY>
+
+Text/binary modes are specified for C<sopen()> by using C<O_TEXT> or C<O_BINARY>
+respectively in bitwise-OR combination with other C<O_*> flags in the
 L<I<$oflag>|"O_* Flags"> argument, for example:
 
 	my $fh = sopen($file, O_WRONLY | O_TEXT, SH_DENYNO);
 
-If neither mode is specified then text mode is assumed by default, as is usual
-for Perl filehandles. Binary mode can still be enabled after the file has been
-opened (but only before any I/O has been performed on it) by calling
-L<C<binmode()>|perlfunc/binmode> in the usual way.
+=back
 
 =head2 SH_* Flags
 
@@ -444,19 +791,19 @@ sharing access permitted for the file, as follows:
 
 =over 4
 
-=item SH_DENYNO
+=item C<SH_DENYNO>
 
 Permits both read and write access to the file.
 
-=item SH_DENYRD
+=item C<SH_DENYRD>
 
 Denies read access to the file; write access is permitted.
 
-=item SH_DENYWR
+=item C<SH_DENYWR>
 
 Denies write access to the file; read access is permitted.
 
-=item SH_DENYRW
+=item C<SH_DENYRW>
 
 Denies both read and write access to the file.
 
@@ -465,25 +812,25 @@ Denies both read and write access to the file.
 =head2 S_I* Flags
 
 The I<$pmode> argument in C<sopen()> is required if and only if the access mode,
-I<$oflag>, includes O_CREAT. If the file does not already exist then I<$pmode>
-specifies the file's permission settings, which are set the first time the file
-is closed. (It has no effect if the file already exists.) The value is specified
-as follows:
+I<$oflag>, includes C<O_CREAT>. If the file does not already exist then
+I<$pmode> specifies the file's permission settings, which are set the first time
+the file is closed. (It has no effect if the file already exists.) The value is
+specified as follows:
 
 =over 4
 
-=item S_IREAD
+=item C<S_IREAD>
 
 Permits reading.
 
-=item S_IWRITE
+=item C<S_IWRITE>
 
 Permits writing.
 
 =back
 
-Note that it is evidently not possible to deny read permission, so S_IWRITE and
-S_IREAD | S_IWRITE are equivalent.
+Note that it is evidently not possible to deny read permission, so C<S_IWRITE>
+and C<S_IREAD | S_IWRITE> are equivalent.
 
 =head2 Variables
 
@@ -491,20 +838,10 @@ S_IREAD | S_IWRITE are equivalent.
 
 =item I<$Debug>
 
-Debug setting. Default value is 1.
+Boolean debug setting. Default value is 0.
 
-A value of 0 means that no debug information will be produced and the only
-messages explicitly emitted by this module itself will be those from exceptions
-which may be raised on rare occasions (via L<C<croak()>|Carp>).
-
-A value of 1 means that in addition to these exception messages, warning
-messages will also be emitted (via L<C<carp()>|Carp>). These messages are
-usually produced by a function (be it a public or a private one) when something
-has gone wrong and it is about to return failure.
-
-A value of 2 (or, in fact, any other value) means that in addition to the
-exceptions and warnings, other informational messages which may be of use in
-debugging will be emitted (via a straight-forward C<print()> on STDERR).
+Setting this variable to a true value will cause debug information to be emitted
+(via a straight-forward C<print()> on STDERR).
 
 =back
 
@@ -521,25 +858,43 @@ classified as follows (a la L<perldiag>):
 
 =over 4
 
+=item %s() can't close file descriptor %d: %s
+
+(W) The specified function called the corresponding Microsoft Visual C function
+which successfully opened the file, acquiring a new file descriptor in the
+proces, but the Perl function was then unable to attach a Perl filehandle to
+that new file descriptor. To prevent the file descriptor being wasted, and the
+file being left open, the Perl function then attempted to close this new file
+descriptor, but was unable to do so. The system error message set in C<$!> is
+also given.
+
+=item %s() can't use the undefined value as an indirect filehandle
+
+(F) The specified function was passed the undefined value as the first argument.
+That is not a filehandle, cannot be used as an indirect filehandle, and
+(unlike the Perl built-in functions C<open()> and C<sysopen()>) the function is
+unable to auto-vivify something that can be used as an indirect filehandle in
+such a case.
+
 =item Error generating subroutine '%s()': %s
 
-(F) There was an error generating the named subroutine supplying the value of
-the corresponding constant. The error set by C<eval()> is also given.
+(F) There was an error generating the specified subroutine (which supplies the
+value of the corresponding constant). The error set by C<eval()> is also given.
 
 =item The symbol '%s' is not defined on this system.
 
-(F) The symbol named is not provided by the C environment used to build this
+(F) The specified symbol is not provided by the C environment used to build this
 module.
 
 =item Unexpected error autoloading '%s()': %s
 
-(I) There was an unexpected error looking up the value of the named constant.
-The error set by the constant-lookup function is also given.
+(I) There was an unexpected error looking up the value of the specified
+constant. The error set by the constant-lookup function is also given.
 
 =item Unexpected error in autoloader: _constant() is not defined.
 
-(I) There was an unexpected error looking up the value of the named constant:
-the constant-lookup function itself is apparently not defined.
+(I) There was an unexpected error looking up the value of the specified
+constant: the constant-lookup function itself is apparently not defined.
 
 =back
 
@@ -551,14 +906,14 @@ values of each are as follows (C<$!> shown first, C<$^E> underneath):
 
 =over 4
 
-=item EACCES (Permission denied) (1)
+=item EACCES (Permission denied) [1]
 
 =item ERROR_ACCESS_DENIED (Access is denied)
 
 The I<$file> is a directory, or is a read-only file and an attempt was made to
 open it for writing.
 
-=item EACCES (Permission denied) (2)
+=item EACCES (Permission denied) [2]
 
 =item ERROR_SHARING_VIOLATION (The process cannot access the file because it is
 being used by another process.)
@@ -573,7 +928,7 @@ a file that we have opened with an access mode that we have denied.
 
 =item ERROR_FILE_EXISTS (The file exists)
 
-[C<sopen()> only.] The I<$oflag> included O_CREAT | O_EXCL, and the I<$file> already exists.
+[C<sopen()> only.] The I<$oflag> included C<O_CREAT | O_EXCL>, and the I<$file> already exists.
 
 =item EINVAL (Invalid argument)
 
@@ -624,7 +979,7 @@ function call that failed because many functions that succeed will reset these
 variables.
 
 The system error messages for both C<$!> and C<$^E> can be obtained by simply
-stringifying the special variables, e.g. by C<print()>ing them:
+stringifying the special variables, e.g. by C<print()>'ing them:
 
 	print "Errno was: $!\n";
 	print "Last error was: $^E\n";
@@ -636,50 +991,50 @@ nicely formatted) by calling C<FormatMessage()> in the Win32 module:
 
 The C<$^E> error code itself is also available from a Win32 module function,
 C<GetLastError()>. Both functions are built-in to Perl itself (on Win32) so do
-not require a C<use Win32;> call.
+not require a "C<use Win32;>" call.
 
 =head1 EXAMPLES
 
 =over 4
 
-=item Open a file for reading, and deny write access to other processes:
+=item Open a file for reading, denying write access to other processes:
 
-	my $fh = fsopen($file, "r", SH_DENYWR) or
-			die "Cannot read '$file' and take write-lock: $!\n";
+	fsopen(FH, $file, 'r', SH_DENYWR) or
+			die "Cannot read '$file' and take write-lock: $^E\n";
 
 This example could be used for sharing a file amongst several processes for
 reading, but protecting the reads from interference by other processes trying to
 write the file.
 
-=item Open a file for "update", and deny read and write access to other
+=item Open a file for "update", denying read and write access to other
 processes:
 
-	my $fh = fsopen($file, "r+", SH_DENYRW) or
-			die "Cannot update '$file' and take read-write-lock: $!\n";
+	fsopen(FH, $file, 'r+', SH_DENYRW) or
+			die "Cannot update '$file' and take read-write-lock: $^E\n";
 
 This example could be used by a process to both read and write a file (e.g. a
 simple database) and guard against other processes interfering with the reads or
 being interefered with by the writes.
 
-=item Open a file for writing if and only if it doesn't already exist, and deny
+=item Open a file for writing if and only if it doesn't already exist, denying
 write access to other processes:
 
-	my $fh = sopen($file, O_WRONLY | O_CREAT | O_EXCL, SH_DENYWR, S_IWRITE) or
-			die "Cannot write new file '$file' and take write-lock: $!\n";
+	sopen(FH, $file, O_WRONLY | O_CREAT | O_EXCL, SH_DENYWR, S_IWRITE) or
+			die "Cannot create '$file' and take write-lock: $^E\n";
 
-This example could be used by a processes wishing to take an "advisory lock" on
+This example could be used by a process wishing to take an "advisory lock" on
 some non-file resource that can't be explicitly locked itself by dropping a
 "sentinel" file somewhere. The test for the non-existence of the file and
 creation of the file is atomic to avoid a "race condition". The file can be
 written by the process taking the lock and can be read by other processes to
 facilitate a "lock discovery" mechanism.
 
-=item Open a temporary file for "update", and deny read and write access to
-other processes:
+=item Open a temporary file for "update", denying read and write access to other
+processes:
 
-	my $fh = sopen($file, O_RDWR | O_CREAT | O_TRUNC | O_TEMPORARY,
-				SH_DENYRW, S_IWRITE) or
-			die "Cannot write temporary file '$file' and take write-lock: $!\n";
+	sopen(FH, $file, O_RDWR | O_CREAT | O_TRUNC | O_TEMPORARY, SH_DENYRW,
+				S_IWRITE) or
+			die "Cannot update '$file' and take write-lock: $^E\n";
 
 This example could be used by a process wishing to use a file as a temporary
 "scratch space" for both reading and writing. The space is protected from the
@@ -700,7 +1055,7 @@ C<fsopen>,
 C<sopen>,
 
 C<O_APPEND>,
-L<C<O_BINARY>|"Text and Binary Modes">,
+C<O_BINARY>,
 C<O_CREAT>,
 C<O_EXCL>,
 C<O_NOINHERIT>,
@@ -710,7 +1065,7 @@ C<O_RDWR>,
 C<O_SEQUENTIAL>,
 C<O_SHORT_LIVED>,
 C<O_TEMPORARY>,
-L<C<O_TEXT>|"Text and Binary Modes">,
+C<O_TEXT>,
 C<O_TRUNC>,
 C<O_WRONLY>,
 
@@ -728,9 +1083,12 @@ I<None>
 
 =item Export Tags
 
-B<:oflags =E<gt>>
+=over 4
+
+=item C<:oflags>
+
 C<O_APPEND>,
-L<C<O_BINARY>|"Text and Binary Modes">,
+C<O_BINARY>,
 C<O_CREAT>,
 C<O_EXCL>,
 C<O_NOINHERIT>,
@@ -740,19 +1098,23 @@ C<O_RDWR>,
 C<O_SEQUENTIAL>,
 C<O_SHORT_LIVED>,
 C<O_TEMPORARY>,
-L<C<O_TEXT>|"Text and Binary Modes">,
+C<O_TEXT>,
 C<O_TRUNC>,
 C<O_WRONLY>
 
-B<:pmodes =E<gt>>
+=item C<:pmodes>
+
 C<S_IREAD>,
 C<S_IWRITE>
 
-B<:shflags =E<gt>>
+=item C<:shflags>
+
 C<SH_DENYNO>,
 C<SH_DENYRD>,
 C<SH_DENYRW>,
 C<SH_DENYWR>
+
+=back
 
 =back
 
@@ -768,7 +1130,9 @@ AutoLoader,
 Carp,
 DynaLoader,
 Errno,
-Exporter
+Exporter,
+POSIX,
+Symbol
 
 =item CPAN Modules
 
@@ -782,18 +1146,33 @@ I<None>
 
 =head1 BUGS AND CAVEATS
 
+=over 4
+
+=item *
+
+As noted in the L<"WARNING"> near the top of this manpage, there is currently a
+significant bug in the implementation of the C<fsopen()> function which causes
+it to waste a filehandle every time it is called.
+
+See the file F<WARNING-FSOPEN.TXT> in the original distribution archive,
+F<Win32-SharedFileOpen-2.00.tar.gz>, for more details.
+
+=item *
+
 The Perl filehandle returned by C<sopen()> is obtained by effectively doing an
 C<fdopen(3)> on the file descriptor returned by C<_sopen()> using the Perl
-built-in function L<C<open()>|perlfunc/open>. This involves converting the O_*
-flags that specify the I<$mode> in the C<sopen()> call into the corresponding
-(C<+>) C<E<lt>> | C<E<gt>> | C<E<gt>E<gt>> string used in specifying the file in
-the C<open()> call, e.g. O_RDONLY becomes "C<E<lt>>", O_RDWR | O_APPEND becomes
-"C<+E<gt>E<gt>>", etc. This conversion could possibly break down in some
+built-in function C<open()>. This involves converting the C<O_*> flags that
+specify the I<$mode> in the C<sopen()> call into the corresponding (C<+>)
+C<E<lt>> | C<E<gt>> | C<E<gt>E<gt>> string used in specifying the file in the
+C<open()> call, e.g. C<O_RDONLY> becomes "C<E<lt>>", C<O_RDWR | O_APPEND>
+becomes "C<+E<gt>E<gt>>", etc. This conversion could possibly break down in some
 situations.
 
 There is less chance of such a problem with C<fsopen()>, because the I<$mode> is
-simply specified as C<"r"> | C<"w"> | C<"a"> (C<+>), which is more readily
+simply specified as C<'r'> | C<'w'> | C<'a'> (C<+>), which is more readily
 converted.
+
+=back
 
 =head1 SEE ALSO
 
@@ -804,6 +1183,8 @@ L<perlopentut>,
 L<Fcntl>,
 L<FileHandle>,
 L<IO::File>,
+L<IO::Handle>,
+L<Symbol>,
 L<Win32API::File>
 
 In particular, the Win32API::File module (part of the "libwin32" bundle)
@@ -816,23 +1197,23 @@ does not entirely alleviate the pain.
 
 =head1 AUTHOR
 
-Steve Hay E<lt>Steve.Hay@programmer.netE<gt>
+Steve Hay E<lt>Steve.Hay@uk.radan.comE<gt>
 
 =head1 COPYRIGHT AND LICENCE
 
-Copyright (c) 2001, Steve Hay. All rights reserved.
+Copyright (c) 2001-2002, Steve Hay. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the same terms as Perl itself.
 
 =head1 VERSION
 
-Win32::SharedFileOpen, Version 1.00
+Win32::SharedFileOpen, Version 2.00
 
 =head1 HISTORY
 
-See F<Changes> in the original Win32-SharedFileOpen-I<VERSION>.tar.gz
-distribution.
+See the file F<Changes> in the original distribution archive,
+F<Win32-SharedFileOpen-2.00.tar.gz>.
 
 =cut
 

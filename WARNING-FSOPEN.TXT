@@ -1,0 +1,165 @@
+
+WARNING
+=======
+
+The fsopen() function in this module currently has a bug which causes it to
+waste a filehandle every time it is called. Until this issue is resolved, the
+sopen() function should generally be used instead.
+
+The bug can be seen by running the following program:
+
+	use strict;
+	use warnings;
+
+	use Win32::SharedFileOpen;
+
+	my $file = 'test.txt';
+
+	for (my $i = 1; $i <= 512; $i++) {
+		local *FH;
+		unless (fsopen(FH, $file, 'w', SH_DENYNO)) {
+			print STDERR "Cannot open '$file' for writing at i = $i: $!\n";
+			last;
+		}
+		unless (close FH) {
+			print STDERR "Cannot close '$file' after writing at i = $i: $!\n";
+			last;
+		}
+	}
+
+	unless (unlink $file) {
+		print STDERR "Cannot delete '$file' after writing: $!\n";
+	}
+
+This program fails with the error:
+
+	Cannot open 'test.txt' for writing at i = 509:
+
+That the error is related to a wasting of filehandles can be seen by inserting
+the line:
+
+	open FH2, '>test2.txt';
+
+above the "for" loop. This causes the program to fail with the error:
+
+	Cannot open 'test.txt' for writing at i = 508:
+
+The program fails one iteration sooner for every extra filehandle that is
+opened before the "for" loop.
+
+Furthermore, it is only the fsopen() function in this module that exhibits this
+behaviour. If the call to fsopen() is replaced with any of the following:
+
+	open FH, ">$file"
+
+	sysopen FH, $file, O_WRONLY | O_CREAT | O_TRUNC
+
+	sopen(FH, $file, O_WRONLY | O_CREAT | O_TRUNC, SH_DENYNO, S_IWRITE)
+
+then the program completes and exits normally.
+
+The reason why fsopen() currently wastes a filehandle every time it is called is
+that in "C" programming terms it opens two filehandles at the "stdio" level
+(i.e. the level dealt with by the fopen()/fclose() family of functions, which
+includes _fsopen()), only one of which is properly closed later when the caller
+has finished with the filehandle setup by fsopen().
+
+Specifically, the C extension part of this module calls _fsopen(), which returns
+a file stream (a "FILE *") - the first "stdio" level filehandle to be opened.
+Because of the difficulty of passing this back to the Perl code (since it may be
+being used for reading, writing or both), the C code instead simply returns the
+corresponding file descriptor (an "int"), obtained by a call to fileno(). The
+Perl code then effectively does an fdopen() on that to get a Perl filehandle -
+the second "stdio" level filehandle to be opened.
+
+The caller then reads from and/or writes to this Perl filehandle as required and
+finally calls the Perl built-in function close() on it. This closes the second
+"stdio" level filehandle that was opened and presumably the file descriptor with
+which it was associated. However, the first "stdio" level filehandle that was
+opened in the C code is never properly closed, so although it is no longer
+accessible by any means, and presumably useless anyway since the underlying file
+descriptor has been closed, it is now effectively wasted.
+
+The default maximum number of filehandles that a process can have open at the
+"stdio" level is 512. We can now see why the program above fails at i = 509.
+The program starts with three "stdio" level filehandles - STDIN, STDOUT and
+STDERR - and calls fsopen() followed by close() 508 times, each of which wastes
+one "stdio" level filehandle. There are now 511 "stdio" level filehandles used.
+On the 509th iteration the C code opens the 512th and last available "stdio"
+level filehandle, returning the corresponding file descriptor to the Perl code.
+The attempt to (effectively) fdopen() this file descriptor then fails because
+there are already 512 "stdio" level filehandles in use.
+
+Incidentally, the underlying file descriptor is not wasted whether the fsopen()
+call succeeds or not, because it is always closed. If the fsopen() call succeeds
+then the caller will subsequently close the Perl filehandle returned by
+fsopen(), which has the effect of closing the underlying file descriptor. If the
+fsopen() call fails then it is either because the _fsopen() call in the C code
+failed, in which case nothing was opened in the first place, or because the
+open() call subsequently done in the Perl code to (effectively) fdopen() the
+same file descriptor failed. In the latter case, the Perl code explicitly closes
+the file descriptor that the C code had opened (using the POSIX::close()
+function) before returning failure.
+
+The following C program does the equivalent of what the Perl program above does,
+and exhibits the same behaviour for the same reason:
+
+	#include <io.h>
+	#include <stdio.h>
+	#include <share.h>
+
+	void main(void) {
+		int i;
+		char err[64];
+		const char *file = "test.txt";
+
+		for (i = 1; i <= 512; i++) {
+			int fd;
+			FILE *fp;
+
+			if ((fd = my_fsopen(file)) == -1) {
+				sprintf(err, "Cannot open '%s' for writing at i = %d",
+						file, i);
+				perror(err);
+				break;
+			}
+
+			if ((fp = fdopen(fd, "w")) == NULL) {
+				sprintf(err, "Cannot open '%s' for writing at i = %d",
+						file, i);
+				perror(err);
+				if (close(fd) != 0) {
+					sprintf(err, "Cannot close file descriptor %d at i = %d",
+							fd, i);
+					perror(err);
+				}
+				break;
+			}
+
+			if (fclose(fp) != 0) {
+				sprintf(err, "Cannot close '%s' after writing at i = %d",
+						file, i);
+				perror(err);
+				break;
+			}
+		}
+
+		if (unlink(file) != 0) {
+			sprintf(err, "Cannot delete '%s' after writing", file);
+			perror(err);
+		}
+	}
+
+	int my_fsopen(const char *file) {
+		FILE *fp;
+		return((fp = _fsopen(file, "w", SH_DENYNO)) != NULL ? fileno(fp) : -1);
+	}
+
+The sopen() function does not suffer the same problem because it doesn't open a
+"stdio" level filehandle in the C code. Instead, it opens a "lowio" level
+filehandle (the level dealt with by the open()/close() family of functions) by
+calling _sopen(). This is simply an "int" file descriptor, which is returned to
+the Perl code to be (effectively) fdopen()'d as before. When the corresponding
+Perl filehandle obtained thus is closed by the caller this "lowio" level
+filehandle is closed, so these "lowio" level filehandles, which a process may
+have upto 2048 of, are not wasted either.

@@ -1,10 +1,10 @@
-#!/bin/perl
+#!perl
 #-------------------------------------------------------------------------------
-# Copyright (c)	2001, Steve Hay. All rights reserved.
+# Copyright (c)	2001-2002, Steve Hay. All rights reserved.
 #
 # Module Name:	Win32::SharedFileOpen
-# Source File:	constant.t
-# Description:	Test program to check constant autoloading
+# Source File:	01_constants.t
+# Description:	Test program to check autoloading of constants
 #-------------------------------------------------------------------------------
 
 use 5.006;
@@ -17,7 +17,6 @@ use Test;
 BEGIN { plan tests => 21 };				# Number of tests to be executed
 
 use Win32::SharedFileOpen;
-ok(1);									# Test 1: Did we make it this far OK?
 
 #-------------------------------------------------------------------------------
 #
@@ -25,6 +24,9 @@ ok(1);									# Test 1: Did we make it this far OK?
 #
 
 MAIN: {
+										# Test 1: Did we make it this far OK?
+	ok(1);
+
 										# Tests 2-15: Check O_* flags
 	ok(defined O_APPEND);
 	ok(defined O_BINARY);

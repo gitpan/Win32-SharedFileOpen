@@ -1,5 +1,5 @@
 /*------------------------------------------------------------------------------
- * Copyright (c)2001, Steve Hay. All rights reserved.
+ * Copyright (c) 2001-2002, Steve Hay. All rights reserved.
  *
  * Module Name:	Win32::SharedFileOpen
  * Source File:	SharedFileOpen.xs
@@ -30,7 +30,7 @@
  * otherwise sets errno to 0 and returns the value of the requested name.
  */
 
-static double constant(char *name, int len, int arg) {
+static double constant(const char *name, int len, int arg) {
 	errno = 0;
 
 	switch (*name) {
@@ -188,11 +188,11 @@ PROTOTYPES: ENABLE
 double
 _constant(sv, arg)
 	PREINIT:
-		STRLEN	len;
+		STRLEN		len;
 	INPUT:
-		SV		*sv;
-		char	*name = SvPV(sv, len);
-		int		arg
+		SV			*sv;
+		const char	*name = SvPV(sv, len);
+		int			arg
 	CODE:
 		RETVAL = constant(name, len, arg);
 	OUTPUT:
