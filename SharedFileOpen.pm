@@ -87,7 +87,7 @@ Exporter::export_tags(qw(oflags pmodes shflags));
 
 Exporter::export_ok_tags(qw(retry));
 
-our $VERSION = '3.11';
+our $VERSION = '3.12';
 
 # Debug setting. (0 = No debug, 1 = summary of what fsopen() or sopen() did, 2 =
 # additional information revealing exactly what failed.)
@@ -1542,12 +1542,12 @@ the same terms as Perl itself.
 
 =head1 VERSION
 
-Win32::SharedFileOpen, Version 3.11
+Win32::SharedFileOpen, Version 3.12
 
 =head1 HISTORY
 
 See the file F<Changes> in the original distribution archive,
-F<Win32-SharedFileOpen-3.11.tar.gz>.
+F<Win32-SharedFileOpen-3.12.tar.gz>.
 
 =cut
 

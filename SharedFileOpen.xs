@@ -89,7 +89,7 @@
  * otherwise sets errno to 0 and returns the value of the requested name.
  */
 
-static DWORD constant(const char *name, int len, int arg) {
+static DWORD constant(const char *name, int arg) {
 	errno = 0;
 
 	switch (*name) {
@@ -385,15 +385,12 @@ PROTOTYPES: ENABLE
 # This is only intended to be used by AUTOLOAD() in the Perl module.
 
 DWORD
-_constant(sv, arg)
-	PREINIT:
-		STRLEN		len;
+_constant(name, arg)
 	INPUT:
-		SV			*sv;
-		const char	*name = SvPV(sv, len);
-		int			arg
+		const char	*name;
+		int			arg;
 	CODE:
-		RETVAL = constant(name, len, arg);
+		RETVAL = constant(name, arg);
 	OUTPUT:
 		RETVAL
 
@@ -447,6 +444,7 @@ _constant(sv, arg)
 
 SV *
 _fsopen(fh, file, mode, shflag)
+	INPUT:
 		SV			*fh;
 		const char	*file;
 		const char	*mode;
@@ -526,7 +524,6 @@ _fsopen(fh, file, mode, shflag)
 		}
 
 	OUTPUT:
-		fh
 		RETVAL
 
 # Function to expose the Microsoft Visual C function _sopen().
@@ -534,6 +531,7 @@ _fsopen(fh, file, mode, shflag)
 
 SV *
 _sopen(fh, file, oflag, shflag, ...)
+	INPUT:
 		SV			*fh;
 		const char	*file;
 		int			oflag;
@@ -621,7 +619,6 @@ _sopen(fh, file, oflag, shflag, ...)
 		}
 
 	OUTPUT:
-		fh
 		RETVAL
 
 #-------------------------------------------------------------------------------

@@ -3,6 +3,19 @@ ________________________________________________________________________________
 Revision history for Perl extension Win32::SharedFileOpen.
 _________________
 
+v3.12 30 Apr 2003
+
+	- Removed unused "len" argument from constant() function and simplified
+	  INPUT section of _constant() XS function to use the typemap for "const
+	  char *".
+
+	- Removed unnecessary "fh" declarations from OUTPUT sections of _fsopen()
+	  and _sopen() XS functions.
+
+	- Added AUTHOR option to Makefile.PL. This is used when creating a PPD file
+	  (nmake ppd).
+_________________
+
 v3.11 08 Mar 2003
 
 	- Fix for building under Perl 5.6.0: added definitions of IoTYPE_*

@@ -32,6 +32,8 @@ MAIN: {
 
 		ABSTRACT_FROM	=> 'SharedFileOpen.pm',
 
+		AUTHOR			=> 'Steve Hay <shay@cpan.org>',
+
 		VERSION_FROM	=> 'SharedFileOpen.pm',
 
 		PREREQ_PM		=> {
