@@ -1,7 +1,7 @@
 #!perl
 #===============================================================================
 #
-# 03_new_fh.t
+# t/03_new_fh.t
 #
 # DESCRIPTION
 #   Test program to check new_fh().

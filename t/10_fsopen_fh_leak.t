@@ -1,7 +1,7 @@
 #!perl
 #===============================================================================
 #
-# 10_fsopen_fh_leak.t
+# t/10_fsopen_fh_leak.t
 #
 # DESCRIPTION
 #   Test program to check if fsopen() leaks filehandles.

@@ -1,7 +1,7 @@
 #!perl
 #===============================================================================
 #
-# 06_fsopen_access.t
+# t/06_fsopen_access.t
 #
 # DESCRIPTION
 #   Test program to check fsopen() access modes.

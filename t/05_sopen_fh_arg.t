@@ -1,7 +1,7 @@
 #!perl
 #===============================================================================
 #
-# 05_sopen_fh_arg.t
+# t/05_sopen_fh_arg.t
 #
 # DESCRIPTION
 #   Test program to check sopen()'s filehandle argument.

@@ -1,6 +1,6 @@
 ________________________________________________________________________________
 
-                      Win32::SharedFileOpen, Version 3.17
+                      Win32::SharedFileOpen, Version 3.18
 ________________________________________________________________________________
 
 NAME
@@ -9,14 +9,14 @@ NAME
 
 SYNOPSIS
 
-    # Read and write files a la open(), but with mandatory file locking:
+    # Open files a la C fopen()/Perl open(), but with mandatory file locking:
     use Win32::SharedFileOpen;
     fsopen(FH1, 'readme', 'r', SH_DENYWR) or
         die "Can't read 'readme' and take write-lock: $^E\n";
     fsopen(FH2, 'writeme', 'w', SH_DENYRW) or
         die "Can't write 'writeme' and take read/write-lock: $^E\n";
 
-    # Read and write files a la sysopen(), but with mandatory file locking:
+    # Open files a la C open()/Perl sysopen(), but with mandatory file locking:
     use Win32::SharedFileOpen;
     sopen(FH1, 'readme', O_RDONLY, SH_DENYWR) or
         die "Can't read 'readme' and take write-lock: $^E\n";

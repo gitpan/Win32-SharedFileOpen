@@ -1,7 +1,7 @@
 #!perl
 #===============================================================================
 #
-# 12_variables.t
+# t/12_variables.t
 #
 # DESCRIPTION
 #   Test program to check debug, trace and retry variables.
@@ -49,7 +49,7 @@ MAIN: {
 
     my($fh1, $fh2, $output, $ret, $start, $finish, $time);
 
-    $SIG{__WARN__} = \&_stderr;
+    local $SIG{__WARN__} = \&_stderr;
 
                                         # Tests 2-5: Check $Debug
     $Win32::SharedFileOpen::Debug = 0;
@@ -68,7 +68,7 @@ MAIN: {
     $fh1 = new_fh();
     fsopen($fh1, $file, 'r', SH_DENYNO);
     $output = _stderr();
-    ok(defined $output and $output =~ /MSVC function _fsopen\(.*\) failed/);
+    ok(defined $output and $output =~ /^Can't open file '$file'/);
 
     $Win32::SharedFileOpen::Debug = 0;
 
@@ -86,7 +86,7 @@ MAIN: {
     $fh1 = new_fh();
     sopen($fh1, $file, O_RDONLY, SH_DENYNO);
     $output = _stderr();
-    ok(defined $output and $output =~ /MSVC function _sopen\(.*\) failed/);
+    ok(defined $output and $output =~ /^Can't open file '$file'/);
 
                                         # Tests 6-9: Check $Trace
     $Win32::SharedFileOpen::Trace = 0;

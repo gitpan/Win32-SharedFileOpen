@@ -1,6 +1,6 @@
 ________________________________________________________________________________
 
-                      Win32::SharedFileOpen, Version 3.17
+                      Win32::SharedFileOpen, Version 3.18
 ________________________________________________________________________________
 
 INSTALLATION
@@ -13,20 +13,25 @@ INSTALLATION
         nmake test
         nmake install
 
+    Use "dmake" rather than "nmake" in the commands above if that is what your
+    Perl was built with.  To determine which make program was used to build your
+    Perl type the following:
+
+        perl -V:make
+
 PREREQUISITES
+
+    This module only works on "native" (i.e. non-Cygwin) Microsoft Windows
+    platforms since only those platforms have C runtime libraries that contain
+    the functions which this module provides interfaces to.
 
     Perl version 5.6.0 or later.
 
-    The only non-standard module required by this module is:
+    The only non-standard Perl module required by this module is:
 
         Win32::WinError
 
     This is part of the "libwin32" distribution, which is almost invariably
     present in Perl installations on Microsoft Windows platforms anyway, and is
     available from CPAN (http://www.cpan.org/).
-
-    Obviously this module only works on Microsoft Windows platforms, and
-    requires Microsoft Visual C to build it since other C libraries presumably
-    do not implement the Microsoft-specific functions which this module provides
-    wrappers to.
 ________________________________________________________________________________

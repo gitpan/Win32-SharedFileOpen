@@ -1,7 +1,7 @@
 #!perl
 #===============================================================================
 #
-# 11_sopen_fh_leak.t
+# t/11_sopen_fh_leak.t
 #
 # DESCRIPTION
 #   Test program to check if sopen() leaks filehandles.

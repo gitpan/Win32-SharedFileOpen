@@ -1,7 +1,7 @@
 #!perl
 #===============================================================================
 #
-# 09_sopen_share.t
+# t/09_sopen_share.t
 #
 # DESCRIPTION
 #   Test program to check sopen() share modes.

@@ -1,7 +1,7 @@
 #!perl
 #===============================================================================
 #
-# 04_fsopen_fh_arg.t
+# t/04_fsopen_fh_arg.t
 #
 # DESCRIPTION
 #   Test program to check fsopen()'s filehandle argument.

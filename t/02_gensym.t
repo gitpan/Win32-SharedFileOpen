@@ -1,7 +1,7 @@
 #!perl
 #===============================================================================
 #
-# 02_gensym.t
+# t/02_gensym.t
 #
 # DESCRIPTION
 #   Test program to check gensym().

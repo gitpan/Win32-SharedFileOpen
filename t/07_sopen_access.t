@@ -1,7 +1,7 @@
 #!perl
 #===============================================================================
 #
-# 07_sopen_access.t
+# t/07_sopen_access.t
 #
 # DESCRIPTION
 #   Test program to check sopen() access modes.

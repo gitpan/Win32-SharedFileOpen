@@ -1,7 +1,7 @@
 #!perl
 #===============================================================================
 #
-# 08_fsopen_share.t
+# t/08_fsopen_share.t
 #
 # DESCRIPTION
 #   Test program to check fsopen() share modes.

@@ -1,6 +1,6 @@
 #===============================================================================
 #
-# SharedFileOpen.pm
+# lib/Win32/SharedFileOpen.pm
 #
 # DESCRIPTION
 #   Module providing functions to open a file for shared reading and/or writing.
@@ -24,7 +24,6 @@ use warnings;
 use Carp;
 use Exporter qw();
 use Symbol;
-use Win32;
 use Win32::WinError qw(
     ERROR_ACCESS_DENIED
     ERROR_SHARING_VIOLATION
@@ -101,7 +100,7 @@ BEGIN {
     
     Exporter::export_ok_tags(qw(retry));
     
-    $VERSION = '3.17';
+    $VERSION = '3.18';
 
     # Get the ERROR_SHARING_VIOLATION constant loaded now otherwise loading it
     # later the first time that we test for an error can actually interfere with
@@ -209,8 +208,8 @@ sub fsopen(*$$$) {
         # was actually asked for.  (See comments in XS file for the reason why.)
         unless ($mode =~ /b/io) {
             unless (binmode $fh, ':crlf') {
-                warn "Could not push text mode layer on PerlIO stream " .
-                     "for file '$file'\n" if $Debug;
+                warn "Can't push text mode layer on PerlIO stream for file " .
+                     "'$file': $!" if $Debug;
             }
         }
 
@@ -267,8 +266,8 @@ sub sopen(*$$$;$) {
         # was actually asked for.  (See comments in XS file for the reason why.)
         unless ($oflag & O_BINARY()) {
             unless (binmode $fh, ':crlf') {
-                warn "Could not push text mode layer on PerlIO stream " .
-                     "for file '$file'\n" if $Debug;
+                warn "Can't push text mode layer on PerlIO stream for file " .
+                     "'$file': $!" if $Debug;
             }
         }
 
@@ -345,14 +344,14 @@ Win32::SharedFileOpen - Open a file for shared reading and/or writing
 
 =head1 SYNOPSIS
 
-    # Read and write files a la open(), but with mandatory file locking:
+    # Open files a la C fopen()/Perl open(), but with mandatory file locking:
     use Win32::SharedFileOpen;
     fsopen(FH1, 'readme', 'r', SH_DENYWR) or
         die "Can't read 'readme' and take write-lock: $^E\n";
     fsopen(FH2, 'writeme', 'w', SH_DENYRW) or
         die "Can't write 'writeme' and take read/write-lock: $^E\n";
 
-    # Read and write files a la sysopen(), but with mandatory file locking:
+    # Open files a la C open()/Perl sysopen(), but with mandatory file locking:
     use Win32::SharedFileOpen;
     sopen(FH1, 'readme', O_RDONLY, SH_DENYWR) or
         die "Can't read 'readme' and take write-lock: $^E\n";
@@ -417,8 +416,8 @@ This module provides straightforward Perl "wrapper" functions, C<fsopen()> and
 C<sopen()>, for both of these Microsoft C library functions (with the leading
 "_" character removed from their names).  These Perl functions maintain the same
 formal parameters as the original C functions, except for the addition of an
-initial filehandle parameter like the Perl built-in functions C<open()> and
-C<sysopen()> have.  This is used to make the Perl filehandle opened available to
+initial filehandle parameter like the Perl built-in C<open()> and C<sysopen()>
+functions have.  This is used to make the Perl filehandle opened available to
 the caller (rather than using the functions' return values, which are now simple
 Booleans to indicate success or failure).
 
@@ -451,13 +450,13 @@ message to this effect.
 
 The "oflags" and "shflags", as well as the "pmode" flags used by C<_sopen()>,
 are all made available to Perl by this module, and are all exported by default.
-Clearly this module will only build using Microsoft Visual C, so only the flags
-known to that system [as of version 6.0] are exported, rather than re-exporting
-all of the C<O_*> and C<S_I*> flags from the Fcntl module like, for example,
-IO::File does.  In any case, Fcntl does not know about the Microsoft-specific
-C<_O_SHORT_LIVED> and C<SH_*> flags.  (The C<_O_SHORT_LIVED> flag is exported
-(like the C<_fsopen()> and C<_sopen()> functions themselves) I<without> the
-leading "_" character.)
+Clearly this module will only build against a Microsoft C runtime, so only the
+flags known to that system [as of version 6.0] are exported, rather than
+re-exporting all of the C<O_*> and C<S_I*> flags from the Fcntl module like, for
+example, IO::File does.  In any case, Fcntl does not know about the
+Microsoft-specific C<_O_SHORT_LIVED> and C<SH_*> flags.  (The C<_O_SHORT_LIVED>
+flag is exported (like the C<_fsopen()> and C<_sopen()> functions themselves)
+I<without> the leading "_" character.)
 
 Both functions can be made to automatically retry opening a file (indefinitely,
 or up to a specified maximum time or number of times, and at a specified
@@ -844,19 +843,30 @@ classified as follows (a la L<perldiag>):
 
 (F) The specified function was passed the undefined value as the first argument.
 That is not a filehandle, cannot be used as an indirect filehandle, and
-(unlike the Perl built-in functions C<open()> and C<sysopen()>) the function is
+(unlike the Perl built-in C<open()> and C<sysopen()> functions) the function is
 unable to auto-vivify something that can be used as an indirect filehandle in
 such a case.
 
 =item Invalid value for '%s': '%s' is not a natural number
 
-(F) An attempt was made to set the specified variable to something other than a
+(F) You attempted to set the specified variable to something other than a
 natural number (i.e. a non-negative integer).  This is not allowed.
+
+=item %s is not a valid Win32::SharedFileOpen macro
+
+(F) You attempted to lookup the value of the specified constant in the
+Win32::SharedFileOpen module, but that constant is unknown to that module.
 
 =item Unexpected error in AUTOLOAD(): constant() is not defined
 
 (I) There was an unexpected error looking up the value of the specified
 constant: the constant-lookup function itself is apparently not defined.
+
+=item Unexpected return type %d while processing Win32::SharedFileOpen macro %s
+
+(I) There was an unexpected error looking up the value of the specified
+constant: the C component of the constant-lookup function returned an unknown
+type.
 
 =item Unknown IoTYPE '%s'
 
@@ -872,6 +882,11 @@ Microsoft C library functions C<_fsopen()> or C<_sopen()> is in an unknown mode.
 
 (I) The class used internally to C<tie()> the I<$Max_Time>, I<$Max_Tries> and
 I<$Retry_Timeout> variables to has been used incorrectly.
+
+=item Your vendor has not defined Win32::SharedFileOpen macro %s
+
+(I) You attempted to lookup the value of the specified constant in the
+Win32::SharedFileOpen module, but that constant is apparently not defined.
 
 =back
 
@@ -906,7 +921,7 @@ sharing mode that denies other processes that access mode.
 
 =item ERROR_FILE_EXISTS (The file exists)
 
-[C<sopen()> only.] The I<$oflag> included C<O_CREAT | O_EXCL>, and the I<$file> already exists.
+[C<sopen()> only.]  The I<$oflag> included C<O_CREAT | O_EXCL>, and the I<$file> already exists.
 
 =item EINVAL (Invalid argument)
 
@@ -1379,8 +1394,8 @@ filehandle and returned it to the caller.  (C<undef> was returned instead on
 failure.)
 
 As of version 2.00 of this module, the arguments and return values of these two
-functions now more closely resemble those of the Perl built-in functions
-C<open()> and C<sysopen()>.  Specifically, they now both expect a
+functions now more closely resemble those of the Perl built-in C<open()> and
+C<sysopen()> functions.  Specifically, they now both expect a
 L<filehandle|"Filehandles"> or an L<indirect filehandle|"Indirect Filehandles">
 as their first argument and they both return a Boolean value to indicate success
 or failure.
@@ -1465,11 +1480,11 @@ License or the Artistic License, as specified in the F<LICENCE> file.
 
 =head1 VERSION
 
-Win32::SharedFileOpen, Version 3.17
+Win32::SharedFileOpen, Version 3.18
 
 =head1 DATE
 
-26 February 2004
+01 Aug 2004
 
 =head1 HISTORY
 

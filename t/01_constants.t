@@ -1,7 +1,7 @@
 #!perl
 #===============================================================================
 #
-# 01_constants.t
+# t/01_constants.t
 #
 # DESCRIPTION
 #   Test program to check autoloading of constants.
