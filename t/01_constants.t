@@ -1,27 +1,40 @@
 #!perl
-#-------------------------------------------------------------------------------
-# Copyright (c) 2001-2003, Steve Hay. All rights reserved.
+#===============================================================================
 #
-# Module Name:  Win32::SharedFileOpen
-# Source File:  01_constants.t
-# Description:  Test program to check autoloading of constants
-#-------------------------------------------------------------------------------
+# 01_constants.t
+#
+# DESCRIPTION
+#   Test program to check autoloading of constants.
+#
+# COPYRIGHT
+#   Copyright (c) 2001-2004, Steve Hay.  All rights reserved.
+#
+# LICENCE
+#   You may distribute under the terms of either the GNU General Public License
+#   or the Artistic License, as specified in the LICENCE file.
+#
+#===============================================================================
 
-use 5.006;
+use 5.006000;
 
 use strict;
 use warnings;
 
 use Test;
 
-BEGIN { plan tests => 23 };             # Number of tests to be executed
+#===============================================================================
+# INITIALISATION
+#===============================================================================
+
+BEGIN {
+    plan tests => 23;                   # Number of tests to be executed
+}
 
 use Win32::SharedFileOpen qw(:DEFAULT :retry);
 
-#-------------------------------------------------------------------------------
-#
-# Main program.
-#
+#===============================================================================
+# MAIN PROGRAM
+#===============================================================================
 
 MAIN: {
                                         # Test 1: Did we make it this far OK?
@@ -58,4 +71,4 @@ MAIN: {
     ok(defined INFINITE);
 }
 
-#-------------------------------------------------------------------------------
+#===============================================================================

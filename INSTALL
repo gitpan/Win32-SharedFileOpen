@@ -1,0 +1,32 @@
+________________________________________________________________________________
+
+                      Win32::SharedFileOpen, Version 3.16
+________________________________________________________________________________
+
+INSTALLATION
+
+    To install this module, cd to the directory that contains this INSTALL file
+    and type the following:
+
+        perl Makefile.PL
+        nmake
+        nmake test
+        nmake install
+
+PREREQUISITES
+
+    Perl version 5.6.0 or later.
+
+    The only non-standard module required by this module is:
+
+        Win32::WinError
+
+    This is part of the "libwin32" distribution, which is almost invariably
+    present in Perl installations on Microsoft Windows platforms anyway, and is
+    available from CPAN (http://www.cpan.org/).
+
+    Obviously this module only works on Microsoft Windows platforms, and
+    requires Microsoft Visual C to build it since other C libraries presumably
+    do not implement the Microsoft-specific functions which this module provides
+    wrappers to.
+________________________________________________________________________________

@@ -1,44 +1,51 @@
 #!perl
-#-------------------------------------------------------------------------------
-# Copyright (c) 2001-2003, Steve Hay. All rights reserved.
+#===============================================================================
 #
-# Module Name:  Win32::SharedFileOpen
-# Source File:  02_gensym.t
-# Description:  Test program to check gensym()
-#-------------------------------------------------------------------------------
+# 02_gensym.t
+#
+# DESCRIPTION
+#   Test program to check gensym().
+#
+# COPYRIGHT
+#   Copyright (c) 2001-2004, Steve Hay.  All rights reserved.
+#
+# LICENCE
+#   You may distribute under the terms of either the GNU General Public License
+#   or the Artistic License, as specified in the LICENCE file.
+#
+#===============================================================================
 
-use 5.006;
+use 5.006000;
 
 use strict;
 use warnings;
 
 use Test;
 
-BEGIN { plan tests => 8 };              # Number of tests to be executed
+#===============================================================================
+# INITIALISATION
+#===============================================================================
+
+BEGIN {
+    plan tests => 8;                    # Number of tests to be executed
+}
 
 use Win32::SharedFileOpen qw(gensym);
 
-#-------------------------------------------------------------------------------
-#
-# Main program.
-#
+#===============================================================================
+# MAIN PROGRAM
+#===============================================================================
 
 MAIN: {
-    my( $file1,                         # Test file 1
-        $file2,                         # Test file 2
-        $str,                           # Test string to read/write
-        $strlen,                        # Test string length
-        $fh1,                           # Test filehandle 1
-        $fh2                            # Test filehandle 2
-        );
-
                                         # Test 1: Did we make it this far OK?
     ok(1);
 
-    $file1  = 'test1.txt';
-    $file2  = 'test2.txt';
-    $str    = 'Hello, world.';
-    $strlen = length $str;
+    my $file1  = 'test1.txt';
+    my $file2  = 'test2.txt';
+    my $str    = 'Hello, world.';
+    my $strlen = length $str;
+
+    my($fh1, $fh2);
 
                                         # Tests 2-3: Check a single gensym()
     $fh1 = gensym();
@@ -67,4 +74,4 @@ MAIN: {
     unlink $file2;
 }
 
-#-------------------------------------------------------------------------------
+#===============================================================================

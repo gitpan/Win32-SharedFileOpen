@@ -1,13 +1,21 @@
 #!perl
-#-------------------------------------------------------------------------------
-# Copyright (c) 2001-2003, Steve Hay. All rights reserved.
+#===============================================================================
 #
-# Module Name:  Win32::SharedFileOpen
-# Source File:  08_fsopen_share.t
-# Description:  Test program to check fsopen() share modes
-#-------------------------------------------------------------------------------
+# 08_fsopen_share.t
+#
+# DESCRIPTION
+#   Test program to check fsopen() share modes.
+#
+# COPYRIGHT
+#   Copyright (c) 2001-2004, Steve Hay.  All rights reserved.
+#
+# LICENCE
+#   You may distribute under the terms of either the GNU General Public License
+#   or the Artistic License, as specified in the LICENCE file.
+#
+#===============================================================================
 
-use 5.006;
+use 5.006000;
 
 use strict;
 use warnings;
@@ -16,29 +24,27 @@ use Errno;
 use Test;
 use Win32::WinError;
 
-BEGIN { plan tests => 13 };             # Number of tests to be executed
+#===============================================================================
+# INITIALISATION
+#===============================================================================
+
+BEGIN {
+    plan tests => 13;                   # Number of tests to be executed
+}
 
 use Win32::SharedFileOpen qw(:DEFAULT new_fh);
 
-#-------------------------------------------------------------------------------
-#
-# Main program.
-#
+#===============================================================================
+# MAIN PROGRAM
+#===============================================================================
 
 MAIN: {
-    my( $file,                          # Test file
-        $fh1,                           # Test filehandle 1
-        $ret1,                          # Return value 1 from fsopen()
-        $fh2,                           # Test filehandle 2
-        $ret2,                          # Return value 2 from fsopen()
-        $fh3,                           # Test filehandle 3
-        $ret3                           # Return value 3 from fsopen()
-        );
-
                                         # Test 1: Did we make it this far OK?
     ok(1);
 
-    $file = 'test.txt';
+    my $file = 'test.txt';
+
+    my($fh1, $fh2, $fh3, $ret1, $ret2, $ret3);
 
                                         # Tests 2-4: Check SH_DENYNO
     $fh1 = new_fh();
@@ -107,4 +113,4 @@ MAIN: {
     unlink $file;
 }
 
-#-------------------------------------------------------------------------------
+#===============================================================================

@@ -1,13 +1,21 @@
 #!perl
-#-------------------------------------------------------------------------------
-# Copyright (c) 2002-2003, Steve Hay. All rights reserved.
+#===============================================================================
 #
-# Module Name:  Win32::SharedFileOpen
-# Source File:  05_sopen_fh_arg.t
-# Description:  Test program to check sopen()'s filehandle argument
-#-------------------------------------------------------------------------------
+# 05_sopen_fh_arg.t
+#
+# DESCRIPTION
+#   Test program to check sopen()'s filehandle argument.
+#
+# COPYRIGHT
+#   Copyright (c) 2002-2004, Steve Hay.  All rights reserved.
+#
+# LICENCE
+#   You may distribute under the terms of either the GNU General Public License
+#   or the Artistic License, as specified in the LICENCE file.
+#
+#===============================================================================
 
-use 5.006;
+use 5.006000;
 
 use strict;
 use warnings;
@@ -18,30 +26,29 @@ use IO::Handle;
 use Symbol;
 use Test;
 
-BEGIN { plan tests => 14 }              # Number of tests to be executed
+#===============================================================================
+# INITIALISATION
+#===============================================================================
+
+BEGIN {
+    plan tests => 14;                   # Number of tests to be executed
+}
 
 use Win32::SharedFileOpen qw(:DEFAULT new_fh);
 
-#-------------------------------------------------------------------------------
-#
-# Main program.
-#
+#===============================================================================
+# MAIN PROGRAM
+#===============================================================================
 
 MAIN: {
-    local(  *FH                         # Glob for test filehandle
-            );
-
-    my(     $file,                      # Test file
-            $err,                       # Error message from sopen()
-            $fh,                        # Test indirect filehandle
-            $ret                        # Return value from sopen()
-            );
-
                                         # Test 1: Did we make it this far OK?
     ok(1);
 
-    $file = 'test.txt';
-    $err = qr/^sopen\(\) can't use the undefined value/;
+    my $file = 'test.txt';
+    my $err = qr/^sopen\(\) can't use the undefined value/;
+
+    my($fh, $ret);
+    local *FH;
 
     unlink $file or die "Can't delete file '$file': $!\n" if -e $file;
 
@@ -115,4 +122,4 @@ MAIN: {
     unlink $file;
 }
 
-#-------------------------------------------------------------------------------
+#===============================================================================

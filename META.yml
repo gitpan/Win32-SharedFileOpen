@@ -1,8 +1,8 @@
 # http://module-build.sourceforge.net/META-spec.html
 #XXXXXXX This is a prototype!!!  It will change in the future!!! XXXXX#
 name:         Win32-SharedFileOpen
-version:      3.15
-version_from: SharedFileOpen.pm
+version:      3.16
+version_from: lib/Win32/SharedFileOpen.pm
 installdirs:  site
 requires:
     Carp:                          0

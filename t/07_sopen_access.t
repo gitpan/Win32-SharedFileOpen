@@ -1,13 +1,21 @@
 #!perl
-#-------------------------------------------------------------------------------
-# Copyright (c) 2001-2003, Steve Hay. All rights reserved.
+#===============================================================================
 #
-# Module Name:  Win32::SharedFileOpen
-# Source File:  07_sopen_access.t
-# Description:  Test program to check sopen() access modes
-#-------------------------------------------------------------------------------
+# 07_sopen_access.t
+#
+# DESCRIPTION
+#   Test program to check sopen() access modes.
+#
+# COPYRIGHT
+#   Copyright (c) 2001-2004, Steve Hay.  All rights reserved.
+#
+# LICENCE
+#   You may distribute under the terms of either the GNU General Public License
+#   or the Artistic License, as specified in the LICENCE file.
+#
+#===============================================================================
 
-use 5.006;
+use 5.006000;
 
 use strict;
 use warnings;
@@ -16,30 +24,29 @@ use Errno;
 use Test;
 use Win32::WinError;
 
-BEGIN { plan tests => 42 };             # Number of tests to be executed
+#===============================================================================
+# INITIALISATION
+#===============================================================================
+
+BEGIN {
+    plan tests => 42;                   # Number of tests to be executed
+}
 
 use Win32::SharedFileOpen qw(:DEFAULT new_fh);
 
-#-------------------------------------------------------------------------------
-#
-# Main program.
-#
+#===============================================================================
+# MAIN PROGRAM
+#===============================================================================
 
 MAIN: {
-    my( $file,                          # Test file
-        $str,                           # Test string to read/write
-        $strlen,                        # Test string length
-        $fh,                            # Test filehandle
-        $ret,                           # Return value from sopen()
-        $line                           # Line read from file
-        );
-
                                         # Test 1: Did we make it this far OK?
     ok(1);
 
-    $file   = 'test.txt';
-    $str    = 'Hello, world.';
-    $strlen = length $str;
+    my $file   = 'test.txt';
+    my $str    = 'Hello, world.';
+    my $strlen = length $str;
+
+    my($fh, $ret, $line);
 
     unlink $file or die "Can't delete file '$file': $!\n" if -e $file;
 
@@ -244,4 +251,4 @@ MAIN: {
     unlink $file;
 }
 
-#-------------------------------------------------------------------------------
+#===============================================================================

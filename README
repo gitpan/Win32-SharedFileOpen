@@ -1,6 +1,7 @@
+________________________________________________________________________________
 
-Win32::SharedFileOpen Version 3.15
-==================================
+                      Win32::SharedFileOpen, Version 3.16
+________________________________________________________________________________
 
 NAME
 
@@ -9,103 +10,73 @@ NAME
 SYNOPSIS
 
     # Read and write files a la open(), but with mandatory file locking:
-    # ------------------------------------------------------------------
-
     use Win32::SharedFileOpen;
-
     fsopen(FH1, 'readme', 'r', SH_DENYWR) or
         die "Can't read 'readme' and take write-lock: $^E\n";
-
     fsopen(FH2, 'writeme', 'w', SH_DENYRW) or
         die "Can't write 'writeme' and take read/write-lock: $^E\n";
 
     # Read and write files a la sysopen(), but with mandatory file locking:
-    # ---------------------------------------------------------------------
-
     use Win32::SharedFileOpen;
-
     sopen(FH1, 'readme', O_RDONLY, SH_DENYWR) or
         die "Can't read 'readme' and take write-lock: $^E\n";
-
     sopen(FH2, 'writeme', O_WRONLY | O_CREAT | O_TRUNC, SH_DENYRW, S_IWRITE) or
         die "Can't write 'writeme' and take read/write-lock: $^E\n";
 
     # Retry opening the file if it fails due to a sharing violation:
-    # --------------------------------------------------------------
-
     use Win32::SharedFileOpen qw(:DEFAULT :retry);
-
     $Max_Time      = 10;    # Try opening the file for up to 10 seconds
     $Retry_Timeout = 500;   # Wait 500 milliseconds between each try
-
     fsopen(FH, 'readme', 'r', SH_DENYNO) or
         die "Can't read 'readme' after retrying for $Max_Time seconds: $^E\n";
 
     # Use a lexical indirect filehandle that closes itself when destroyed:
-    # --------------------------------------------------------------------
-
     use Win32::SharedFileOpen qw(:DEFAULT new_fh);
-
     {
         my $fh = new_fh();
-
         fsopen($fh, 'readme', 'r', SH_DENYNO) or
             die "Can't read 'readme': $^E\n";
-
         while (<$fh>) {
             # ... Do some stuff ...
         }
-
     }   # ... $fh is automatically closed here
 
 DESCRIPTION
 
     This module provides a Perl interface to the Microsoft C library functions
-    _fsopen() and _sopen(). These functions are counterparts to the standard C
+    _fsopen() and _sopen().  These functions are counterparts to the standard C
     library functions fopen(3) and open(2) respectively (which are already
     effectively available in Perl as open() and sysopen() respectively), but are
     intended for use when opening a file for subsequent shared reading and/or
     writing.
 
-INSTALLATION
-
-    To install this module type the following:
-
-        perl Makefile.PL
-        nmake
-        nmake test
-        nmake install
-
-DEPENDENCIES
-
-    The only non-standard module required by this module is Win32::WinError.
-    This is part of the "libwin32" distribution, which is almost invariably
-    present in Perl installations on Microsoft Windows platforms anyway, and is
-    available from CPAN (http://www.cpan.org/).
-
-    Obviously this module only works on Microsoft Windows platforms, and
-    requires Microsoft Visual C to build it since other C libraries do not
-    implement the Microsoft-specific functions which this module provides
-    wrappers to.
-
 COMPATIBILITY
 
     Prior to version 2.00 of this module, fsopen() and sopen() both created a
-    filehandle and returned it to the caller. (undef was returned instead on
+    filehandle and returned it to the caller.  (undef was returned instead on
     failure.)
 
     As of version 2.00 of this module, the arguments and return values of these
     two functions now more closely resemble those of the Perl built-in functions
-    open() and sysopen(). Specifically, they now both expect a filehandle as
+    open() and sysopen().  Specifically, they now both expect a filehandle as
     their first argument and they both return a boolean value to indicate
     success or failure.
 
-    THIS IS AN INCOMPATIBLE CHANGE. EXISTING SOFTWARE THAT USES THESE FUNCTIONS
+    THIS IS AN INCOMPATIBLE CHANGE.  EXISTING SOFTWARE THAT USES THESE FUNCTIONS
     WILL NEED TO BE MODIFIED.
 
-COPYRIGHT AND LICENCE
+INSTALLATION
 
-    Copyright (c) 2001-2003, Steve Hay. All rights reserved.
+    See the INSTALL file.
 
-    This program is free software; you can redistribute it and/or modify it
-    under the same terms as Perl itself.
+COPYRIGHT
+
+    Copyright (c) 2001-2004, Steve Hay.  All rights reserved.
+
+LICENCE
+
+    This module is free software; you can redistribute it and/or modify it under
+    the same terms as Perl itself, i.e. under the terms of either the GNU
+    General Public License or the Artistic License, as specified in the LICENCE
+    file.
+________________________________________________________________________________
