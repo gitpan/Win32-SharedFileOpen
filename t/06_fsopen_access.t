@@ -1,6 +1,6 @@
 #!perl
 #-------------------------------------------------------------------------------
-# Copyright (c)	2001-2002, Steve Hay. All rights reserved.
+# Copyright (c)	2001-2003, Steve Hay. All rights reserved.
 #
 # Module Name:	Win32::SharedFileOpen
 # Source File:	06_fsopen_access.t
@@ -17,13 +17,7 @@ use Test;
 use Win32::WinError;
 
 BEGIN {
-	if ($] >= 5.007) {
-		plan tests => 34,				# Number of tests to be executed
-		     todo => [29];				# Test 29 currently fails in Perl 5.8.0
-	}
-	else {
-		plan tests => 34;				# Number of tests to be executed
-	}
+	plan tests => 34;					# Number of tests to be executed
 };
 
 use Win32::SharedFileOpen qw(:DEFAULT new_fh);

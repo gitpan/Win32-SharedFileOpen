@@ -1,5 +1,5 @@
 #-------------------------------------------------------------------------------
-# Copyright (c)	2001-2002, Steve Hay. All rights reserved.
+# Copyright (c)	2001-2003, Steve Hay. All rights reserved.
 #
 # Module Name:	Win32::SharedFileOpen
 # Source File:	SharedFileOpen.pm
@@ -28,8 +28,8 @@ BEGIN {
 	# Get the ERROR_SHARING_VIOLATION constant loaded now otherwise loading it
 	# later the first time that we test for an error actually interferes with
 	# the value of $! (which we might also want to test) because the constant is
-	# autoloaded by Win32::WinError, and the AUTOLOAD() subroutine in that
-	# module resets $! in the versions included in libwin32-0.18 and earlier.
+	# autoloaded by Win32::WinError and the AUTOLOAD() subroutine in that module
+	# resets $! in the versions included in libwin32-0.18 and earlier.
 	my $dummy = ERROR_SHARING_VIOLATION;
 }
 
@@ -87,7 +87,7 @@ Exporter::export_tags(qw(oflags pmodes shflags));
 
 Exporter::export_ok_tags(qw(retry));
 
-our $VERSION = '3.00';
+our $VERSION = '3.10';
 
 # Debug setting. (0 = No debug, 1 = summary of what fsopen() or sopen() did, 2 =
 # additional information revealing exactly what failed.)
@@ -201,8 +201,17 @@ sub fsopen(*$$$) {
 	}
 
 	if ($success) {
-		# Put the Perl filehandle into binary mode if required.
-		binmode $fh if $mode =~ /b/;
+		# The _fsopen() XS function always opens the filehandle in "binary"
+		# mode, so push a "text" mode layer on top unless "binary" mode is what
+		# was actually asked for. (See comments in XS file for the reason why.)
+		unless ($mode =~ /b/io) {
+			unless (binmode $fh, ':crlf') {
+				if ($Debug > 1) {
+					print STDERR "Could not push text mode layer on PerlIO " .
+								 "stream for file '$file'\n";
+				}
+			}
+		}
 
 		return 1;
 	}
@@ -261,8 +270,17 @@ sub sopen(*$$$;$) {
 	}
 
 	if ($success) {
-		# Put the Perl filehandle into binary mode if required.
-		binmode $fh if $oflag & O_BINARY();
+		# The _sopen() XS function always opens the filehandle in "binary"
+		# mode, so push a "text" mode layer on top unless "binary" mode is what
+		# was actually asked for. (See comments in XS file for the reason why.)
+		unless ($oflag & O_BINARY()) {
+			unless (binmode $fh, ':crlf') {
+				if ($Debug > 1) {
+					print STDERR "Could not push text mode layer on PerlIO " .
+								 "stream for file '$file'\n";
+				}
+			}
+		}
 
 		return 1;
 	}
@@ -444,7 +462,7 @@ will be denied to other processes sharing the file.
 This share access control is thus effectively a form a file-locking which,
 unlike C<flock(3)> and C<lockf(3)> and their corresponding Perl function
 C<flock()>, is I<mandatory> rather than just I<advisory>. This means that if,
-for example, you "deny read access" to the file that you have opened then no
+for example, you "deny read access" for the file that you have opened then no
 other process will be able to read that file while you still have it open,
 whether or not they are playing the same ball game as you. They cannot gain read
 access to it by simply not honouring the same file opening/locking scheme as
@@ -510,24 +528,26 @@ I<$fh> in the access mode specified by L<I<$oflag>|"O_* Flags"> and prepares the
 file for subsequent shared reading and/or writing as specified by
 L<I<$shflag>|"SH_* Flags">. The optional L<I<$pmode>|"S_I* Flags"> argument
 specifies the file's permission settings if the file has just been created; it
-is only required when the access mode includes C<O_CREAT>.
+is required if and only if the access mode includes C<O_CREAT>.
 
 Returns a non-zero value if the file was successfully opened, or returns
 C<undef> and sets C<$!> and/or C<$^E> if the file could not be opened.
 
 =item C<gensym()>
 
-Returns a new, anonymous, typeglob which can be used as an indirect filehandle
-in the first parameter of C<fsopen()> and C<sopen()>.
+Returns a new, anonymous, typeglob which can be used as an
+L<indirect filehandle|"Filehandles and Indirect Filehandles"> in the first
+parameter of C<fsopen()> and C<sopen()>.
 
-This function is not actually implemented by this module: it is simply imported
-from the L<Symbol|Symbol> module. See L<"Filehandles and Indirect Filehandles">
-for more details.
+This function is not actually implemented by this module itself: it is simply
+imported from the L<Symbol|Symbol> module and then re-exported.
+See L<"Filehandles and Indirect Filehandles"> for more details.
 
 =item C<new_fh()>
 
-Returns a new, anonymous, typeglob which can be used as an indirect filehandle
-in the first parameter of C<fsopen()> and C<sopen()>.
+Returns a new, anonymous, typeglob which can be used as an
+L<indirect filehandle|"Filehandles and Indirect Filehandles"> in the first
+parameter of C<fsopen()> and C<sopen()>.
 
 This function is an implementation of the "First-Class Filehandle Trick". See
 L<"Filehandles and Indirect Filehandles"> for more details.
@@ -743,10 +763,10 @@ If we were to try to return a reference to the typeglob, as in:
 
 then I<$fh> would actually be a reference to the original C<*FH> itself, not the
 temporary, localised, copy of it that existed within the C<do { ... }> block.
-This means that if we use the technique twice to obtain two typeglob references
-to use as two indirect filehandles then we end up with them both being
-references to the same typeglob (namely, C<*FH>) so that the two filehandles
-would then clash.
+This means that if we were to use that technique twice to obtain two typeglob
+references to use as two indirect filehandles then we would end up with them
+both being references to the same typeglob (namely, C<*FH>) so that the two
+filehandles would then clash.
 
 If this trick is used only once within a program running under
 "C<use warnings;>" that doesn't mention C<*FH> or any of its members anywhere
@@ -1169,8 +1189,13 @@ Microsoft Visual C functions C<_fsopen()> or C<_sopen()> is of an unknown type.
 
 =item Unknown mode '%s'
 
-(I) The file open mode used by the Microsoft Visual C function C<_fsopen()> or
-the Perl API function C<PerlIO_fdopen()> is unknown.
+(I) The PerlIO stream associated with the C file stream opened by one of the
+Microsoft Visual C functions C<_fsopen()> or C<_sopen()> is in an unknown mode.
+
+=item Usage: tie SCALAR, '%s', SCALARVALUE, SCALARNAME
+
+(I) The class used internally to C<tie()> the I<$Debug>, I<$Max_Time>,
+I<$Max_Tries> and I<$Retry_Timeout> variables to has been used incorrectly.
 
 =back
 
@@ -1444,7 +1469,7 @@ Win32
 
 =item CPAN Modules
 
-Win32::WinError (part of the "libwin32" bundle)
+Win32::WinError (part of the "libwin32" distribution)
 
 =item Other Modules
 
@@ -1469,18 +1494,7 @@ WILL NEED TO BE MODIFIED.>
 
 =head1 BUGS AND CAVEATS
 
-The C<fsopen()> function seems to have acquired a new glitch in version 3.00
-when running under Perl 5.7.0 or later which comes about as a result of the
-re-design undertaken to fix a much more serious bug in previous versions. It
-seems that a file opened in text mode cannot subsequently be changed to binary
-mode, or at least not in the usual way by calling C<binmode()> on the
-filehandle. There is no problem with opening a file in binary mode and then
-switching to text mode, and C<sopen()> has no such problems at all.
-
-The obvious workarounds to this problem, which causes "06_fsopen_access.t" test
-number 29 in the test suite to fail under Perl 5.7.0 or later, are either simply
-to open the file in binary mode in the first place or else use the C<sopen()>
-function instead.
+I<None known>
 
 =head1 SEE ALSO
 
@@ -1495,7 +1509,7 @@ L<IO::Handle>,
 L<Symbol>,
 L<Win32API::File>
 
-In particular, the Win32API::File module (part of the "libwin32" bundle)
+In particular, the Win32API::File module (part of the "libwin32" distribution)
 contains an interface to another, lower-level, Microsoft Visual C function,
 L<C<CreateFile()>|Win32API::File/CreateFile>, which provides similar (and more)
 capabilities but using a completely different set of arguments which are
@@ -1508,25 +1522,30 @@ does not entirely alleviate the pain.
 Some of the XS code used in the re-write for version 3.00 is based on the XS
 code in the standard library module VMS::Stdio.
 
+Thanks to Nick Ing-Simmons for help in getting this XS to build under different
+flavours of Perl (Perl 5.6.0, 5.6.1 and 5.8.0, both with and without
+PERL_IMPLICIT_CONTEXT and/or PERL_IMPLICIT_SYS enabled, are all now supported),
+and for help in fixing a text mode/binary mode bug in the fsopen() function.
+
 =head1 AUTHOR
 
 Steve Hay E<lt>shay@cpan.orgE<gt>
 
 =head1 COPYRIGHT AND LICENCE
 
-Copyright (c) 2001-2002, Steve Hay. All rights reserved.
+Copyright (c) 2001-2003, Steve Hay. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the same terms as Perl itself.
 
 =head1 VERSION
 
-Win32::SharedFileOpen, Version 3.00
+Win32::SharedFileOpen, Version 3.10
 
 =head1 HISTORY
 
 See the file F<Changes> in the original distribution archive,
-F<Win32-SharedFileOpen-3.00.tar.gz>.
+F<Win32-SharedFileOpen-3.10.tar.gz>.
 
 =cut
 

@@ -3,6 +3,32 @@ ________________________________________________________________________________
 Revision history for Perl extension Win32::SharedFileOpen.
 _________________
 
+v3.10 25 Jan 2003
+
+	- Fixes for building under Perls with PERL_IMPLICIT_CONTEXT and/or
+	  PERL_IMPLICIT_SYS enabled (e.g. ActivePerl):
+
+	  * Added missing pTHX/aTHX macros to debug() function definition/calls to
+	    fix building under Perls with PERL_IMPLICIT_CONTEXT enabled;
+
+	  * Added definitions of PerlIO and PerlIO_importFILE() to fix building with
+	    Perl 5.6.x's with PERL_IMPLICIT_SYS enabled;
+
+	  * Changed fclose() and close() calls to PerlSIO_fclose() and
+	    PerlLIO_close() calls respectively to fix building with Perl 5.8.0's
+	    with PERL_IMPLICIT_SYS enabled.
+
+	  This module should now build cleanly with Perl 5.6.0, 5.6.1 and 5.8.0 with
+	  any combination of PERL_IMPLICIT_CONTEXT and PERL_IMPLICIT_SYS enabled or
+	  disabled.
+
+	- Fixed the remaining fsopen() bug regarding text/binary modes under Perl
+	  5.8.0 by always setting the C file stream to binary mode before importing
+	  it into PerlIO, and then pushing a text mode layer on top if required.
+
+	- Speeded up the "12_variables.t" test by reducing the retry times.
+_________________
+
 v3.00 02 Nov 2002
 
 	- Fixed the fsopen() bug by opening the Perl filehandle in the XS rather

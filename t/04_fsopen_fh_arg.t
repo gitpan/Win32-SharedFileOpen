@@ -1,6 +1,6 @@
 #!perl
 #-------------------------------------------------------------------------------
-# Copyright (c)	2002, Steve Hay. All rights reserved.
+# Copyright (c)	2002-2003, Steve Hay. All rights reserved.
 #
 # Module Name:	Win32::SharedFileOpen
 # Source File:	04_fsopen_fh_arg.t

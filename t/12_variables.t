@@ -1,6 +1,6 @@
 #!perl
 #-------------------------------------------------------------------------------
-# Copyright (c)	2001-2002, Steve Hay. All rights reserved.
+# Copyright (c)	2001-2003, Steve Hay. All rights reserved.
 #
 # Module Name:	Win32::SharedFileOpen
 # Source File:	12_variables.t
@@ -172,7 +172,7 @@ MAIN: {
 	$time = $finish - $start;
 	ok($time >= 1 and $time < 2);
 
-	$Max_Time = 10;
+	$Max_Time = 3;
 
 	$fh2 = new_fh();
 	$start = time;
@@ -180,7 +180,7 @@ MAIN: {
 	$finish = time;
 	ok(not defined $ret and $!{EACCES} and $ == ERROR_SHARING_VIOLATION);
 	$time = $finish - $start;
-	ok($time >= 10 and $time < 11);
+	ok($time >= 3 and $time < 4);
 
 	close $fh1;
 
@@ -197,7 +197,7 @@ MAIN: {
 	$time = $finish - $start;
 	ok($time >= 1 and $time < 2);
 
-	$Max_Time = 10;
+	$Max_Time = 3;
 
 	$fh2 = new_fh();
 	$start = time;
@@ -205,7 +205,7 @@ MAIN: {
 	$finish = time;
 	ok(not defined $ret and $!{EACCES} and $ == ERROR_SHARING_VIOLATION);
 	$time = $finish - $start;
-	ok($time >= 10 and $time < 11);
+	ok($time >= 3 and $time < 4);
 
 	close $fh1;
 
@@ -302,7 +302,7 @@ MAIN: {
 										# Tests 45-60: Check $Retry_Timeout
 	# Use $Max_Tries to check $Retry_Timeout.
 	$Max_Time  = undef;
-	$Max_Tries = 10;
+	$Max_Tries = 5;
 
 	eval {
 		$Retry_Timeout = '';
@@ -355,9 +355,9 @@ MAIN: {
 	$finish = time;
 	ok(not defined $ret and $!{EACCES} and $ == ERROR_SHARING_VIOLATION);
 	$time = $finish - $start;
-	ok($time >= 2 and $time <= 3);
+	ok($time >= 1 and $time <= 2);
 
-	$Retry_Timeout = 1000;
+	$Retry_Timeout = 750;
 
 	$fh2 = new_fh();
 	$start = time;
@@ -365,7 +365,7 @@ MAIN: {
 	$finish = time;
 	ok(not defined $ret and $!{EACCES} and $ == ERROR_SHARING_VIOLATION);
 	$time = $finish - $start;
-	ok($time >= 9 and $time <= 11);
+	ok($time >= 3 and $time <= 4);
 
 	close $fh1;
 
@@ -380,9 +380,9 @@ MAIN: {
 	$finish = time;
 	ok(not defined $ret and $!{EACCES} and $ == ERROR_SHARING_VIOLATION);
 	$time = $finish - $start;
-	ok($time >= 2 and $time <= 3);
+	ok($time >= 1 and $time <= 2);
 
-	$Retry_Timeout = 1000;
+	$Retry_Timeout = 750;
 
 	$fh2 = new_fh();
 	$start = time;
@@ -390,7 +390,7 @@ MAIN: {
 	$finish = time;
 	ok(not defined $ret and $!{EACCES} and $ == ERROR_SHARING_VIOLATION);
 	$time = $finish - $start;
-	ok($time >= 9 and $time <= 11);
+	ok($time >= 3 and $time <= 4);
 
 	close $fh1;
 
