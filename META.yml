@@ -1,21 +1,28 @@
-# http://module-build.sourceforge.net/META-spec.html
-#XXXXXXX This is a prototype!!!  It will change in the future!!! XXXXX#
-name:         Win32-SharedFileOpen
-version:      3.16
-version_from: lib/Win32/SharedFileOpen.pm
-installdirs:  site
-requires:
-    Carp:                          0
-    Errno:                         0
-    Exporter:                      0
-    FileHandle:                    0
-    IO::File:                      0
-    IO::Handle:                    0
-    Symbol:                        0
-    Test:                          0
-    Win32:                         0
-    Win32::WinError:               0
-    XSLoader:                      0
-
+name: Win32-SharedFileOpen
+version: 3.17
+abstract: Open a file for shared reading and/or writing
+author: Steve Hay <shay@cpan.org>
+license: perl
 distribution_type: module
-generated_by: ExtUtils::MakeMaker version 6.17
+build_requires:
+  Errno: 0
+  File::Copy: 0
+  File::Spec: 0
+  FileHandle: 0
+  IO::File: 0
+  IO::Handle: 0
+  Test: 0
+requires:
+  perl: 5.6.0
+  Carp: 0
+  Exporter: 0
+  Symbol: 0
+  Win32: 0
+  Win32::WinError: 0
+  XSLoader: 0
+recommends:
+  Test::Pod: 1
+no_index:
+  directory:
+    - inc
+generated_by: Module::Install version 0.32

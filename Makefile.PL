@@ -21,7 +21,7 @@ use strict;
 use warnings;
 
 use Config;
-use ExtUtils::MakeMaker;
+use inc::Module::Install;
 
 #===============================================================================
 # INITIALISATION
@@ -38,33 +38,29 @@ BEGIN {
 #===============================================================================
 
 MAIN: {
+    name           ('Win32-SharedFileOpen');
+    abstract       ('Open a file for shared reading and/or writing');
+    version_from   ('lib/Win32/SharedFileOpen.pm');
+    author         ('Steve Hay <shay@cpan.org>');
+    license        ('perl');
+    perl_version   (5.006000);
+    requires       ('Carp');
+    requires       ('Exporter');
+    requires       ('Symbol');
+    requires       ('Win32');
+    requires       ('Win32::WinError');
+    requires       ('XSLoader');
+    build_requires ('Errno');
+    build_requires ('File::Copy');
+    build_requires ('File::Spec');
+    build_requires ('FileHandle');
+    build_requires ('IO::File');
+    build_requires ('IO::Handle');
+    build_requires ('Test');
+    recommends     ('Test::Pod' => 1.00);
+    clean_files    ('const-c.inc const-xs.inc');
+
     WriteMakefile(
-        NAME          => 'Win32::SharedFileOpen',
-
-        ABSTRACT_FROM => 'lib/Win32/SharedFileOpen.pm',
-
-        VERSION_FROM  => 'lib/Win32/SharedFileOpen.pm',
-
-        AUTHOR        => 'Steve Hay <shay@cpan.org>',
-
-        PREREQ_PM => {
-            Carp              => 0,
-            Errno             => 0,     # Only used by test suite
-            Exporter          => 0,
-            FileHandle        => 0,     # Only used by test suite
-            'IO::File'        => 0,     # Only used by test suite
-            'IO::Handle'      => 0,     # Only used by test suite
-            Symbol            => 0,
-            Test              => 0,     # Only used by test suite
-            Win32             => 0,
-            'Win32::WinError' => 0,
-            XSLoader          => 0
-        },
-
-        clean => {
-            FILES => 'const-c.inc const-xs.inc'
-        },
-
         dist => {
             DIST_CP  => 'cp',
             PREOP    => 'chmod -R a-x+rwX,go-w $(DISTVNAME)',

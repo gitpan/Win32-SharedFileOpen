@@ -12,6 +12,11 @@ SharedFileOpen.xs
 typemap
 fallback/const-c.inc
 fallback/const-xs.inc
+inc/Module/Install.pm
+inc/Module/Install/Base.pm
+inc/Module/Install/Makefile.pm
+inc/Module/Install/MakeMaker.pm
+inc/Module/Install/Metadata.pm
 lib/Win32/SharedFileOpen.pm
 t/01_constants.t
 t/02_gensym.t
@@ -25,3 +30,4 @@ t/09_sopen_share.t
 t/10_fsopen_fh_leak.t
 t/11_sopen_fh_leak.t
 t/12_variables.t
+t/13_pod.t
