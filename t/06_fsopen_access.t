@@ -7,7 +7,7 @@
 #   Test script to check fsopen() access modes.
 #
 # COPYRIGHT
-#   Copyright (c) 2001-2004, Steve Hay.  All rights reserved.
+#   Copyright (C) 2001-2004 Steve Hay.  All rights reserved.
 #
 # LICENCE
 #   You may distribute under the terms of either the GNU General Public License

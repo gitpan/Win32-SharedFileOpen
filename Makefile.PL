@@ -7,7 +7,7 @@
 #   Makefile creation script.
 #
 # COPYRIGHT
-#   Copyright (c) 2001-2004, Steve Hay.  All rights reserved.
+#   Copyright (C) 2001-2005 Steve Hay.  All rights reserved.
 #
 # LICENCE
 #   You may distribute under the terms of either the GNU General Public License
@@ -38,15 +38,22 @@ BEGIN {
 #===============================================================================
 
 MAIN: {
-    name          ('Win32-SharedFileOpen');
-    abstract_from ('lib/Win32/SharedFileOpen.pm');
-    version_from  ('lib/Win32/SharedFileOpen.pm');
-    author        ('Steve Hay <shay@cpan.org>');
-    license       ('perl');
-    perl_version  (5.006000);
-    requires      ('Win32::WinError');
-    include       ('ExtUtils::AutoInstall');
-    clean_files   ('const-c.inc const-xs.inc');
+    name           ('Win32-SharedFileOpen');
+    abstract_from  ('lib/Win32/SharedFileOpen.pm');
+    version_from   ('lib/Win32/SharedFileOpen.pm');
+    author         ('Steve Hay <shay@cpan.org>');
+    license        ('perl');
+    perl_version   (5.006000);
+    requires       ('Win32::WinError');
+    features       ('POD testing' => [
+        -default   => 0,
+        recommends ('Test::Pod' => '1.00')
+    ]);
+    include        ('ExtUtils::AutoInstall');
+    clean_files    ('const-c.inc const-xs.inc');
+
+    my $obj = get_shay_private_obj();
+    $obj->check_compiler(1);
 
     auto_install();
 

@@ -1,6 +1,6 @@
 ________________________________________________________________________________
 
-                      Win32::SharedFileOpen, Version 3.31
+                      Win32::SharedFileOpen, Version 3.32
 ________________________________________________________________________________
 
 NAME
@@ -71,7 +71,7 @@ INSTALLATION
 
 COPYRIGHT
 
-    Copyright (c) 2001-2004, Steve Hay.  All rights reserved.
+    Copyright (C) 2001-2005 Steve Hay.  All rights reserved.
 
 LICENCE
 

@@ -1,9 +1,27 @@
 ________________________________________________________________________________
 
-                      Win32::SharedFileOpen, Version 3.31
+                      Win32::SharedFileOpen, Version 3.32
 ________________________________________________________________________________
 
 Revision history for Perl extension Win32::SharedFileOpen.
+_________________
+
+v3.32 03 Mar 2005
+
+    - Added code to Makefile.PL to try to check that the same compiler is being
+      used to build these modules as was used to build Perl itself to avoid
+      problems with binaries built by different compiler versions loading
+      different C runtime DLL's.
+
+    - Added a recommendation for Test::Pod to Makefile.PL to test the POD when
+      building these modules.
+
+    - Updated ppport.h using version 3.06 of the Devel::PPPort distribution.
+
+    - Corrected spelling mistake: localise is more properly spelled localize.
+
+    - Fixed up copyright years in all files to reflect which files actually
+      changed in each year.
 _________________
 
 v3.31 12 Dec 2004
@@ -76,7 +94,7 @@ v3.18 01 Aug 2004
     - Fixes for building under MinGW:
 
       * Added declarations of O_RAW and _fsopen() which are missing from some
-        versions of MinGW.
+        versions of MinGW;
 
       * Changed a "#else if" to the more correct "#elif" since GCC doesn't
         tolerate the former like VC++ does.
@@ -290,7 +308,7 @@ v2.11 02 Jul 2002
       give up retrying when a file can't be opened due to a sharing violation.
 
     - Allowed the tie()'d variables to have the undefined value: this is
-      necessary because local()'ising a tie()'d variable currently leaves it
+      necessary because local()'izing a tie()'d variable currently leaves it
       tie()'d but initially undefined.  It is also useful anyway to indicate the
       variable is not in use.
 
@@ -308,7 +326,7 @@ v2.10 20 Jun 2002
 
     - Updated documentation for these changes.
 
-    - Local()'ised the changes made to $! within AUTOLOAD() as per Perl Bug ID
+    - Local()'ized the changes made to $! within AUTOLOAD() as per Perl Bug ID
       20020614.002: see http://bugs.perl.org/ for more details.
 _________________
 

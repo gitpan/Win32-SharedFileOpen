@@ -6,7 +6,7 @@
 #   Module providing functions to open a file for shared reading and/or writing.
 #
 # COPYRIGHT
-#   Copyright (c) 2001-2004, Steve Hay.  All rights reserved.
+#   Copyright (C) 2001-2005 Steve Hay.  All rights reserved.
 #
 # LICENCE
 #   You may distribute under the terms of either the GNU General Public License
@@ -101,7 +101,7 @@ BEGIN {
     
     Exporter::export_ok_tags(qw(retry));
     
-    $VERSION = '3.31';
+    $VERSION = '3.32';
 
     # Get the ERROR_SHARING_VIOLATION constant loaded now otherwise loading it
     # later the first time that we test for an error can actually interfere with
@@ -1103,9 +1103,9 @@ C<FH> is closed, causing the next read in the C<while { ... }> loop to fail.
 (Or even worse, the caller would end up mistakenly reading from the wrong file
 if C<my_sub()> hadn't closed C<FH> before returning!)
 
-=head2 Localised Typeglobs and the C<*foo{THING}> Notation
+=head2 Localized Typeglobs and the C<*foo{THING}> Notation
 
-One solution to this problem is to localise the typeglob of the filehandle in
+One solution to this problem is to localize the typeglob of the filehandle in
 question within C<my_sub()>:
 
     sub my_sub($) {
@@ -1116,11 +1116,11 @@ question within C<my_sub()>:
         close FH;
     }
 
-but this has the unfortunate side-effect of localising all the other members of
+but this has the unfortunate side-effect of localizing all the other members of
 that typeglob as well, so if the caller had global variables I<$FH>, I<@FH> or
 I<%FH>, or even a subroutine C<FH()>, which C<my_sub()> needed then it no longer
 has access to them either.  (It does, on the other hand, have the rather nicer
-side-effect that the filehandle is automatically closed when the localised
+side-effect that the filehandle is automatically closed when the localized
 typeglob goes out of scope, so the "C<close FH;>" above is no longer necessary.)
 
 This problem can also be addressed by using the so-called C<*foo{THING}>
@@ -1129,7 +1129,7 @@ I<*foo> typeglob.  For example, C<*foo{SCALAR}> is equivalent to C<\$foo>, and
 C<*foo{CODE}> is equivalent to C<\&foo>.  C<*foo{IO}> (or the older, now
 out-of-fashion notation C<*foo{FILEHANDLE}>) yields the actual internal
 IO::Handle object that the C<*foo> typeglob contains, so with this we can
-localise just the IO object, not the whole typeglob, so that we don't
+localize just the IO object, not the whole typeglob, so that we don't
 accidentally hide more than we meant to:
 
     sub my_sub($) {
@@ -1258,7 +1258,7 @@ it gets returned from the C<do { ... }> block.  It is this, now anonymous,
 typeglob that gets assigned to "C<my $fh>", exactly as we wanted.
 
 Note that it is important that the typeglob itself, not a reference to it, is
-returned from the C<do { ... }> block.  This is because references to localised
+returned from the C<do { ... }> block.  This is because references to localized
 typeglobs cannot be returned from their local scopes, one of the few places
 in which typeglobs and references to typeglobs cannot be used interchangeably.
 If we were to try to return a reference to the typeglob, as in:
@@ -1266,7 +1266,7 @@ If we were to try to return a reference to the typeglob, as in:
     my $fh = do { \local *FH };
 
 then I<$fh> would actually be a reference to the original C<*FH> itself, not the
-temporary, localised, copy of it that existed within the C<do { ... }> block.
+temporary, localized, copy of it that existed within the C<do { ... }> block.
 This means that if we were to use that technique twice to obtain two typeglob
 references to use as two indirect filehandles then we would end up with them
 both being references to the same typeglob (namely, C<*FH>) so that the two
@@ -1291,7 +1291,7 @@ function C<new_fh()>, so that one can now simply write:
 
 The only downside to this solution is that any subsequent error messages
 involving this filehandle will refer to C<Win32::SharedFileOpen::FH>, the
-IO member of the typeglob that a temporary, localised, copy of was used.  For
+IO member of the typeglob that a temporary, localized, copy of was used.  For
 example, the script:
 
     use strict;
@@ -1514,7 +1514,7 @@ Steve Hay E<lt>shay@cpan.orgE<gt>
 
 =head1 COPYRIGHT
 
-Copyright (c) 2001-2004, Steve Hay.  All rights reserved.
+Copyright (C) 2001-2005 Steve Hay.  All rights reserved.
 
 =head1 LICENCE
 
@@ -1524,11 +1524,11 @@ License or the Artistic License, as specified in the F<LICENCE> file.
 
 =head1 VERSION
 
-Version 3.31
+Version 3.32
 
 =head1 DATE
 
-12 Dec 2004
+03 Mar 2005
 
 =head1 HISTORY
 

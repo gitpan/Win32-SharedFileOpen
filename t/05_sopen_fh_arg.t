@@ -7,7 +7,7 @@
 #   Test script to check sopen()'s filehandle argument.
 #
 # COPYRIGHT
-#   Copyright (c) 2002-2004, Steve Hay.  All rights reserved.
+#   Copyright (C) 2002, 2004-2005 Steve Hay.  All rights reserved.
 #
 # LICENCE
 #   You may distribute under the terms of either the GNU General Public License
@@ -59,7 +59,7 @@ MAIN: {
     };
     ok($@ =~ $err);
 
-                                        # Test 3: Check uninitialised IO member
+                                        # Test 3: Check uninitialized IO member
     eval {
         sopen(*FH{IO}, $file, O_WRONLY | O_CREAT | O_TRUNC, SH_DENYNO,
               S_IWRITE);
@@ -99,7 +99,7 @@ MAIN: {
                  S_IWRITE);
     ok($ret) and close FH;
 
-                                        # Test 11: Check initialised IO member
+                                        # Test 11: Check initialized IO member
     $ret = sopen(*FH{IO}, $file, O_WRONLY | O_CREAT | O_TRUNC, SH_DENYNO,
                  S_IWRITE);
     ok($ret) and close FH;
