@@ -1,5 +1,5 @@
 name: Win32-SharedFileOpen
-version: 3.30
+version: 3.31
 abstract: Open a file for shared reading and/or writing
 author: Steve Hay <shay@cpan.org>
 license: perl

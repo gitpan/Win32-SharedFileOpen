@@ -101,7 +101,7 @@ BEGIN {
     
     Exporter::export_ok_tags(qw(retry));
     
-    $VERSION = '3.30';
+    $VERSION = '3.31';
 
     # Get the ERROR_SHARING_VIOLATION constant loaded now otherwise loading it
     # later the first time that we test for an error can actually interfere with
@@ -117,6 +117,8 @@ BEGIN {
     ERROR_ENVVAR_NOT_FOUND;
     ERROR_TOO_MANY_OPEN_FILES;
     ERROR_FILE_NOT_FOUND;
+
+    XSLoader::load(__PACKAGE__, $VERSION);
 }
 
 # Last error message.
@@ -135,8 +137,6 @@ tie our $Max_Tries, __PACKAGE__ . '::_NaturalNumber', undef, '$Max_Tries';
 
 # Time to wait between tries at opening a file.  (Milliseconds.)
 tie our $Retry_Timeout, __PACKAGE__ . '::_NaturalNumber', 250, '$Retry_Timeout';
-
-XSLoader::load(__PACKAGE__, $VERSION);
 
 #===============================================================================
 # PUBLIC API
@@ -1524,11 +1524,11 @@ License or the Artistic License, as specified in the F<LICENCE> file.
 
 =head1 VERSION
 
-Version 3.30
+Version 3.31
 
 =head1 DATE
 
-31 Oct 2004
+12 Dec 2004
 
 =head1 HISTORY
 
