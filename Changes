@@ -3,6 +3,28 @@ ________________________________________________________________________________
 Revision history for Perl extension Win32::SharedFileOpen.
 _________________
 
+v3.11 08 Mar 2003
+
+	- Fix for building under Perl 5.6.0: added definitions of IoTYPE_*
+	  constants. This module *really* should build under Perl 5.6.0 and above
+	  now :-)
+
+	- Changed generation of in-line subroutines for autoloaded constants to use
+	  typeglob assignment rather than eval(). The eval() gave us named, rather
+	  than anonymous, subroutines, but these subroutines are so simple that
+	  there is no advantage in them being named, and the typeglob method is
+	  faster.
+
+	- Changed the typemap for "const char *" from the default T_PV (which uses
+	  SvPV_nolen() for INPUT) to a custom T_PV_len (which uses SvPV() for
+	  INPUT). This avoids occasional bizarre problems which I can't reproduce.
+
+	- Removed WHAT'S NEW section from POD, since there is not currently anything
+	  of note that is very new, and moved the sections on "Filehandles and
+	  Indirect Filehandles" and "Error Checking" to a "BACKGROUND REFERENCE"
+	  section near the end of the POD where they belong.
+_________________
+
 v3.10 25 Jan 2003
 
 	- Fixes for building under Perls with PERL_IMPLICIT_CONTEXT and/or

@@ -87,7 +87,7 @@ Exporter::export_tags(qw(oflags pmodes shflags));
 
 Exporter::export_ok_tags(qw(retry));
 
-our $VERSION = '3.10';
+our $VERSION = '3.11';
 
 # Debug setting. (0 = No debug, 1 = summary of what fsopen() or sopen() did, 2 =
 # additional information revealing exactly what failed.)
@@ -142,9 +142,12 @@ sub AUTOLOAD {
 	}
 
 	# Generate an in-line subroutine returning the required value.
-	eval "sub $AUTOLOAD { return $value }";
+	{
+		# Allow symbol table manipulation.
+		no strict 'refs';
 
-	croak("Error generating subroutine '$AUTOLOAD()': $@") if $@;
+		*$AUTOLOAD = sub { return $value };
+	}
 
 	# Switch to the subroutine that we have just generated.
 	goto &$AUTOLOAD;
@@ -416,22 +419,6 @@ Win32::SharedFileOpen - Open a file for shared reading and/or writing
 
 	}	# ... $fh is automatically closed here
 
-=head1 WHAT'S NEW
-
-New features introduced in version 3.00 of this module:
-
-=over 4
-
-=item *
-
-The bug in the fsopen() function in this module that previously caused it to
-waste a filehandle every time it is called has been resolved by employing a
-different strategy in the interface between this Perl function and the
-underlying C function. This new Perl/C interface, which has been applied to the
-sopen() function as well, is also slightly faster than the previous design.
-
-=back
-
 =head1 DESCRIPTION
 
 This module provides a Perl interface to the Microsoft Visual C functions
@@ -478,14 +465,29 @@ the caller (rather than using the functions' return values, which are now simple
 Booleans to indicate success or failure).
 
 The value passed to the functions in this first parameter can be a
-straight-forward filehandle (C<FH>) or any of the following: a typeglob (either
-a named typeglob like C<*FH>, or an anonymous typeglob (e.g. from C<gensym()> or
-C<new_fh()> in this module) in a scalar variable); a reference to a typeglob
-(either a hard reference like C<\*FH>, or a name like C<'FH'> to be used as a
-symbolic reference to a typeglob in the caller's package); or a suitable IO
-object (e.g.  an instance of IO::Handle, IO::File or FileHandle). These
-functions, however, do not have the ability of C<open()> and C<sysopen()> to
-auto-vivify the undefined scalar value into something that can be used as a
+straight-forward filehandle (C<FH>) or any of the following:
+
+=over 4
+
+=item *
+
+a typeglob (either a named typeglob like C<*FH>, or an anonymous typeglob (e.g.
+from C<gensym()> or C<new_fh()> in this module) in a scalar variable);
+
+=item *
+
+a reference to a typeglob (either a hard reference like C<\*FH>, or a name like
+C<'FH'> to be used as a symbolic reference to a typeglob in the caller's
+package);
+
+=item *
+
+a suitable IO object (e.g. an instance of IO::Handle, IO::File or FileHandle).
+
+=back
+
+These functions, however, do not have the ability of C<open()> and C<sysopen()>
+to auto-vivify the undefined scalar value into something that can be used as a
 filehandle, so calls like "C<fsopen(my $fh, ...)>" will C<croak()> with a
 message to this effect.
 
@@ -511,24 +513,23 @@ C<INFINITE> flag.
 
 =item C<fsopen($fh, $file, $mode, $shflag)>
 
-Opens the file I<$file> using the
-L<filehandle (or indirect filehandle)|"Filehandles and Indirect Filehandles">
-I<$fh> in the access mode specified by L<I<$mode>|"Mode Strings"> and prepares
-the file for subsequent shared reading and/or writing as specified by
-L<I<$shflag>|"SH_* Flags">.
+Opens the file I<$file> using the L<filehandle|"Filehandles"> (or
+L<indirect filehandle|"Indirect Filehandles">) I<$fh> in the access mode
+specified by L<I<$mode>|"Mode Strings"> and prepares the file for subsequent
+shared reading and/or writing as specified by L<I<$shflag>|"SH_* Flags">.
 
 Returns a non-zero value if the file was successfully opened, or returns
 C<undef> and sets C<$!> and/or C<$^E> if the file could not be opened.
 
 =item C<sopen($fh, $file, $oflag, $shflag[, $pmode])>
 
-Opens the file I<$file> using the
-L<filehandle (or indirect filehandle)|"Filehandles and Indirect Filehandles">
-I<$fh> in the access mode specified by L<I<$oflag>|"O_* Flags"> and prepares the
-file for subsequent shared reading and/or writing as specified by
-L<I<$shflag>|"SH_* Flags">. The optional L<I<$pmode>|"S_I* Flags"> argument
-specifies the file's permission settings if the file has just been created; it
-is required if and only if the access mode includes C<O_CREAT>.
+Opens the file I<$file> using the L<filehandle|"Filehandles"> (or
+L<indirect filehandle|"Indirect Filehandles">) I<$fh> in the access mode
+specified by L<I<$oflag>|"O_* Flags"> and prepares the file for subsequent
+shared reading and/or writing as specified by L<I<$shflag>|"SH_* Flags">. The
+optional L<I<$pmode>|"S_I* Flags"> argument specifies the file's permission
+settings if the file has just been created; it is required if and only if the
+access mode includes C<O_CREAT>.
 
 Returns a non-zero value if the file was successfully opened, or returns
 C<undef> and sets C<$!> and/or C<$^E> if the file could not be opened.
@@ -536,298 +537,21 @@ C<undef> and sets C<$!> and/or C<$^E> if the file could not be opened.
 =item C<gensym()>
 
 Returns a new, anonymous, typeglob which can be used as an
-L<indirect filehandle|"Filehandles and Indirect Filehandles"> in the first
-parameter of C<fsopen()> and C<sopen()>.
+L<indirect filehandle|"Indirect Filehandles"> in the first parameter of
+C<fsopen()> and C<sopen()>.
 
 This function is not actually implemented by this module itself: it is simply
-imported from the L<Symbol|Symbol> module and then re-exported.
-See L<"Filehandles and Indirect Filehandles"> for more details.
+imported from the L<Symbol|Symbol> module and then re-exported. See
+L<"Indirect Filehandles"> for more details.
 
 =item C<new_fh()>
 
 Returns a new, anonymous, typeglob which can be used as an
-L<indirect filehandle|"Filehandles and Indirect Filehandles"> in the first
-parameter of C<fsopen()> and C<sopen()>.
+L<indirect filehandle|"Indirect Filehandles"> in the first parameter of
+C<fsopen()> and C<sopen()>.
 
 This function is an implementation of the "First-Class Filehandle Trick". See
-L<"Filehandles and Indirect Filehandles"> for more details.
-
-=back
-
-=head2 Filehandles and Indirect Filehandles
-
-=over 4
-
-=item Filehandles
-
-The C<fsopen()> and C<sopen()> functions both expect either a filehandle or an
-indirect filehandle as their first argument.
-
-Using a filehandle:
-
-	fsopen(FH, $file, 'r', SH_DENYWR) or
-		die "Can't read '$file': $!\n";
-
-is the simplest approach, but filehandles have a big drawback: they are global
-in scope so they are always in danger of clobbering a filehandle of the same
-name being used elsewhere. For example, consider this:
-
-	fsopen(FH, $file1, 'r', SH_DENYWR) or
-		die "Can't read '$file1': $!\n";
-
-	while (<FH>) {
-		chomp($line = $_);
-		my_sub($line);
-	}
-
-	...
-
-	close FH;
-
-	sub my_sub($) {
-		fsopen(FH, $file2, 'r', SH_DENYWR) or
-			die "Can't read '$file2': $!\n";
-		...
-		close FH;
-	}
-
-The problem here is that when you open a filehandle that is already open it is
-closed first, so calling "C<fsopen(FH, ...)>" in C<my_sub()> causes the
-filehandle I<FH> which is already open in the caller to be closed first so that
-C<my_sub()> can use it. When C<my_sub()> returns the caller will now find that
-I<FH> is closed, causing the next read in the C<while { ... }> loop to fail. (Or
-even worse, the caller would end up mistakenly reading from the wrong file if
-C<my_sub()> hadn't closed I<FH> before returning!)
-
-=item Localised Typeglobs and the C<*foo{THING}> Notation
-
-One solution to this problem is to localise the typeglob of the filehandle in
-question within C<my_sub()>:
-
-	sub my_sub($) {
-		local *FH;
-		fsopen(FH, $file2, 'r', SH_DENYWR) or
-			die "Can't read '$file2': $!\n";
-		...
-		close FH;
-	}
-
-but this has the unfortunate side-effect of localising all the other members of
-that typeglob as well, so if the caller had global variables I<$FH>, I<@FH> or
-I<%FH>, or even a subroutine C<FH()>, which C<my_sub()> needed then it no longer
-has access to them either. (It does, on the other hand, have the rather nicer
-side-effect that the filehandle is automatically closed when the localised
-typeglob goes out of scope, so the "C<close FH;>" above is no longer necessary.)
-
-This problem can also be addressed by using the so-called C<*foo{THING}>
-syntax. C<*foo{THING}> returns a reference to the I<THING> member of the I<*foo>
-typeglob. For example, C<*foo{SCALAR}> is equivalent to C<\$foo>, and
-C<*foo{CODE}> is equivalent to C<\&foo>. C<*foo{IO}> (or the older, now
-out-of-fashion notation C<*foo{FILEHANDLE}>) yields the actual internal
-IO::Handle object that the C<*foo> typeglob contains, so with this we can
-localise just the IO object, not the whole typeglob, so that we don't
-accidentally hide more than we meant to:
-
-	sub my_sub($) {
-		local *FH{IO};
-		fsopen(FH, $file2, 'r', SH_DENYWR) or
-			die "Can't read '$file2': $!\n";
-		...
-		close FH;	# As in the example above, this is also not necessary
-	}
-
-However, this has a drawback as well: C<*FH{IO}> only works if I<FH> has already
-been used as a filehandle (or some other IO handle), because C<*foo{THING}>
-returns C<undef> if that particular I<THING> hasn't been seen by the compiler
-yet (with the exception of when I<THING> is C<SCALAR>, which is treated
-differently). This is fine in the example above, but would not necessarily have
-been if the caller of C<my_sub()> hadn't used the filehandle I<FH> first, so
-this approach would be no good if C<my_sub()> was to be put in a module to be
-used by other callers too.
-
-=item Indirect Filehandles
-
-The answer to all of these problems is to use so-called indirect filehandles
-instead of "normal" filehandles. An indirect filehandle is anything other than a
-symbol being used in a place where a filehandle is expected, i.e. an expression
-that evaluates to something that can be used as a filehandle, namely:
-
-=over 4
-
-=item A string
-
-A name like C<'FH'> to be used as a symbolic reference to the typeglob whose IO
-member is to be used as the filehandle.
-
-=item A typeglob
-
-Either a named typeglob like C<*FH>, or an anonymous typeglob in a scalar
-variable (e.g. from C<Symbol::gensym()>), whose IO member is to be used as the
-filehandle.
-
-=item A reference to a typeglob
-
-Either a hard reference like C<\*FH>, or a symbolic reference as in the first
-case above, to a typeglob whose IO member is to be used as the filehandle.
-
-=item A suitable IO object
-
-Either the IO member of a typeglob obtained via the C<*foo{IO}> syntax, or an
-instance of IO::Handle, or of IO::File or FileHandle (which are both just
-sub-classes of IO::Handle).
-
-=back
-
-Of course, typeglobs are global in scope just like filehandles are, so if a
-named typeglob, a reference (hard or symbolic) to a named typeglob or the IO
-member of a named typeglob is used then we run into the same scoping problems
-that we saw above with filehandles. The remainder of the above, however,
-(namely, an anonymous typeglob in a scalar variable, or a suitable IO object)
-finally give us the answer that we have been looking for.
-
-So we can now write C<my_sub()> like this:
-
-	sub my_sub($) {
-		# Create "my $fh" here: see below
-		fsopen($fh, $file2, 'r', SH_DENYWR) or
-			die "Can't read '$file2': $!\n";
-		...
-		close $fh;		# Not necessary again
-	}
-
-where any of the following may be used to create "C<my $fh>":
-
-	use Symbol;
-	my $fh = gensym();
-
-	use IO::Handle;
-	my $fh = IO::Handle->new();
-
-	use IO::File;
-	my $fh = IO::File->new();
-
-	use FileHandle;
-	my $fh = FileHandle->new();
-
-As we have noted in the code segment above, the "C<close $fh;>" is once again
-not necessary: the filehandle is closed automatically when the lexical variable
-I<$fh> is destroyed, i.e. when it goes out of scope (assuming there are no other
-references to it).
-
-However, there is still another point to bear in mind regarding the four
-solutions shown above: they all load a good number of extra lines of code into
-your program that might not otherwise be made use of. Note that FileHandle is a
-sub-class of IO::File, which is in turn a sub-class of IO::Handle, so using
-either of those sub-classes is particularly wasteful in this respect unless the
-methods provided by them are going to be put to use. Even the IO::Handle class
-still loads a number of other modules, including Symbol, so using the Symbol
-module is certainly the best bet here if none of the IO::Handle methods are
-required.
-
-In our case, there is no additional overhead at all in loading the Symbol module
-for this purpose because it is already loaded by this module itself anyway. In
-fact, C<Symbol::gensym()>, imported by this module, is made available for export
-from this module, so one can write:
-
-	use Win32::SharedFileOpen qw(:DEFAULT gensym);
-	my $fh = gensym();
-
-to create "C<my $fh>" above.
-
-=item The First-Class Filehandle Trick
-
-Finally, there is another way to get an anonymous typeglob in a scalar variable
-which is even leaner and meaner than using C<Symbol::gensym()>: the "First-Class
-Filehandle Trick". It is described in an article by Mark-Jason Dominus called
-"Seven Useful Uses of Local" which first appeared in The Perl Journal, and can
-also be found (at the time of writing) on his website at the URL
-F<http://perl.plover.com/local.html>. It consists simply of the following:
-
-	my $fh = do { local *FH };
-
-It works like this: the C<do { ... }> block simply executes the commands within
-the block and returns the value of the last one. So in this case, the global
-C<*FH> typeglob is temporarily replaced with a new glob that is C<local()> to
-the C<do { ... }> block. The new, C<local()>, C<*FH> typeglob then goes out of
-scope (i.e. is no longer accessible by that name) but is not destroyed because
-it gets returned from the C<do { ... }> block. It is this, now anonymous,
-typeglob that gets assigned to "C<my $fh>", exactly as we wanted.
-
-Note that it is important that the typeglob itself, not a reference to it, is
-returned from the C<do { ... }> block. This is because references to localised
-typeglobs cannot be returned from their local scopes, one of the few places
-in which typeglobs and references to typeglobs cannot be used interchangeably.
-If we were to try to return a reference to the typeglob, as in:
-
-	my $fh = do { \local *FH };
-
-then I<$fh> would actually be a reference to the original C<*FH> itself, not the
-temporary, localised, copy of it that existed within the C<do { ... }> block.
-This means that if we were to use that technique twice to obtain two typeglob
-references to use as two indirect filehandles then we would end up with them
-both being references to the same typeglob (namely, C<*FH>) so that the two
-filehandles would then clash.
-
-If this trick is used only once within a program running under
-"C<use warnings;>" that doesn't mention C<*FH> or any of its members anywhere
-else then a warning like the following will be produced:
-
-	Name "main::FH" used only once: possible typo at ...
-
-This can be easily avoided by turning off that warning within the C<do { ... }>
-block:
-
-	my $fh = do { no warnings 'once'; local *FH };
-
-For convenience, this solution is implemented by this module itself in the
-function C<new_fh()>, so that one can now simply write:
-
-	use Win32::SharedFileOpen qw(:DEFAULT new_fh);
-	my $fh = new_fh();
-
-The only downside to this solution is that any subsequent error messages
-involving this filehandle will refer to I<Win32::SharedFileOpen::FH>, the
-IO member of the typeglob that a temporary, localised, copy of was used. For
-example, the program:
-
-	use strict;
-	use warnings;
-	use Win32::SharedFileOpen qw(:DEFAULT new_fh);
-	my $fh = new_fh();
-	print $fh "Hello, world.\n";
-
-outputs the warning:
-
-	print() on unopened filehandle Win32::SharedFileOpen::FH at test.pl line 5.
-
-If several filehandles are being used in this way then it can be confusing to
-have them all referred to by the same name. (Do not be alarmed by this, though:
-they are completely different anonymous filehandles which just happen to be
-referred to by their original, but actually now out-of-scope, names.) If this is
-a problem then consider using C<Symbol::gensym()> instead (see above): that
-function uses a different name ('GEN0', 'GEN1', 'GEN2', ...) to generate each
-anonymous typeglob from.
-
-=item Auto-Vivified Filehandles
-
-Note that all of the above discussion of filehandles and indirect filehandles
-applies equally to Perl's built-in C<open()> and C<sysopen()> functions. It
-should also be noted that those two functions both support one other form of
-indirect filehandle that this module's C<fsopen()> and C<sopen()> functions do
-not: the undefined value. The calls
-
-	open my $fh, $file;
-	sysopen my $fh, $file, O_RDONLY;
-
-each auto-vivify "C<my $fh>" into something that can be used as an indirect
-filehandle. (In fact, they currently auto-vivify an entire typeglob, but this
-may change in a future version of Perl to only auto-vivify the IO member.) Any
-attempt to do likewise with this module's functions:
-
-	fsopen(my $fh, $file, 'r', SH_DENYNO);
-	sopen(my $fh, $file, O_RDONLY, SH_DENYNO);
-
-causes the functions to C<croak()>.
+L<"The First-Class Filehandle Trick"> for more details.
 
 =back
 
@@ -1153,11 +877,6 @@ That is not a filehandle, cannot be used as an indirect filehandle, and
 unable to auto-vivify something that can be used as an indirect filehandle in
 such a case.
 
-=item Error generating subroutine '%s()': %s
-
-(F) There was an error generating the specified subroutine (which supplies the
-value of the corresponding constant). The error set by C<eval()> is also given.
-
 =item Invalid value for '%s': '%s' is not a natural number
 
 (F) An attempt was made to set the specified variable to something other than a
@@ -1253,48 +972,6 @@ The the filename or path in I<$file> was not found.
 
 =back
 
-C<$!> corresponds to the standard C library variable C<errno>, the possible
-values of which are defined in F<errno.h>. C<$^E> corresponds to the Microsoft C
-"last-error code", the possible values of which are defined in F<winerror.h>.
-
-The C<$!> errors can be checked for by inspecting the values of the I<%!> hash
-exported by the L<Errno|Errno> module. The error which occurred will have a
-"true" value in the hash, for example:
-
-	use Errno;
-
-	if ($!{EACCES}) {
-		...
-	}
-
-The C<$^E> errors can be checked for by comparing against values exported by the
-L<Win32::WinError|Win32::WinError> module, for example:
-
-	use Win32::WinError;
-
-	if ($^E == ERROR_ACCESS_DENIED) {
-		...
-	}
-
-In both cases, the errors should be checked for immediately following the
-function call that failed because many functions that succeed will reset these
-variables.
-
-The system error messages for both C<$!> and C<$^E> can be obtained by simply
-stringifying the special variables, e.g. by C<print()>'ing them:
-
-	print "Errno was: $!\n";
-	print "Last error was: $^E\n";
-
-or, alternatively, the message for C<$^E> can also be obtained (slightly more
-nicely formatted) by calling C<FormatMessage()> in the L<Win32|Win32> module:
-
-	print "Last error was: " . Win32::FormatMessage($^E) . "\n";
-
-The C<$^E> error code itself is also available from a Win32 module function,
-C<GetLastError()>. Both functions are built-in to Perl itself (on Win32) so do
-not require a "C<use Win32;>" call.
-
 =head1 EXAMPLES
 
 =over 4
@@ -1364,16 +1041,340 @@ process that opened it exits, even when dying abnormally.
 
 =back
 
+=head1 BACKGROUND REFERENCE
+
+This section gives some useful background reference on filehandles and indirect
+filehandles.
+
+=head2 Filehandles
+
+The C<fsopen()> and C<sopen()> functions both expect either a filehandle or an
+indirect filehandle as their first argument.
+
+Using a filehandle:
+
+	fsopen(FH, $file, 'r', SH_DENYWR) or
+		die "Can't read '$file': $!\n";
+
+is the simplest approach, but filehandles have a big drawback: they are global
+in scope so they are always in danger of clobbering a filehandle of the same
+name being used elsewhere. For example, consider this:
+
+	fsopen(FH, $file1, 'r', SH_DENYWR) or
+		die "Can't read '$file1': $!\n";
+
+	while (<FH>) {
+		chomp($line = $_);
+		my_sub($line);
+	}
+
+	...
+
+	close FH;
+
+	sub my_sub($) {
+		fsopen(FH, $file2, 'r', SH_DENYWR) or
+			die "Can't read '$file2': $!\n";
+		...
+		close FH;
+	}
+
+The problem here is that when you open a filehandle that is already open it is
+closed first, so calling "C<fsopen(FH, ...)>" in C<my_sub()> causes the
+filehandle I<FH> which is already open in the caller to be closed first so that
+C<my_sub()> can use it. When C<my_sub()> returns the caller will now find that
+I<FH> is closed, causing the next read in the C<while { ... }> loop to fail. (Or
+even worse, the caller would end up mistakenly reading from the wrong file if
+C<my_sub()> hadn't closed I<FH> before returning!)
+
+=head2 Localised Typeglobs and the C<*foo{THING}> Notation
+
+One solution to this problem is to localise the typeglob of the filehandle in
+question within C<my_sub()>:
+
+	sub my_sub($) {
+		local *FH;
+		fsopen(FH, $file2, 'r', SH_DENYWR) or
+			die "Can't read '$file2': $!\n";
+		...
+		close FH;
+	}
+
+but this has the unfortunate side-effect of localising all the other members of
+that typeglob as well, so if the caller had global variables I<$FH>, I<@FH> or
+I<%FH>, or even a subroutine C<FH()>, which C<my_sub()> needed then it no longer
+has access to them either. (It does, on the other hand, have the rather nicer
+side-effect that the filehandle is automatically closed when the localised
+typeglob goes out of scope, so the "C<close FH;>" above is no longer necessary.)
+
+This problem can also be addressed by using the so-called C<*foo{THING}>
+syntax. C<*foo{THING}> returns a reference to the I<THING> member of the I<*foo>
+typeglob. For example, C<*foo{SCALAR}> is equivalent to C<\$foo>, and
+C<*foo{CODE}> is equivalent to C<\&foo>. C<*foo{IO}> (or the older, now
+out-of-fashion notation C<*foo{FILEHANDLE}>) yields the actual internal
+IO::Handle object that the C<*foo> typeglob contains, so with this we can
+localise just the IO object, not the whole typeglob, so that we don't
+accidentally hide more than we meant to:
+
+	sub my_sub($) {
+		local *FH{IO};
+		fsopen(FH, $file2, 'r', SH_DENYWR) or
+			die "Can't read '$file2': $!\n";
+		...
+		close FH;	# As in the example above, this is also not necessary
+	}
+
+However, this has a drawback as well: C<*FH{IO}> only works if I<FH> has already
+been used as a filehandle (or some other IO handle), because C<*foo{THING}>
+returns C<undef> if that particular I<THING> hasn't been seen by the compiler
+yet (with the exception of when I<THING> is C<SCALAR>, which is treated
+differently). This is fine in the example above, but would not necessarily have
+been if the caller of C<my_sub()> hadn't used the filehandle I<FH> first, so
+this approach would be no good if C<my_sub()> was to be put in a module to be
+used by other callers too.
+
+=head2 Indirect Filehandles
+
+The answer to all of these problems is to use so-called indirect filehandles
+instead of "normal" filehandles. An indirect filehandle is anything other than a
+symbol being used in a place where a filehandle is expected, i.e. an expression
+that evaluates to something that can be used as a filehandle, namely:
+
+=over 4
+
+=item A string
+
+A name like C<'FH'> to be used as a symbolic reference to the typeglob whose IO
+member is to be used as the filehandle.
+
+=item A typeglob
+
+Either a named typeglob like C<*FH>, or an anonymous typeglob in a scalar
+variable (e.g. from C<Symbol::gensym()>), whose IO member is to be used as the
+filehandle.
+
+=item A reference to a typeglob
+
+Either a hard reference like C<\*FH>, or a symbolic reference as in the first
+case above, to a typeglob whose IO member is to be used as the filehandle.
+
+=item A suitable IO object
+
+Either the IO member of a typeglob obtained via the C<*foo{IO}> syntax, or an
+instance of IO::Handle, or of IO::File or FileHandle (which are both just
+sub-classes of IO::Handle).
+
+=back
+
+Of course, typeglobs are global in scope just like filehandles are, so if a
+named typeglob, a reference (hard or symbolic) to a named typeglob or the IO
+member of a named typeglob is used then we run into the same scoping problems
+that we saw above with filehandles. The remainder of the above, however,
+(namely, an anonymous typeglob in a scalar variable, or a suitable IO object)
+finally give us the answer that we have been looking for.
+
+So we can now write C<my_sub()> like this:
+
+	sub my_sub($) {
+		# Create "my $fh" here: see below
+		fsopen($fh, $file2, 'r', SH_DENYWR) or
+			die "Can't read '$file2': $!\n";
+		...
+		close $fh;		# Not necessary again
+	}
+
+where any of the following may be used to create "C<my $fh>":
+
+	use Symbol;
+	my $fh = gensym();
+
+	use IO::Handle;
+	my $fh = IO::Handle->new();
+
+	use IO::File;
+	my $fh = IO::File->new();
+
+	use FileHandle;
+	my $fh = FileHandle->new();
+
+As we have noted in the code segment above, the "C<close $fh;>" is once again
+not necessary: the filehandle is closed automatically when the lexical variable
+I<$fh> is destroyed, i.e. when it goes out of scope (assuming there are no other
+references to it).
+
+However, there is still another point to bear in mind regarding the four
+solutions shown above: they all load a good number of extra lines of code into
+your program that might not otherwise be made use of. Note that FileHandle is a
+sub-class of IO::File, which is in turn a sub-class of IO::Handle, so using
+either of those sub-classes is particularly wasteful in this respect unless the
+methods provided by them are going to be put to use. Even the IO::Handle class
+still loads a number of other modules, including Symbol, so using the Symbol
+module is certainly the best bet here if none of the IO::Handle methods are
+required.
+
+In our case, there is no additional overhead at all in loading the Symbol module
+for this purpose because it is already loaded by this module itself anyway. In
+fact, C<Symbol::gensym()>, imported by this module, is made available for export
+from this module, so one can write:
+
+	use Win32::SharedFileOpen qw(:DEFAULT gensym);
+	my $fh = gensym();
+
+to create "C<my $fh>" above.
+
+=head2 The First-Class Filehandle Trick
+
+Finally, there is another way to get an anonymous typeglob in a scalar variable
+which is even leaner and meaner than using C<Symbol::gensym()>: the "First-Class
+Filehandle Trick". It is described in an article by Mark-Jason Dominus called
+"Seven Useful Uses of Local" which first appeared in The Perl Journal, and can
+also be found (at the time of writing) on his website at the URL
+F<http://perl.plover.com/local.html>. It consists simply of the following:
+
+	my $fh = do { local *FH };
+
+It works like this: the C<do { ... }> block simply executes the commands within
+the block and returns the value of the last one. So in this case, the global
+C<*FH> typeglob is temporarily replaced with a new glob that is C<local()> to
+the C<do { ... }> block. The new, C<local()>, C<*FH> typeglob then goes out of
+scope (i.e. is no longer accessible by that name) but is not destroyed because
+it gets returned from the C<do { ... }> block. It is this, now anonymous,
+typeglob that gets assigned to "C<my $fh>", exactly as we wanted.
+
+Note that it is important that the typeglob itself, not a reference to it, is
+returned from the C<do { ... }> block. This is because references to localised
+typeglobs cannot be returned from their local scopes, one of the few places
+in which typeglobs and references to typeglobs cannot be used interchangeably.
+If we were to try to return a reference to the typeglob, as in:
+
+	my $fh = do { \local *FH };
+
+then I<$fh> would actually be a reference to the original C<*FH> itself, not the
+temporary, localised, copy of it that existed within the C<do { ... }> block.
+This means that if we were to use that technique twice to obtain two typeglob
+references to use as two indirect filehandles then we would end up with them
+both being references to the same typeglob (namely, C<*FH>) so that the two
+filehandles would then clash.
+
+If this trick is used only once within a program running under
+"C<use warnings;>" that doesn't mention C<*FH> or any of its members anywhere
+else then a warning like the following will be produced:
+
+	Name "main::FH" used only once: possible typo at ...
+
+This can be easily avoided by turning off that warning within the C<do { ... }>
+block:
+
+	my $fh = do { no warnings 'once'; local *FH };
+
+For convenience, this solution is implemented by this module itself in the
+function C<new_fh()>, so that one can now simply write:
+
+	use Win32::SharedFileOpen qw(:DEFAULT new_fh);
+	my $fh = new_fh();
+
+The only downside to this solution is that any subsequent error messages
+involving this filehandle will refer to I<Win32::SharedFileOpen::FH>, the
+IO member of the typeglob that a temporary, localised, copy of was used. For
+example, the program:
+
+	use strict;
+	use warnings;
+	use Win32::SharedFileOpen qw(:DEFAULT new_fh);
+	my $fh = new_fh();
+	print $fh "Hello, world.\n";
+
+outputs the warning:
+
+	print() on unopened filehandle Win32::SharedFileOpen::FH at test.pl line 5.
+
+If several filehandles are being used in this way then it can be confusing to
+have them all referred to by the same name. (Do not be alarmed by this, though:
+they are completely different anonymous filehandles which just happen to be
+referred to by their original, but actually now out-of-scope, names.) If this is
+a problem then consider using C<Symbol::gensym()> instead (see above): that
+function uses a different name ('GEN0', 'GEN1', 'GEN2', ...) to generate each
+anonymous typeglob from.
+
+=head2 Auto-Vivified Filehandles
+
+Note that all of the above discussion of filehandles and indirect filehandles
+applies equally to Perl's built-in C<open()> and C<sysopen()> functions. It
+should also be noted that those two functions both support the use of one other
+value in the first argument that this module's C<fsopen()> and C<sopen()>
+functions do not: the undefined value. The calls
+
+	open my $fh, $file;
+	sysopen my $fh, $file, O_RDONLY;
+
+each auto-vivify "C<my $fh>" into something that can be used as an indirect
+filehandle. (In fact, they currently [as of Perl 5.8.0] auto-vivify an entire
+typeglob, but this may change in a future version of Perl to only auto-vivify
+the IO member.) Any attempt to do likewise with this module's functions:
+
+	fsopen(my $fh, $file, 'r', SH_DENYNO);
+	sopen(my $fh, $file, O_RDONLY, SH_DENYNO);
+
+causes the functions to C<croak()>.
+
+=head2 Error Checking
+
+Finally, on the subject of C<croak()>, a brief note on how to check for the
+different errors documented in L<"Error Values"> above.
+
+C<$!> corresponds to the standard C library variable C<errno>, the possible
+values of which are defined in F<E<lt>errno.hE<gt>>. C<$^E> corresponds to the
+Microsoft C "last-error code", the possible values of which are defined in
+F<E<lt>winerror.hE<gt>>.
+
+The C<$!> errors can be checked for by inspecting the values of the I<%!> hash
+exported by the L<Errno|Errno> module. The error which occurred will have a
+"true" value in the hash, for example:
+
+	use Errno;
+
+	if ($!{EACCES}) {
+		...
+	}
+
+The C<$^E> errors can be checked for by comparing against values exported by the
+L<Win32::WinError|Win32::WinError> module, for example:
+
+	use Win32::WinError;
+
+	if ($^E == ERROR_ACCESS_DENIED) {
+		...
+	}
+
+In both cases, the errors should be checked for immediately following the
+function call that failed because many functions that succeed will reset these
+variables.
+
+The system error messages for both C<$!> and C<$^E> can be obtained by simply
+stringifying the special variables, e.g. by C<print()>'ing them:
+
+	print "Errno was: $!\n";
+	print "Last error was: $^E\n";
+
+or, alternatively, the message for C<$^E> can also be obtained (slightly more
+nicely formatted) by calling C<FormatMessage()> in the L<Win32|Win32> module:
+
+	print "Last error was: " . Win32::FormatMessage($^E) . "\n";
+
+The C<$^E> error code itself is also available from a Win32 module function,
+C<GetLastError()>. Both functions are built-in to Perl itself (on Win32) so do
+not require a "C<use Win32;>" statement.
+
 =head1 EXPORTS
 
-The following symbols are or can be exported by this module:
+The following symbols are, or can be, exported by this module:
 
 =over 4
 
 =item Default Exports
 
 C<fsopen>,
-C<sopen>,
+C<sopen>;
 
 C<O_APPEND>,
 C<O_BINARY>,
@@ -1388,25 +1389,25 @@ C<O_SHORT_LIVED>,
 C<O_TEMPORARY>,
 C<O_TEXT>,
 C<O_TRUNC>,
-C<O_WRONLY>,
+C<O_WRONLY>;
 
 C<S_IREAD>,
-C<S_IWRITE>,
+C<S_IWRITE>;
 
 C<SH_DENYNO>,
 C<SH_DENYRD>,
 C<SH_DENYRW>,
-C<SH_DENYWR>
+C<SH_DENYWR>.
 
 =item Optional Exports
 
 C<gensym>,
-C<new_fh>
+C<new_fh>;
 
 C<INFINITE>,
 C<$Max_Time>,
 C<$Max_Tries>,
-C<$Retry_Timeout>
+C<$Retry_Timeout>.
 
 =item Export Tags
 
@@ -1427,26 +1428,26 @@ C<O_SHORT_LIVED>,
 C<O_TEMPORARY>,
 C<O_TEXT>,
 C<O_TRUNC>,
-C<O_WRONLY>
+C<O_WRONLY>.
 
 =item C<:pmodes>
 
 C<S_IREAD>,
-C<S_IWRITE>
+C<S_IWRITE>.
 
 =item C<:shflags>
 
 C<SH_DENYNO>,
 C<SH_DENYRD>,
 C<SH_DENYRW>,
-C<SH_DENYWR>
+C<SH_DENYWR>.
 
 =item C<:retry>
 
 C<INFINITE>,
 C<$Max_Time>,
 C<$Max_Tries>,
-C<$Retry_Timeout>
+C<$Retry_Timeout>.
 
 =back
 
@@ -1465,15 +1466,15 @@ DynaLoader,
 Errno,
 Exporter,
 Symbol,
-Win32
+Win32.
 
 =item CPAN Modules
 
-Win32::WinError (part of the "libwin32" distribution)
+Win32::WinError (part of the "libwin32" distribution).
 
 =item Other Modules
 
-I<None>
+I<None>.
 
 =back
 
@@ -1485,29 +1486,30 @@ failure.)
 
 As of version 2.00 of this module, the arguments and return values of these two
 functions now more closely resemble those of the Perl built-in functions
-C<open()> and C<sysopen()>. Specifically, they now both expect a filehandle or
-an indirect filehandle as their first argument and they both return a boolean
-value to indicate success or failure.
+C<open()> and C<sysopen()>. Specifically, they now both expect a
+L<filehandle|"Filehandles"> or an L<indirect filehandle|"Indirect Filehandles">
+as their first argument and they both return a Boolean value to indicate success
+or failure.
 
 B<THIS IS AN INCOMPATIBLE CHANGE. EXISTING SOFTWARE THAT USES THESE FUNCTIONS
 WILL NEED TO BE MODIFIED.>
 
 =head1 BUGS AND CAVEATS
 
-I<None known>
+I<None known>.
 
 =head1 SEE ALSO
 
 L<perlfunc/open>,
 L<perlfunc/sysopen>,
-L<perlopentut>,
+L<perlopentut>;
 
 L<Fcntl>,
 L<FileHandle>,
 L<IO::File>,
 L<IO::Handle>,
 L<Symbol>,
-L<Win32API::File>
+L<Win32API::File>.
 
 In particular, the Win32API::File module (part of the "libwin32" distribution)
 contains an interface to another, lower-level, Microsoft Visual C function,
@@ -1540,12 +1542,12 @@ the same terms as Perl itself.
 
 =head1 VERSION
 
-Win32::SharedFileOpen, Version 3.10
+Win32::SharedFileOpen, Version 3.11
 
 =head1 HISTORY
 
 See the file F<Changes> in the original distribution archive,
-F<Win32-SharedFileOpen-3.10.tar.gz>.
+F<Win32-SharedFileOpen-3.11.tar.gz>.
 
 =cut
 

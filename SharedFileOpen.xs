@@ -28,6 +28,12 @@
 #define PERL_NO_GET_CONTEXT				/* See the "perlguts" manpage.		*/
 
 /*
+ * Note: We only support Perl 5.6.x upwards -- the Perl scripts and modules
+ * (including "Makefile.PL") all enforce this with "use 5.006".
+ *
+ * The IoTYPE_* constants are not defined in Perl 5.6.0, so we provide suitable
+ * definitions for them here.
+ *
  * Under Perl 5.6.x "perl.h" includes "iperlsys.h", which in turn includes
  * "perlsdio.h" if PERL_IMPLICIT_SYS is not defined. The latter provides
  * definitions for PerlIO, PerlIO_importFILE() and more on the basis that PerlIO
@@ -52,9 +58,15 @@
  * mailing list, 20-24 Jan 2003, for more details on all of this.
  */
 
-#include "patchlevel.h"					/* Get the PERL_VERSION first.		*/
+#include "patchlevel.h"					/* Get the version numbers first.	*/
 
-#if PERL_VERSION <= 6
+#if PERL_VERSION == 6
+# if PERL_SUBVERSION == 0
+#  define IoTYPE_RDONLY	'<'
+#  define IoTYPE_WRONLY	'>'
+#  define IoTYPE_RDWR	'+'
+#  define IoTYPE_APPEND	'a'
+# endif
 # ifdef PERL_IMPLICIT_SYS
 #  define PerlIO FILE
 #  define PerlIO_importFILE(f, fl) (f)
