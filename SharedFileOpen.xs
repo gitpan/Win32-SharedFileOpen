@@ -1,9 +1,9 @@
 /*------------------------------------------------------------------------------
  * Copyright (c) 2001-2003, Steve Hay. All rights reserved.
  *
- * Module Name:	Win32::SharedFileOpen
- * Source File:	SharedFileOpen.xs
- * Description:	C and XS code for xsubpp
+ * Module Name: Win32::SharedFileOpen
+ * Source File: SharedFileOpen.xs
+ * Description: C and XS code for xsubpp
  *------------------------------------------------------------------------------
  */
 
@@ -12,22 +12,22 @@
  * C code to be copied verbatim by xsubpp.
  */
 
-#include <io.h>							/* For _sopen().					*/
-#include <stdio.h>						/* For _fsopen().					*/
-#include <fcntl.h>						/* For the O_* and _O_* flags.		*/
-#include <share.h>						/* For the SH_DENY* flags.			*/
-#include <string.h>						/* For strchr().					*/
-#include <sys/stat.h>					/* For the S_* flags.				*/
+#include <io.h>                         /* For _sopen().                    */
+#include <stdio.h>                      /* For _fsopen().                   */
+#include <fcntl.h>                      /* For the O_* and _O_* flags.      */
+#include <share.h>                      /* For the SH_DENY* flags.          */
+#include <string.h>                     /* For strchr().                    */
+#include <sys/stat.h>                   /* For the S_* flags.               */
 
-#define O_SHORT_LIVED _O_SHORT_LIVED	/* We export without leading "_".	*/
+#define O_SHORT_LIVED _O_SHORT_LIVED    /* We export without leading "_".   */
 
-#define WIN32_LEAN_AND_MEAN				/* Don't pull in too much crap when	*/
-										/* including <windows.h> next.		*/
-#include <windows.h>					/* For the DWORD typedef (in		*/
-										/* <windef.h>) and the INFINITE		*/
-										/* flag (in <winbase.h>).			*/
+#define WIN32_LEAN_AND_MEAN             /* Don't pull in too much crap when */
+                                        /* including <windows.h> next.      */
+#include <windows.h>                    /* For the DWORD typedef (in        */
+                                        /* <windef.h>) and the INFINITE     */
+                                        /* flag (in <winbase.h>).           */
 
-#define PERL_NO_GET_CONTEXT				/* See the "perlguts" manpage.		*/
+#define PERL_NO_GET_CONTEXT             /* See the "perlguts" manpage.      */
 
 /*
  * Note: We only support Perl 5.6.x upwards -- the Perl scripts and modules
@@ -60,23 +60,25 @@
  * mailing list, 20-24 Jan 2003, for more details on all of this.
  */
 
-#include "patchlevel.h"					/* Get the version numbers first.	*/
+#include "patchlevel.h"                 /* Get the version numbers first.   */
 
-#if PERL_VERSION == 6
-# if PERL_SUBVERSION == 0
-#  define IoTYPE_RDONLY	'<'
-#  define IoTYPE_WRONLY	'>'
-#  define IoTYPE_RDWR	'+'
-#  define IoTYPE_APPEND	'a'
-# endif
-# ifdef PERL_IMPLICIT_SYS
-#  define PerlIO FILE
-#  define PerlIO_importFILE(f, fl) (f)
-# endif
-# define PerlSIO_fclose(f) fclose(f)
-# define PerlSIO_fileno(f) fileno(f)
-#else
-# define PERLIO_NOT_STDIO 0
+#if PERL_REVISION == 5
+#  if PERL_VERSION == 6
+#    if PERL_SUBVERSION == 0
+#      define IoTYPE_RDONLY '<'
+#      define IoTYPE_WRONLY '>'
+#      define IoTYPE_RDWR   '+'
+#      define IoTYPE_APPEND 'a'
+#    endif
+#    ifdef PERL_IMPLICIT_SYS
+#      define PerlIO FILE
+#      define PerlIO_importFILE(f, fl) (f)
+#    endif
+#    define PerlSIO_fclose(f) fclose(f)
+#    define PerlSIO_fileno(f) fileno(f)
+#  else if PERL_VERSION > 6
+#    define PERLIO_NOT_STDIO 0
+#  endif
 #endif
 
 #include "EXTERN.h"
@@ -85,22 +87,11 @@
 #include "ppport.h"
 #include "const-c.inc"
 
-static int debug(pTHX);
-static const char *oflag2binmode(int oflag);
-static const char *mode2binmode(const char *mode);
-static char mode2type(const char *mode);
-static void storePerlIO(pTHX_ SV *fh, PerlIO **pio_fp, const char *mode);
-
-/*
- * Function to retrieve the Perl module's $Debug variable.
- */
-
-static int debug(pTHX) {
-	/* Get the Perl module's global $Debug variable and coerce it into an int.
-	 * (This coercion should not produce any nasty surprises because $Debug is
-	 * tie()'d to a class that only allows integer values.) */
-	return SvIV(get_sv("Win32::SharedFileOpen::Debug", FALSE));
-}
+static const char *_OFlagToBinMode(int oflag);
+static const char *_ModeToBinMode(const char *mode);
+static char _ModeToType(const char *mode);
+static void _StorePerlIO(pTHX_ SV *fh, PerlIO **pio_fp, const char *mode);
+static int _Debug(pTHX);
 
 /*
  * Function to convert an oflag understood by C lowio-level open functions to a
@@ -108,23 +99,25 @@ static int debug(pTHX) {
  * mode character appended.
  */
 
-static const char *oflag2binmode(int oflag) {
-	const char *binmode;
+static const char *_OFlagToBinMode(
+    int        oflag)
+{
+    const char *binmode;
 
-	/* Note: We cannot check for the O_RDONLY bit being set in oflag because
-	 * its value is zero in Microsoft's C library (as is traditionally the case,
-	 * according to the "perlopentut" manpage), i.e. there are no bits set to
-	 * look for. We therefore assume O_RDONLY if neither O_WRONLY nor O_RDWR are
-	 * set. */
-	if (oflag & O_WRONLY)
-		binmode = (oflag & O_APPEND) ? "ab"  : "wb";
-	else if (oflag & O_RDWR)
-		binmode = (oflag & O_CREAT ) ?
-				 ((oflag & O_APPEND) ? "a+b" : "w+b") : "r+b";
-	else
-		binmode = "rb";
+    /* Note: We cannot check for the O_RDONLY bit being set in oflag because
+     * its value is zero in Microsoft's C library (as is traditionally the case,
+     * according to the "perlopentut" manpage), i.e. there are no bits set to
+     * look for. We therefore assume O_RDONLY if neither O_WRONLY nor O_RDWR are
+     * set. */
+    if (oflag & O_WRONLY)
+        binmode = (oflag & O_APPEND) ? "ab"  : "wb";
+    else if (oflag & O_RDWR)
+        binmode = (oflag & O_CREAT ) ?
+                 ((oflag & O_APPEND) ? "a+b" : "w+b") : "r+b";
+    else
+        binmode = "rb";
 
-	return binmode;
+    return binmode;
 }
 
 /*
@@ -132,19 +125,21 @@ static const char *oflag2binmode(int oflag) {
  * into "binary" mode.
  */
 
-static const char *mode2binmode(const char *mode) {
-	const char *binmode;
+static const char *_ModeToBinMode(
+    const char  *mode)
+{
+    const char  *binmode;
 
-	if (strchr(mode, 'r') != NULL)
-		binmode = (strchr(mode, '+') != NULL) ? "r+b"  : "rb";
-	else if (strchr(mode, 'w') != NULL)
-		binmode = (strchr(mode, '+') != NULL) ? "w+b"  : "wb";
-	else if (strchr(mode, 'a') != NULL)
-		binmode = (strchr(mode, '+') != NULL) ? "a+b"  : "ab";
-	else
-		binmode = NULL;
+    if (strchr(mode, 'r') != NULL)
+        binmode = (strchr(mode, '+') != NULL) ? "r+b"  : "rb";
+    else if (strchr(mode, 'w') != NULL)
+        binmode = (strchr(mode, '+') != NULL) ? "w+b"  : "wb";
+    else if (strchr(mode, 'a') != NULL)
+        binmode = (strchr(mode, '+') != NULL) ? "a+b"  : "ab";
+    else
+        binmode = NULL;
 
-	return binmode;
+    return binmode;
 }
 
 /*
@@ -152,17 +147,19 @@ static const char *mode2binmode(const char *mode) {
  * to an integer type as defined in the Perl header file "sv.h".
  */
 
-static char mode2type(const char *mode) {
-	if (strchr(mode, '+') != NULL)
-		return IoTYPE_RDWR;
-	else if (strchr(mode, 'r') != NULL)
-		return IoTYPE_RDONLY;
-	else if (strchr(mode, 'w') != NULL)
-		return IoTYPE_WRONLY;
-	else if (strchr(mode, 'a') != NULL)
-		return IoTYPE_APPEND;
-	else
-		return -1;
+static char _ModeToType(
+    const char  *mode)
+{
+    if (strchr(mode, '+') != NULL)
+        return IoTYPE_RDWR;
+    else if (strchr(mode, 'r') != NULL)
+        return IoTYPE_RDONLY;
+    else if (strchr(mode, 'w') != NULL)
+        return IoTYPE_WRONLY;
+    else if (strchr(mode, 'a') != NULL)
+        return IoTYPE_APPEND;
+    else
+        return -1;
 }
 
 /*
@@ -171,58 +168,75 @@ static char mode2type(const char *mode) {
  * Creates the IO member if it does not already exist.
  */
 
-static void storePerlIO(pTHX_ SV *fh, PerlIO **pio_fp, const char *mode) {
-	IO		*io;
-	char	type;
+static void _StorePerlIO(pTHX_
+    SV          *fh,
+    PerlIO      **pio_fp,
+    const char  *mode)
+{
+    IO          *io;
+    char        type;
 
-	/* Dereference fh to get the glob referred to, then get the IO member of
-	 * that glob, adding a new one if necessary. */
-	io = GvIOn((GV *)SvRV(fh));
+    /* Dereference fh to get the glob referred to, then get the IO member of
+     * that glob, adding a new one if necessary. */
+    io = GvIOn((GV *)SvRV(fh));
 
-	/* Convert the stdio mode string to a type understood by Perl. */
-	if ((type = mode2type(mode)) == -1) {
-		PerlIO_close(*pio_fp);
-		croak("Unknown mode '%s'", mode);
-	}
+    /* Convert the stdio mode string to a type understood by Perl. */
+    if ((type = _ModeToType(mode)) == -1) {
+        PerlIO_close(*pio_fp);
+        croak("Unknown mode '%s'", mode);
+    }
 
-	/* Store this type in the glob's IO member. */
-	IoTYPE(io) = type;
+    /* Store this type in the glob's IO member. */
+    IoTYPE(io) = type;
 
-	/* Store the PerlIO file stream in the glob's IO member. */
-	switch (type) {
-		case IoTYPE_RDONLY:
-			/* Store the PerlIO file stream as the input stream. */
-			IoIFP(io) = *pio_fp;
-			break;
+    /* Store the PerlIO file stream in the glob's IO member. */
+    switch (type) {
+        case IoTYPE_RDONLY:
+            /* Store the PerlIO file stream as the input stream. */
+            IoIFP(io) = *pio_fp;
+            break;
 
-		case IoTYPE_WRONLY:
-		case IoTYPE_APPEND:
-			/* Store the PerlIO file stream as the output stream. Apparently it
-			 * must be stored as the input stream as well. I don't know why. */
-			IoIFP(io) = *pio_fp;
-			IoOFP(io) = *pio_fp;
-			break;
+        case IoTYPE_WRONLY:
+        case IoTYPE_APPEND:
+            /* Store the PerlIO file stream as the output stream. Apparently it
+             * must be stored as the input stream as well. I don't know why. */
+            IoIFP(io) = *pio_fp;
+            IoOFP(io) = *pio_fp;
+            break;
 
-		case IoTYPE_RDWR:
-			/* Store the PerlIO file stream as both the input stream and the
-			 * output stream. */
-			IoIFP(io) = *pio_fp;
-			IoOFP(io) = *pio_fp;
-			break;
+        case IoTYPE_RDWR:
+            /* Store the PerlIO file stream as both the input stream and the
+             * output stream. */
+            IoIFP(io) = *pio_fp;
+            IoOFP(io) = *pio_fp;
+            break;
 
-		default:
-			PerlIO_close(*pio_fp);
-			croak("Unknown IoTYPE '%d'", type);
-			break;
-	}
+        default:
+            PerlIO_close(*pio_fp);
+            croak("Unknown IoTYPE '%d'", type);
+            break;
+    }
+}
+
+/*
+ * Function to retrieve the Perl module's $Debug variable.
+ */
+
+static int _Debug(pTHX)
+{
+    /* Get the Perl module's global $Debug variable and coerce it into an int.
+     * (This coercion should not produce any nasty surprises because $Debug is
+     * tie()'d to a class that only allows integer values.) */
+    return SvIV(get_sv("Win32::SharedFileOpen::Debug", FALSE));
 }
 
 /*------------------------------------------------------------------------------
  */
 
-MODULE = Win32::SharedFileOpen	PACKAGE = Win32::SharedFileOpen		
+MODULE = Win32::SharedFileOpen PACKAGE = Win32::SharedFileOpen     
 
-PROTOTYPES: ENABLE
+PROTOTYPES:   ENABLE
+VERSIONCHECK: ENABLE
 
 INCLUDE: const-xs.inc
 
@@ -254,7 +268,7 @@ INCLUDE: const-xs.inc
 # mode layer, putting the file handle into "binary" mode, if desired.
 # The intention was to call
 #
-# 	PerlIO_binmode(pio_fp, type, O_TEXT, ":crlf")
+#   PerlIO_binmode(pio_fp, type, O_TEXT, ":crlf")
 #
 # after PerlIO_importFILE() if the mode is not "binary", but as of Perl 5.8.0
 # this fails to compile under Perls with PERL_IMPLICIT_SYS enabled (due, it is
@@ -281,181 +295,179 @@ INCLUDE: const-xs.inc
 
 SV *
 _fsopen(fh, file, mode, shflag)
-	INPUT:
-		SV			*fh;
-		const char	*file;
-		const char	*mode;
-		int			shflag;
+    INPUT:
+        SV          *fh;
+        const char  *file;
+        const char  *mode;
+        int         shflag;
 
-	PROTOTYPE: *$$$
+    PROTOTYPE: *$$$
 
-	PREINIT:
-		int			last_errno;
-		DWORD		last_error;
-		FILE		*fp;
-		const char	*binmode;
-		PerlIO		*pio_fp;
+    PREINIT:
+        int         last_errno;
+        DWORD       last_error;
+        FILE        *fp;
+        const char  *binmode;
+        PerlIO      *pio_fp;
 
-	CODE:
-		/* Call the MSVC function _fsopen() to get a C file stream. */
-		fp = _fsopen(file, mode, shflag);
+    CODE:
+        /* Call the MSVC function _fsopen() to get a C file stream. */
+        fp = _fsopen(file, mode, shflag);
 
-		if (fp != Null(FILE *)) {
-			/* Set the C file stream into "binary" mode if it wasn't opened that
-			 * way already. (See comments above for why.) */
-			if (strchr(mode, 'b') == NULL) {
-				if (PerlLIO_setmode(PerlSIO_fileno(fp), O_BINARY) == -1) {
-					if (debug(aTHX) > 1)
-						fprintf(stderr, "Could not set binary mode on C file "
-								"stream for file '%s'\n", file);
-				}
-			}
+        if (fp != Null(FILE *)) {
+            /* Set the C file stream into "binary" mode if it wasn't opened that
+             * way already. (See comments above for why.) */
+            if (strchr(mode, 'b') == NULL) {
+                if (PerlLIO_setmode(PerlSIO_fileno(fp), O_BINARY) == -1) {
+                    if (_Debug(aTHX) > 1)
+                        warn("Could not set binary mode on C file stream for "
+                             "file '%s'\n", file);
+                }
+            }
 
-			/* Convert the stdio mode string to a stdio mode string in "binary"
-			 * mode. */
-			if ((binmode = mode2binmode(mode)) == NULL) {
-				PerlSIO_fclose(fp);
-				croak("Unknown mode '%s'", mode);
-			}
+            /* Convert the stdio mode string to a stdio mode string in "binary"
+             * mode. */
+            if ((binmode = _ModeToBinMode(mode)) == NULL) {
+                PerlSIO_fclose(fp);
+                croak("Unknown mode '%s'", mode);
+            }
 
-			/* Call the Perl API function PerlIO_importFILE() to get a PerlIO
-			 * file stream. Use the new "binary" mode string to be sure that it
-			 * is still in "binary" mode. */
-			pio_fp = PerlIO_importFILE(fp, binmode);
+            /* Call the Perl API function PerlIO_importFILE() to get a PerlIO
+             * file stream. Use the new "binary" mode string to be sure that it
+             * is still in "binary" mode. */
+            pio_fp = PerlIO_importFILE(fp, binmode);
 
-			if (pio_fp != Nullfp) {
-				/* Store the PerlIO file stream in the IO member of the supplied
-				 * glob (i.e. the Perl filehandle (or indirect filehandle)
-				 * passed to us). */
-				storePerlIO(aTHX_ fh, &pio_fp, binmode);
+            if (pio_fp != Nullfp) {
+                /* Store the PerlIO file stream in the IO member of the supplied
+                 * glob (i.e. the Perl filehandle (or indirect filehandle)
+                 * passed to us). */
+                _StorePerlIO(aTHX_ fh, &pio_fp, binmode);
 
-				/* Return success. */
-				RETVAL = &PL_sv_yes;
-			}
-			else {
-				if (debug(aTHX) > 1)
-					fprintf(stderr, "Perl API function PerlIO_importFILE(%s, "
-							"\"%s\") failed for file '%s'\n", "fp", binmode,
-							file);
+                /* Return success. */
+                RETVAL = &PL_sv_yes;
+            }
+            else {
+                if (_Debug(aTHX) > 1)
+                    warn("Perl API function PerlIO_importFILE(%s, \"%s\") "
+                         "failed for file '%s'\n", "fp", binmode, file);
 
-				/* Close the C file stream before returning, making sure that we
-				 * don't affect the value of the errno or last-error
-				 * variables. */
-				last_errno = errno;
-				last_error = GetLastError();
-				PerlSIO_fclose(fp);
-				errno = last_errno;
-				SetLastError(last_error);
+                /* Close the C file stream before returning, making sure that we
+                 * don't affect the value of the errno or last-error
+                 * variables. */
+                last_errno = errno;
+                last_error = GetLastError();
+                PerlSIO_fclose(fp);
+                errno = last_errno;
+                SetLastError(last_error);
 
-				/* Return failure. */
-				RETVAL = &PL_sv_no;
-			}
-		}
-		else {
-			if (debug(aTHX) > 1)
-				fprintf(stderr, "MSVC function _fsopen(\"%s\", \"%s\", %d) "
-						"failed\n", file, mode, shflag);
+                /* Return failure. */
+                RETVAL = &PL_sv_no;
+            }
+        }
+        else {
+            if (_Debug(aTHX) > 1)
+                warn("MSVC function _fsopen(\"%s\", \"%s\", %d) failed\n", file,
+                     mode, shflag);
 
-			/* Return failure. */
-			RETVAL = &PL_sv_no;
-		}
+            /* Return failure. */
+            RETVAL = &PL_sv_no;
+        }
 
-	OUTPUT:
-		RETVAL
+    OUTPUT:
+        RETVAL
 
 # Function to expose the Microsoft C library function _sopen().
 # This is only intended to be used by sopen() in the Perl module.
 
 SV *
 _sopen(fh, file, oflag, shflag, ...)
-	INPUT:
-		SV			*fh;
-		const char	*file;
-		int			oflag;
-		int			shflag;
+    INPUT:
+        SV          *fh;
+        const char  *file;
+        int         oflag;
+        int         shflag;
 
-	PROTOTYPE: *$$$;$
+    PROTOTYPE: *$$$;$
 
-	PREINIT:
-		int			last_errno;
-		DWORD		last_error;
-		int			pmode;
-		int			fd;
-		const char	*binmode;
-		PerlIO		*pio_fp;
+    PREINIT:
+        int         last_errno;
+        DWORD       last_error;
+        int         pmode;
+        int         fd;
+        const char  *binmode;
+        PerlIO      *pio_fp;
 
-	CODE:
-		/* Call the MSVC function _sopen() to get a C file descriptor. */
-		if (items > 4) {
-			pmode = SvIV(ST(4));
-			fd = _sopen(file, oflag, shflag, pmode);
-		}
-		else {
-			fd = _sopen(file, oflag, shflag);
-		}
+    CODE:
+        /* Call the MSVC function _sopen() to get a C file descriptor. */
+        if (items > 4) {
+            pmode = SvIV(ST(4));
+            fd = _sopen(file, oflag, shflag, pmode);
+        }
+        else {
+            fd = _sopen(file, oflag, shflag);
+        }
 
-		if (fd != -1) {
-			/* Set the C file descriptor into "binary" mode if it wasn't opened
-			 * that way already. (See comments above _fsopen() for why.) */
-			if (!(oflag & O_BINARY)) {
-				if (PerlLIO_setmode(fd, O_BINARY) == -1) {
-					if (debug(aTHX) > 1)
-						fprintf(stderr, "Could not set binary mode on C file "
-								"stream for file '%s'\n", file);
-				}
-			}
+        if (fd != -1) {
+            /* Set the C file descriptor into "binary" mode if it wasn't opened
+             * that way already. (See comments above _fsopen() for why.) */
+            if (!(oflag & O_BINARY)) {
+                if (PerlLIO_setmode(fd, O_BINARY) == -1) {
+                    if (_Debug(aTHX) > 1)
+                        warn("Could not set binary mode on C file stream for "
+                             "file '%s'\n", file);
+                }
+            }
 
-			/* Convert the lowio oflag to a stdio mode string in "binary"
-			 * mode. */
-			binmode = oflag2binmode(oflag);
+            /* Convert the lowio oflag to a stdio mode string in "binary"
+             * mode. */
+            binmode = _OFlagToBinMode(oflag);
 
-			/* Call the Perl API function PerlIO_fdopen() to get a PerlIO file
-			 * stream. Use the new "binary" mode string to be sure that it is
-			 * still in "binary" mode. */
-			pio_fp = PerlIO_fdopen(fd, binmode);
+            /* Call the Perl API function PerlIO_fdopen() to get a PerlIO file
+             * stream. Use the new "binary" mode string to be sure that it is
+             * still in "binary" mode. */
+            pio_fp = PerlIO_fdopen(fd, binmode);
 
-			if (pio_fp != Nullfp) {
-				/* Store the PerlIO file stream in the IO member of the supplied
-				 * glob (i.e. the Perl filehandle (or indirect filehandle)
-				 * passed to us). */
-				storePerlIO(aTHX_ fh, &pio_fp, binmode);
+            if (pio_fp != Nullfp) {
+                /* Store the PerlIO file stream in the IO member of the supplied
+                 * glob (i.e. the Perl filehandle (or indirect filehandle)
+                 * passed to us). */
+                _StorePerlIO(aTHX_ fh, &pio_fp, binmode);
 
-				/* Return success. */
-				RETVAL = &PL_sv_yes;
-			}
-			else {
-				if (debug(aTHX) > 1)
-					fprintf(stderr, "Perl API function PerlIO_fdopen(%d, "
-							"\"%s\") failed for file '%s'\n", fd, binmode,
-							file);
+                /* Return success. */
+                RETVAL = &PL_sv_yes;
+            }
+            else {
+                if (_Debug(aTHX) > 1)
+                    warn("Perl API function PerlIO_fdopen(%d, \"%s\") failed "
+                         "for file '%s'\n", fd, binmode, file);
 
-				/* Close the C file descriptor before returning, making sure
-				 * that we don't affect the value of the errno or last-error
-				 * variables. */
-				last_errno = errno;
-				last_error = GetLastError();
-				PerlLIO_close(fd);
-				errno = last_errno;
-				SetLastError(last_error);
+                /* Close the C file descriptor before returning, making sure
+                 * that we don't affect the value of the errno or last-error
+                 * variables. */
+                last_errno = errno;
+                last_error = GetLastError();
+                PerlLIO_close(fd);
+                errno = last_errno;
+                SetLastError(last_error);
 
-				/* Return failure. */
-				RETVAL = &PL_sv_no;
-			}
-		}
-		else {
-			if (debug(aTHX) > 1)
-				if (items > 4)
-					fprintf(stderr, "MSVC function _sopen(\"%s\", %d, %d, %d) "
-							"failed\n", file, oflag, shflag, pmode);
-				else
-					fprintf(stderr, "MSVC function _sopen(\"%s\", %d, %d) "
-							"failed\n", file, oflag, shflag);
+                /* Return failure. */
+                RETVAL = &PL_sv_no;
+            }
+        }
+        else {
+            if (_Debug(aTHX) > 1)
+                if (items > 4)
+                    warn("MSVC function _sopen(\"%s\", %d, %d, %d) failed\n",
+                         file, oflag, shflag, pmode);
+                else
+                    warn("MSVC function _sopen(\"%s\", %d, %d) failed\n",
+                         file, oflag, shflag);
 
-			/* Return failure. */
-			RETVAL = &PL_sv_no;
-		}
+            /* Return failure. */
+            RETVAL = &PL_sv_no;
+        }
 
-	OUTPUT:
-		RETVAL
+    OUTPUT:
+        RETVAL
 
 #-------------------------------------------------------------------------------

@@ -3,173 +3,195 @@ ________________________________________________________________________________
 Revision history for Perl extension Win32::SharedFileOpen.
 _________________
 
+v3.15 24 Sep 2003
+
+    - Changed the output of debug information to use warn() rather than simply
+      print()'ing to STDERR to enable the information to be captured by a
+      $SIG{__WARN__} handler if required.
+
+    - Added two tests to exercise the debug output with $Debug to set 2.
+
+    - Renamed some functions in the XS and C code.
+
+    - Reverted the typemap for "const char *" back to the default T_PV. There
+      didn't seem to be any point in the custom typemap.
+
+    - Changed tabs to spaces (via "expand -t 4 infile > outfile") to avoid
+      irritation when switching between editors that use 4- or 8-space tabs.
+
+    - Changed control-E to caret-E in extended OS error variable name to make
+      files "eight bit clean".
+
+    - Updated META.yml via ExtUtils::MakeMaker 6.17.
+_________________
+
 v3.14 31 Jul 2003
 
-	- Preload some ERROR_* constants that our use()'rs might need otherwise the
-	  value of $ gets interfered with when they are autoloaded by
-	  Win32::WinError in libwin32-0.191 and earlier when using debug builds of
-	  Perl.
+    - Preload some ERROR_* constants that our use()'rs might need otherwise the
+      value of $^E gets interfered with when they are autoloaded by
+      Win32::WinError in libwin32-0.191 and earlier when using debug builds of
+      Perl.
 
-	- Added META.yml (courtesy of ExtUtils::MakeMaker 6.12).
+    - Added META.yml (courtesy of ExtUtils::MakeMaker 6.11).
 _________________
 
 v3.13 28 May 2003
 
-	- Regenerated constant() and AUTOLOAD() using h2xs 1.22 with options:
-	  -n Win32::SharedFileOpen -b 5.6.0
-	  to change to new constant loading system.
+    - Regenerated constant() and AUTOLOAD() using h2xs 1.22 with options:
+      -n Win32::SharedFileOpen -b 5.6.0
+      to change to new constant loading system.
 
-	- Added new constant, O_RAW, which is an alias for O_BINARY.
+    - Added new constant, O_RAW, which is an alias for O_BINARY.
 
-	- Removed unnecessary use() of Errno from SharedFileOpen.pm. It is use()'d
-	  by the test suite, though, so left it as a pre-requisite in Makefile.PL,
-	  and added other modules use()'d by the test suite too.
+    - Removed unnecessary use() of Errno from SharedFileOpen.pm. It is use()'d
+      by the test suite, though, so left it as a pre-requisite in Makefile.PL,
+      and added other modules use()'d by the test suite too.
 
-	- Minor cosmetic changes.
+    - Minor cosmetic changes.
 _________________
 
 v3.12 30 Apr 2003
 
-	- Removed unused "len" argument from constant() function and simplified
-	  INPUT section of _constant() XS function to use the typemap for "const
-	  char *".
+    - Removed unused "len" argument from constant() function and simplified
+      INPUT section of _constant() XS function to use the typemap for "const
+      char *".
 
-	- Removed unnecessary "fh" declarations from OUTPUT sections of _fsopen()
-	  and _sopen() XS functions.
+    - Removed unnecessary "fh" declarations from OUTPUT sections of _fsopen()
+      and _sopen() XS functions.
 
-	- Added AUTHOR option to Makefile.PL. This is used when creating a PPD file
-	  (nmake ppd).
+    - Added AUTHOR option to Makefile.PL. This is used when creating a PPD file
+      (nmake ppd).
 _________________
 
 v3.11 08 Mar 2003
 
-	- Fix for building under Perl 5.6.0: added definitions of IoTYPE_*
-	  constants. This module *really* should build under Perl 5.6.0 and above
-	  now :-)
+    - Fix for building under Perl 5.6.0: added definitions of IoTYPE_*
+      constants. This module *really* should build under Perl 5.6.0 and above
+      now :-)
 
-	- Changed generation of in-line subroutines for autoloaded constants to use
-	  typeglob assignment rather than eval(). The eval() gave us named, rather
-	  than anonymous, subroutines, but these subroutines are so simple that
-	  there is no advantage in them being named, and the typeglob method is
-	  faster.
+    - Changed generation of in-line subroutines for autoloaded constants to use
+      typeglob assignment rather than eval(). The eval() gave us named, rather
+      than anonymous, subroutines, but these subroutines are so simple that
+      there is no advantage in them being named, and the typeglob method is
+      faster.
 
-	- Changed the typemap for "const char *" from the default T_PV (which uses
-	  SvPV_nolen() for INPUT) to a custom T_PV_len (which uses SvPV() for
-	  INPUT). This avoids occasional bizarre problems which I can't reproduce.
+    - Changed the typemap for "const char *" from the default T_PV (which uses
+      SvPV_nolen() for INPUT) to a custom T_PV_len (which uses SvPV() for
+      INPUT). This avoids occasional bizarre problems which I can't reproduce.
 
-	- Removed WHAT'S NEW section from POD, since there is not currently anything
-	  of note that is very new, and moved the sections on "Filehandles and
-	  Indirect Filehandles" and "Error Checking" to a "BACKGROUND REFERENCE"
-	  section near the end of the POD where they belong.
+    - Removed WHAT'S NEW section from POD, since there is not currently anything
+      of note that is very new, and moved the sections on "Filehandles and
+      Indirect Filehandles" and "Error Checking" to a "BACKGROUND REFERENCE"
+      section near the end of the POD where they belong.
 _________________
 
 v3.10 25 Jan 2003
 
-	- Fixes for building under Perls with PERL_IMPLICIT_CONTEXT and/or
-	  PERL_IMPLICIT_SYS enabled (e.g. ActivePerl):
+    - Fixes for building under Perls with PERL_IMPLICIT_CONTEXT and/or
+      PERL_IMPLICIT_SYS enabled (e.g. ActivePerl):
 
-	  * Added missing pTHX/aTHX macros to debug() function definition/calls to
-	    fix building under Perls with PERL_IMPLICIT_CONTEXT enabled;
+      * Added missing pTHX/aTHX macros to debug() function definition/calls to
+        fix building under Perls with PERL_IMPLICIT_CONTEXT enabled;
 
-	  * Added definitions of PerlIO and PerlIO_importFILE() to fix building with
-	    Perl 5.6.x's with PERL_IMPLICIT_SYS enabled;
+      * Added definitions of PerlIO and PerlIO_importFILE() to fix building with
+        Perl 5.6.x's with PERL_IMPLICIT_SYS enabled;
 
-	  * Changed fclose() and close() calls to PerlSIO_fclose() and
-	    PerlLIO_close() calls respectively to fix building with Perl 5.8.0's
-	    with PERL_IMPLICIT_SYS enabled.
+      * Changed fclose() and close() calls to PerlSIO_fclose() and
+        PerlLIO_close() calls respectively to fix building with Perl 5.8.0's
+        with PERL_IMPLICIT_SYS enabled.
 
-	  This module should now build cleanly with Perl 5.6.0, 5.6.1 and 5.8.0 with
-	  any combination of PERL_IMPLICIT_CONTEXT and PERL_IMPLICIT_SYS enabled or
-	  disabled.
+      This module should now build cleanly with Perl 5.6.0, 5.6.1 and 5.8.0 with
+      any combination of PERL_IMPLICIT_CONTEXT and PERL_IMPLICIT_SYS enabled or
+      disabled.
 
-	- Fixed the remaining fsopen() bug regarding text/binary modes under Perl
-	  5.8.0 by always setting the C file stream to binary mode before importing
-	  it into PerlIO, and then pushing a text mode layer on top if required.
+    - Fixed the remaining fsopen() bug regarding text/binary modes under Perl
+      5.8.0 by always setting the C file stream to binary mode before importing
+      it into PerlIO, and then pushing a text mode layer on top if required.
 
-	- Speeded up the "12_variables.t" test by reducing the retry times.
+    - Speeded up the "12_variables.t" test by reducing the retry times.
 _________________
 
 v3.00 02 Nov 2002
 
-	- Fixed the fsopen() bug by opening the Perl filehandle in the XS rather
-	  than passing a file descriptor back from the XS to the Perl and
-	  effectively fdopen()'ing that. Similarly re-coded sopen()'s XS.
+    - Fixed the fsopen() bug by opening the Perl filehandle in the XS rather
+      than passing a file descriptor back from the XS to the Perl and
+      effectively fdopen()'ing that. Similarly re-coded sopen()'s XS.
 
-	- Restricted the $Debug variable to only allow non-negative integer values
-	  like the other global variables. The value 0 means off, 1 produces the
-	  same debug as previous versions of this module, and 2 produces additional
-	  information in the event of a failure revealing exactly what failed.
+    - Restricted the $Debug variable to only allow non-negative integer values
+      like the other global variables. The value 0 means off, 1 produces the
+      same debug as previous versions of this module, and 2 produces additional
+      information in the event of a failure revealing exactly what failed.
 
-	- Added and improved some tests.
+    - Added and improved some tests.
 _________________
 
 v2.12 05 Sep 2002
 
-	- Fixes for Perl Version 5.8.0:
+    - Fixes for Perl Version 5.8.0:
 
-	  * Explicitly quoted Win32::WinError in Makefile.PL otherwise it now dies
-	    with an error about 'Bareword not allowed while "strict subs" in use';
+      * Explicitly quoted Win32::WinError in Makefile.PL otherwise it now dies
+        with an error about 'Bareword not allowed while "strict subs" in use';
 
-	  * Explicitly put fdopen()'d Perl filehandle into binary mode because it no
-	    longer inherits this mode from the C filehandle opened in the XS.
+      * Explicitly put fdopen()'d Perl filehandle into binary mode because it no
+        longer inherits this mode from the C filehandle opened in the XS.
 
-	- Removed use() of AutoLoader since no use was being made of it.
+    - Removed use() of AutoLoader since no use was being made of it.
 
-	- Improved definition of @EXPORT, @EXPORT_OK and %EXPORT_TAGS.
+    - Improved definition of @EXPORT, @EXPORT_OK and %EXPORT_TAGS.
 
-	- Corrected documentation typos in the README and the POD.
+    - Corrected documentation typos in the README and the POD.
 _________________
 
 v2.11 02 Jul 2002
 
-	- Imported the INFINITE flag from <winbase.h> like other Win32 modules do,
-	  rather than defining our own constant, to avoid clashes with them.
+    - Imported the INFINITE flag from <winbase.h> like other Win32 modules do,
+      rather than defining our own constant, to avoid clashes with them.
 
-	- Added $Max_Time as a better means than $Max_Tries of controlling when to
-	  give up retrying when a file can't be opened due to a sharing violation.
+    - Added $Max_Time as a better means than $Max_Tries of controlling when to
+      give up retrying when a file can't be opened due to a sharing violation.
 
-	- Allowed the tie()'d variables to have the undefined value: this is
-	  necessary because local()'ising a tie()'d variable currently leaves it
-	  tie()'d but initially undefined. It is also useful anyway to indicate the
-	  variable is not in use.
+    - Allowed the tie()'d variables to have the undefined value: this is
+      necessary because local()'ising a tie()'d variable currently leaves it
+      tie()'d but initially undefined. It is also useful anyway to indicate the
+      variable is not in use.
 
-	- Updated documentation for these changes.
+    - Updated documentation for these changes.
 _________________
 
 v2.10 20 Jun 2002
 
-	- Implemented the "First-Class Filehandle Trick" in the function new_fh(),
-	  and re-exported the function gensym() from the Symbol module, for
-	  convenience.
+    - Implemented the "First-Class Filehandle Trick" in the function new_fh(),
+      and re-exported the function gensym() from the Symbol module, for
+      convenience.
 
-	- Added $Max_Tries, $Retry_Timeout and INFINITE so that the file open can be
-	  retried if it failed due to a sharing violation.
+    - Added $Max_Tries, $Retry_Timeout and INFINITE so that the file open can be
+      retried if it failed due to a sharing violation.
 
-	- Updated documentation for these changes.
+    - Updated documentation for these changes.
 
-	- Local()'ised the changes made to $! within AUTOLOAD() as per Perl Bug ID
-	  20020614.002: see http://bugs.perl.org/ for more details.
+    - Local()'ised the changes made to $! within AUTOLOAD() as per Perl Bug ID
+      20020614.002: see http://bugs.perl.org/ for more details.
 _________________
 
 v2.00 27 May 2002
 
-	- Changed arguments and return values of fsopen() and sopen() to require a
-	  "filehandle" argument and simply return a boolean, rather than returning
-	  the filehandle opened.
+    - Changed arguments and return values of fsopen() and sopen() to require a
+      "filehandle" argument and simply return a boolean, rather than returning
+      the filehandle opened.
 
-	- Updated documentation to reflect the changes made to fsopen() and sopen()
-	  and to document a serious flaw in fsopen() :-(
+    - Updated documentation to reflect the changes made to fsopen() and sopen()
+      and to document a serious flaw in fsopen() :-(
 
-	- Minor cosmetic changes.
+    - Minor cosmetic changes.
 _________________
 
 v1.00 13 Aug 2001
 
-	- First released version.
+    - First released version.
 _________________
 
 v0.01 02 Jun 2001
 
-	- Original version; created by h2xs 1.21 with options:
-	  -n Win32::SharedFileOpen
+    - Original version; created by h2xs 1.21 with options:
+      -n Win32::SharedFileOpen
 ________________________________________________________________________________

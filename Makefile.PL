@@ -1,10 +1,10 @@
 #!perl
 #-------------------------------------------------------------------------------
-# Copyright (c)	2001-2003, Steve Hay. All rights reserved.
+# Copyright (c) 2001-2003, Steve Hay. All rights reserved.
 #
-# Module Name:	Win32::SharedFileOpen
-# Source File:	Makefile.PL
-# Description:	Makefile creation program
+# Module Name:  Win32::SharedFileOpen
+# Source File:  Makefile.PL
+# Description:  Makefile creation program
 #-------------------------------------------------------------------------------
 
 use 5.006;
@@ -16,9 +16,9 @@ use Config;
 use ExtUtils::MakeMaker;
 
 BEGIN {
-	unless ($Config{osname} =~ /MSWin32/i and $Config{cc} =~ /cl/i) {
-		die "This module requires Microsoft Visual C to build.\n";
-	}
+    unless ($Config{osname} =~ /MSWin32/i and $Config{cc} =~ /cl/i) {
+        die "This module requires Microsoft Visual C to build.\n";
+    }
 }
 
 #-------------------------------------------------------------------------------
@@ -27,82 +27,82 @@ BEGIN {
 #
 
 MAIN: {
-	WriteMakefile(
-		NAME			=> 'Win32::SharedFileOpen',
+    WriteMakefile(
+        NAME            => 'Win32::SharedFileOpen',
 
-		ABSTRACT_FROM	=> 'SharedFileOpen.pm',
+        ABSTRACT_FROM   => 'SharedFileOpen.pm',
 
-		AUTHOR			=> 'Steve Hay <shay@cpan.org>',
+        AUTHOR          => 'Steve Hay <shay@cpan.org>',
 
-		VERSION_FROM	=> 'SharedFileOpen.pm',
+        VERSION_FROM    => 'SharedFileOpen.pm',
 
-		PREREQ_PM		=> {
-			Carp				=> 0,
-			Errno				=> 0,	# Only used by test suite
-			Exporter			=> 0,
-			FileHandle			=> 0,	# Only used by test suite
-			'IO::File'			=> 0,	# Only used by test suite
-			'IO::Handle'		=> 0,	# Only used by test suite
-			Symbol				=> 0,
-			Test				=> 0,	# Only used by test suite
-			Win32				=> 0,
-			'Win32::WinError'	=> 0,
-			XSLoader			=> 0
-		},
+        PREREQ_PM       => {
+            Carp                => 0,
+            Errno               => 0,   # Only used by test suite
+            Exporter            => 0,
+            FileHandle          => 0,   # Only used by test suite
+            'IO::File'          => 0,   # Only used by test suite
+            'IO::Handle'        => 0,   # Only used by test suite
+            Symbol              => 0,
+            Test                => 0,   # Only used by test suite
+            Win32               => 0,
+            'Win32::WinError'   => 0,
+            XSLoader            => 0
+        },
 
-		dist			=> {
-			DIST_CP				=> 'cp'
-		}
-	);
+        dist            => {
+            DIST_CP             => 'cp'
+        }
+    );
 
-	if  (eval { require ExtUtils::Constant; 1 }) {
-		ExtUtils::Constant::WriteConstants(
-			NAME			=> 'Win32::SharedFileOpen',
+    if  (eval { require ExtUtils::Constant; 1 }) {
+        ExtUtils::Constant::WriteConstants(
+            NAME            => 'Win32::SharedFileOpen',
 
-			NAMES			=> [ {
-				name	=> 'INFINITE',
-				type	=> 'UV'
-			}, qw(
-				O_APPEND
-				O_BINARY
-				O_CREAT
-				O_EXCL
-				O_NOINHERIT
-				O_RANDOM
-				O_RAW
-				O_RDONLY
-				O_RDWR
-				O_SEQUENTIAL
-				O_SHORT_LIVED
-				O_TEMPORARY
-				O_TEXT
-				O_TRUNC
-				O_WRONLY
-				S_IREAD
-				S_IWRITE
-				SH_DENYNO
-				SH_DENYRD
-				SH_DENYRW
-				SH_DENYWR
-			) ],
+            NAMES           => [ {
+                name    => 'INFINITE',
+                type    => 'UV'
+            }, qw(
+                O_APPEND
+                O_BINARY
+                O_CREAT
+                O_EXCL
+                O_NOINHERIT
+                O_RANDOM
+                O_RAW
+                O_RDONLY
+                O_RDWR
+                O_SEQUENTIAL
+                O_SHORT_LIVED
+                O_TEMPORARY
+                O_TEXT
+                O_TRUNC
+                O_WRONLY
+                S_IREAD
+                S_IWRITE
+                SH_DENYNO
+                SH_DENYRD
+                SH_DENYRW
+                SH_DENYWR
+            ) ],
 
-			DEFAULT_TYPE	=> 'IV',
+            DEFAULT_TYPE    => 'IV',
 
-			C_FILE			=> 'const-c.inc',
+            C_FILE          => 'const-c.inc',
 
-			XS_FILE			=> 'const-xs.inc'
-		);
-	}
-	else {
-		require File::Copy;
-		require File::Spec;
+            XS_FILE         => 'const-xs.inc'
+        );
+    }
+    else {
+        require File::Copy;
+        require File::Spec;
 
-		foreach my $file ('const-c.inc', 'const-xs.inc') {
-			my $fallback_file = File::Spec->catfile('fallback', $file);
-			File::Copy::copy($fallback_file, $file) or
-				die "Can't copy '$fallback_file' to '$file': $!.\n";
-		}
-	}
+        foreach my $file ('const-c.inc', 'const-xs.inc') {
+            my $fallback_file = File::Spec->catfile('fallback', $file);
+            File::Copy::copy($fallback_file, $file) or
+                die "Can't copy '$fallback_file' to '$file': $!.\n";
+        }
+    }
 }
 
 #-------------------------------------------------------------------------------

@@ -1,20 +1,21 @@
+# http://module-build.sourceforge.net/META-spec.html
 #XXXXXXX This is a prototype!!!  It will change in the future!!! XXXXX#
 name:         Win32-SharedFileOpen
-version:      3.14
+version:      3.15
 version_from: SharedFileOpen.pm
 installdirs:  site
 requires:
-    XSLoader:                      0
+    Carp:                          0
+    Errno:                         0
+    Exporter:                      0
+    FileHandle:                    0
     IO::File:                      0
     IO::Handle:                    0
-    Win32::WinError:               0
     Symbol:                        0
-    FileHandle:                    0
-    Exporter:                      0
-    Carp:                          0
     Test:                          0
     Win32:                         0
-    Errno:                         0
+    Win32::WinError:               0
+    XSLoader:                      0
 
 distribution_type: module
-generated_by: ExtUtils::MakeMaker version 6.11
+generated_by: ExtUtils::MakeMaker version 6.17

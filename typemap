@@ -1,9 +1,9 @@
 #-------------------------------------------------------------------------------
-# Copyright (c)	2001-2003, Steve Hay. All rights reserved.
+# Copyright (c) 2001-2003, Steve Hay. All rights reserved.
 #
-# Module Name:	Win32::SharedFileOpen
-# Source File:	typemap
-# Description:	XS typemap
+# Module Name:  Win32::SharedFileOpen
+# Source File:  typemap
+# Description:  XS typemap
 #-------------------------------------------------------------------------------
 
 #-------------------------------------------------------------------------------
@@ -13,8 +13,8 @@
 
 TYPEMAP
 
-const char *	T_PV_len
-DWORD			T_UV
+const char *    T_PV
+DWORD           T_UV
 
 #-------------------------------------------------------------------------------
 #
@@ -23,12 +23,6 @@ DWORD			T_UV
 #
 
 INPUT
-
-T_PV_len
-	{
-	STRLEN _pv_len;
-	$var = ($type) SvPV($arg, _pv_len);
-	}
 
 #-------------------------------------------------------------------------------
 #

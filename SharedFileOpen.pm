@@ -1,9 +1,9 @@
 #-------------------------------------------------------------------------------
-# Copyright (c)	2001-2003, Steve Hay. All rights reserved.
+# Copyright (c) 2001-2003, Steve Hay. All rights reserved.
 #
-# Module Name:	Win32::SharedFileOpen
-# Source File:	SharedFileOpen.pm
-# Description:	Main Perl module
+# Module Name:  Win32::SharedFileOpen
+# Source File:  SharedFileOpen.pm
+# Description:  Main Perl module
 #-------------------------------------------------------------------------------
 
 package Win32::SharedFileOpen;
@@ -18,12 +18,12 @@ use Exporter qw();
 use Symbol;
 use Win32;
 use Win32::WinError qw(
-	ERROR_ACCESS_DENIED
-	ERROR_SHARING_VIOLATION
-	ERROR_FILE_EXISTS
-	ERROR_ENVVAR_NOT_FOUND
-	ERROR_TOO_MANY_OPEN_FILES
-	ERROR_FILE_NOT_FOUND
+    ERROR_ACCESS_DENIED
+    ERROR_SHARING_VIOLATION
+    ERROR_FILE_EXISTS
+    ERROR_ENVVAR_NOT_FOUND
+    ERROR_TOO_MANY_OPEN_FILES
+    ERROR_FILE_NOT_FOUND
 );
 use XSLoader qw();
 
@@ -32,81 +32,81 @@ sub sopen(*$$$;$);
 sub new_fh();
 
 BEGIN {
-	# Get the ERROR_SHARING_VIOLATION constant loaded now otherwise loading it
-	# later the first time that we test for an error can actually interfere with
-	# the value of $! (which we might also want to test) because the constant is
-	# autoloaded by Win32::WinError and the AUTOLOAD() subroutine in that module
-	# resets $! in the versions included in libwin32-0.18 and earlier.
-	# Likewise preload some other ERROR_* constants that our use()'rs might need
-	# otherwise loading them later can similarly interfere with the value of $
-	# in libwin32-0.191 and earlier with debug builds of Perl.
-	ERROR_ACCESS_DENIED;
-	ERROR_SHARING_VIOLATION;
-	ERROR_FILE_EXISTS;
-	ERROR_ENVVAR_NOT_FOUND;
-	ERROR_TOO_MANY_OPEN_FILES;
-	ERROR_FILE_NOT_FOUND;
+    # Get the ERROR_SHARING_VIOLATION constant loaded now otherwise loading it
+    # later the first time that we test for an error can actually interfere with
+    # the value of $! (which we might also want to test) because the constant is
+    # autoloaded by Win32::WinError and the AUTOLOAD() subroutine in that module
+    # resets $! in the versions included in libwin32-0.18 and earlier.
+    # Likewise preload some other ERROR_* constants that our use()'rs might need
+    # otherwise loading them later can similarly interfere with the value of $^E
+    # in libwin32-0.191 and earlier with debug builds of Perl.
+    ERROR_ACCESS_DENIED;
+    ERROR_SHARING_VIOLATION;
+    ERROR_FILE_EXISTS;
+    ERROR_ENVVAR_NOT_FOUND;
+    ERROR_TOO_MANY_OPEN_FILES;
+    ERROR_FILE_NOT_FOUND;
 }
 
 our @ISA = qw(Exporter);
 
 our @EXPORT = qw(
-	fsopen
-	sopen
+    fsopen
+    sopen
 );
 
 our @EXPORT_OK = qw(
-	gensym
-	new_fh
+    gensym
+    new_fh
 );
 
 our %EXPORT_TAGS = (
-	oflags => [ qw(
-		O_APPEND
-		O_BINARY
-		O_CREAT
-		O_EXCL
-		O_NOINHERIT
-		O_RANDOM
-		O_RAW
-		O_RDONLY
-		O_RDWR
-		O_SEQUENTIAL
-		O_SHORT_LIVED
-		O_TEMPORARY
-		O_TEXT
-		O_TRUNC
-		O_WRONLY
-	) ],
+    oflags => [ qw(
+        O_APPEND
+        O_BINARY
+        O_CREAT
+        O_EXCL
+        O_NOINHERIT
+        O_RANDOM
+        O_RAW
+        O_RDONLY
+        O_RDWR
+        O_SEQUENTIAL
+        O_SHORT_LIVED
+        O_TEMPORARY
+        O_TEXT
+        O_TRUNC
+        O_WRONLY
+    ) ],
 
-	pmodes => [ qw(
-		S_IREAD
-		S_IWRITE
-	) ],
+    pmodes => [ qw(
+        S_IREAD
+        S_IWRITE
+    ) ],
 
-	shflags => [ qw(
-		SH_DENYNO
-		SH_DENYRD
-		SH_DENYRW
-		SH_DENYWR
-	) ],
+    shflags => [ qw(
+        SH_DENYNO
+        SH_DENYRD
+        SH_DENYRW
+        SH_DENYWR
+    ) ],
 
-	retry => [ qw(
-		INFINITE
-		$Max_Time
-		$Max_Tries
-		$Retry_Timeout
-	) ]
+    retry => [ qw(
+        INFINITE
+        $Max_Time
+        $Max_Tries
+        $Retry_Timeout
+    ) ]
 );
 
 Exporter::export_tags(qw(oflags pmodes shflags));
 
 Exporter::export_ok_tags(qw(retry));
 
-our $VERSION = '3.14';
+our $VERSION = '3.15';
 
-# Debug setting. (0 = No debug, 1 = summary of what fsopen() or sopen() did, 2 =
-# additional information revealing exactly what failed.)
+# Debug setting. (0 = No debug, 1 = Summary of what fsopen() or sopen() did, 2 =
+# Additional information revealing exactly what failed.)
 tie our $Debug, __PACKAGE__ . '::_NaturalNumber', 0, '$Debug';
 
 # Maximum time to try and retry opening a file. (Retries are only attempted if
@@ -122,34 +122,34 @@ tie our $Retry_Timeout, __PACKAGE__ . '::_NaturalNumber', 250, '$Retry_Timeout';
 
 # Autoload the O_*, S_* and SH_* flags from the constant() XS fuction.
 sub AUTOLOAD {
-	my(	$constant,						# Name of constant being autoloaded
-		$error,							# Error from constant autoload, if any
-		$value							# Value of constant being autoloaded
-		);
+    my( $constant,                      # Name of constant being autoloaded
+        $error,                         # Error from constant autoload, if any
+        $value                          # Value of constant being autoloaded
+        );
 
-	our($AUTOLOAD						# Fully-qualified name of method invoked
-		);
+    our($AUTOLOAD                       # Fully-qualified name of method invoked
+        );
 
-	# Get the name of the constant to generate a subroutine for.
-	($constant = $AUTOLOAD) =~ s/^.*:://;
+    # Get the name of the constant to generate a subroutine for.
+    ($constant = $AUTOLOAD) =~ s/^.*:://;
 
-	# Avoid deep recursion on AUTOLOAD() if constant() is not defined.
-	croak('Unexpected error in AUTOLOAD(): constant() is not defined')
-		if $constant eq 'constant';
+    # Avoid deep recursion on AUTOLOAD() if constant() is not defined.
+    croak('Unexpected error in AUTOLOAD(): constant() is not defined')
+        if $constant eq 'constant';
 
-	($error, $value) = constant($constant);
+    ($error, $value) = constant($constant);
 
-	# Handle any error from looking up the constant.
-	croak($error) if $error;
+    # Handle any error from looking up the constant.
+    croak($error) if $error;
 
-	# Generate an in-line subroutine returning the required value.
-	{
-		no strict 'refs';
-		*$AUTOLOAD = sub { return $value };
-	}
+    # Generate an in-line subroutine returning the required value.
+    {
+        no strict 'refs';
+        *$AUTOLOAD = sub { return $value };
+    }
 
-	# Switch to the subroutine that we have just generated.
-	goto &$AUTOLOAD;
+    # Switch to the subroutine that we have just generated.
+    goto &$AUTOLOAD;
 }
 
 XSLoader::load('Win32::SharedFileOpen', $VERSION);
@@ -160,140 +160,140 @@ XSLoader::load('Win32::SharedFileOpen', $VERSION);
 #
 
 sub fsopen(*$$$) {
-	my(	$fh,							# "Filehandle" to be opened
-		$file,							# File to open
-		$mode,							# Mode string specifying access mode
-		$shflag							# SH_* flag specifying sharing mode
-		) = @_;
+    my( $fh,                            # "Filehandle" to be opened
+        $file,                          # File to open
+        $mode,                          # Mode string specifying access mode
+        $shflag                         # SH_* flag specifying sharing mode
+        ) = @_;
 
-	my(	$start,							# Time started trying to open file
-		$tries,							# Number of tries at opening file
-		$success						# Return value from _fsopen()
-		);
+    my( $start,                         # Time started trying to open file
+        $tries,                         # Number of tries at opening file
+        $success                        # Return value from _fsopen()
+        );
 
-	croak("fsopen() can't use the undefined value as an indirect filehandle")
-		unless defined $fh;
+    croak("fsopen() can't use the undefined value as an indirect filehandle")
+        unless defined $fh;
 
-	# Make sure the "filehandle" argument supplied is fit for purpose.
-	$fh = qualify_to_ref($fh, caller);
+    # Make sure the "filehandle" argument supplied is fit for purpose.
+    $fh = qualify_to_ref($fh, caller);
 
-	for ($start = time, $tries = 0; ; Win32::Sleep($Retry_Timeout)) {
-		$success = _fsopen($fh, $file, $mode, $shflag);
+    for ($start = time, $tries = 0; ; Win32::Sleep($Retry_Timeout)) {
+        $success = _fsopen($fh, $file, $mode, $shflag);
 
-		$tries++;
+        $tries++;
 
-		last if $success
-			 or $ != ERROR_SHARING_VIOLATION
-			 or (not defined $Max_Time and not defined $Max_Tries)
-			 or (defined $Max_Time and $Max_Time != 0 and
-				 $Max_Time != INFINITE() and time - $start >= $Max_Time)
-			 or (defined $Max_Tries and $Max_Tries != 0 and
-				 $Max_Tries != INFINITE() and $tries >= $Max_Tries);
-	}
+        last if $success
+             or $^E != ERROR_SHARING_VIOLATION
+             or (not defined $Max_Time and not defined $Max_Tries)
+             or (defined $Max_Time and $Max_Time != 0 and
+                 $Max_Time != INFINITE() and time - $start >= $Max_Time)
+             or (defined $Max_Tries and $Max_Tries != 0 and
+                 $Max_Tries != INFINITE() and $tries >= $Max_Tries);
+    }
 
-	if ($Debug) {
-		my $time = time - $start;
+    if ($Debug) {
+        my $time = time - $start;
 
-		printf STDERR
-			"_fsopen() on '$file' %s in $time %s after $tries %s: %s.\n",
-			($success ? 'succeeded' : 'failed'),
-			($time == 1 ? 'second' : 'seconds'),
-			($tries == 1 ? 'try' : 'tries'),
-			($success ? 'using file descriptor ' . fileno($fh) : $);
-	}
+        warn sprintf
+            "_fsopen() on '$file' %s in $time %s after $tries %s: %s.\n",
+            ($success ? 'succeeded' : 'failed'),
+            ($time == 1 ? 'second' : 'seconds'),
+            ($tries == 1 ? 'try' : 'tries'),
+            ($success ? 'using file descriptor ' . fileno($fh) : $^E);
+    }
 
-	if ($success) {
-		# The _fsopen() XS function always opens the filehandle in "binary"
-		# mode, so push a "text" mode layer on top unless "binary" mode is what
-		# was actually asked for. (See comments in XS file for the reason why.)
-		unless ($mode =~ /b/io) {
-			unless (binmode $fh, ':crlf') {
-				if ($Debug > 1) {
-					print STDERR "Could not push text mode layer on PerlIO " .
-								 "stream for file '$file'\n";
-				}
-			}
-		}
+    if ($success) {
+        # The _fsopen() XS function always opens the filehandle in "binary"
+        # mode, so push a "text" mode layer on top unless "binary" mode is what
+        # was actually asked for. (See comments in XS file for the reason why.)
+        unless ($mode =~ /b/io) {
+            unless (binmode $fh, ':crlf') {
+                if ($Debug > 1) {
+                    warn "Could not push text mode layer on PerlIO stream " .
+                         "for file '$file'\n";
+                }
+            }
+        }
 
-		return 1;
-	}
-	else {
-		return;
-	}
+        return 1;
+    }
+    else {
+        return;
+    }
 }
 
 sub sopen(*$$$;$) {
-	my(	$fh,							# "Filehandle" to be opened
-		$file,							# File to open
-		$oflag,							# O_* flag specifying access mode
-		$shflag,						# SH_* flag specifying sharing mode
-		$pmode							# S_* flag specifying file permissions
-		) = @_;
+    my( $fh,                            # "Filehandle" to be opened
+        $file,                          # File to open
+        $oflag,                         # O_* flag specifying access mode
+        $shflag,                        # SH_* flag specifying sharing mode
+        $pmode                          # S_* flag specifying file permissions
+        ) = @_;
 
-	my(	$start,							# Time started trying to open file
-		$tries,							# Number of tries at opening file
-		$success						# Return value from _sopen()
-		);
+    my( $start,                         # Time started trying to open file
+        $tries,                         # Number of tries at opening file
+        $success                        # Return value from _sopen()
+        );
 
-	croak("sopen() can't use the undefined value as an indirect filehandle")
-		unless defined $fh;
+    croak("sopen() can't use the undefined value as an indirect filehandle")
+        unless defined $fh;
 
-	# Make sure the "filehandle" argument supplied is fit for purpose.
-	$fh = qualify_to_ref($fh, caller);
+    # Make sure the "filehandle" argument supplied is fit for purpose.
+    $fh = qualify_to_ref($fh, caller);
 
-	for ($start = time, $tries = 0; ; Win32::Sleep($Retry_Timeout)) {
-		if (@_ > 4) {
-			$success = _sopen($fh, $file, $oflag, $shflag, $pmode);
-		}
-		else {
-			$success = _sopen($fh, $file, $oflag, $shflag);
-		}
+    for ($start = time, $tries = 0; ; Win32::Sleep($Retry_Timeout)) {
+        if (@_ > 4) {
+            $success = _sopen($fh, $file, $oflag, $shflag, $pmode);
+        }
+        else {
+            $success = _sopen($fh, $file, $oflag, $shflag);
+        }
 
-		$tries++;
+        $tries++;
 
-		last if $success
-			 or $ != ERROR_SHARING_VIOLATION
-			 or (not defined $Max_Time and not defined $Max_Tries)
-			 or (defined $Max_Time and $Max_Time != 0 and
-				 $Max_Time != INFINITE() and time - $start >= $Max_Time)
-			 or (defined $Max_Tries and $Max_Tries != 0 and
-				 $Max_Tries != INFINITE() and $tries >= $Max_Tries);
-	}
+        last if $success
+             or $^E != ERROR_SHARING_VIOLATION
+             or (not defined $Max_Time and not defined $Max_Tries)
+             or (defined $Max_Time and $Max_Time != 0 and
+                 $Max_Time != INFINITE() and time - $start >= $Max_Time)
+             or (defined $Max_Tries and $Max_Tries != 0 and
+                 $Max_Tries != INFINITE() and $tries >= $Max_Tries);
+    }
 
-	if ($Debug) {
-		my $time = time - $start;
+    if ($Debug) {
+        my $time = time - $start;
 
-		printf STDERR
-			"_sopen() on '$file' %s in $time %s after $tries %s: %s.\n",
-			($success ? 'succeeded' : 'failed'),
-			($time == 1 ? 'second' : 'seconds'),
-			($tries == 1 ? 'try' : 'tries'),
-			($success ? 'using file descriptor ' . fileno($fh) : $);
-	}
+        warn sprintf
+            "_sopen() on '$file' %s in $time %s after $tries %s: %s.\n",
+            ($success ? 'succeeded' : 'failed'),
+            ($time == 1 ? 'second' : 'seconds'),
+            ($tries == 1 ? 'try' : 'tries'),
+            ($success ? 'using file descriptor ' . fileno($fh) : $^E);
+    }
 
-	if ($success) {
-		# The _sopen() XS function always opens the filehandle in "binary"
-		# mode, so push a "text" mode layer on top unless "binary" mode is what
-		# was actually asked for. (See comments in XS file for the reason why.)
-		unless ($oflag & O_BINARY()) {
-			unless (binmode $fh, ':crlf') {
-				if ($Debug > 1) {
-					print STDERR "Could not push text mode layer on PerlIO " .
-								 "stream for file '$file'\n";
-				}
-			}
-		}
+    if ($success) {
+        # The _sopen() XS function always opens the filehandle in "binary"
+        # mode, so push a "text" mode layer on top unless "binary" mode is what
+        # was actually asked for. (See comments in XS file for the reason why.)
+        unless ($oflag & O_BINARY()) {
+            unless (binmode $fh, ':crlf') {
+                if ($Debug > 1) {
+                    warn "Could not push text mode layer on PerlIO stream " .
+                         "for file '$file'\n";
+                }
+            }
+        }
 
-		return 1;
-	}
-	else {
-		return;
-	}
+        return 1;
+    }
+    else {
+        return;
+    }
 }
 
 sub new_fh() {
-	no warnings 'once';
-	return local *FH;
+    no warnings 'once';
+    return local *FH;
 }
 
 #-------------------------------------------------------------------------------
@@ -308,49 +308,49 @@ package Win32::SharedFileOpen::_NaturalNumber;
 use Carp;
 
 sub TIESCALAR {
-	my(	$class,							# Invocant class
-		$value,							# Initial value
-		$name							# Name of tied scalar
-		) = @_;
+    my( $class,                         # Invocant class
+        $value,                         # Initial value
+        $name                           # Name of tied scalar
+        ) = @_;
 
-	my(	$self							# New object
-		);
+    my( $self                           # New object
+        );
 
-	croak("Usage: tie SCALAR, '$class', SCALARVALUE, SCALARNAME")
-		unless @_ == 3;
+    croak("Usage: tie SCALAR, '$class', SCALARVALUE, SCALARNAME")
+        unless @_ == 3;
 
-	$self = bless { _name => $name, _value => undef }, $class;
+    $self = bless { _name => $name, _value => undef }, $class;
 
-	# Use our own STORE() method to store the value to make sure it is valid.
-	$self->STORE($value);
+    # Use our own STORE() method to store the value to make sure it is valid.
+    $self->STORE($value);
 
-	return $self;
+    return $self;
 }
 
 sub FETCH {
-	my(	$self							# Invocant object
-		) = @_;
+    my( $self                           # Invocant object
+        ) = @_;
 
-	return $self->{_value};
+    return $self->{_value};
 }
 
 sub STORE {
-	my(	$self,							# Invocant object
-		$value							# New value to store
-		) = @_;
+    my( $self,                          # Invocant object
+        $value                          # New value to store
+        ) = @_;
 
-	if (not defined $value) {
-		$self->{_value} = undef;
-	}
-	elsif ($value eq '' or $value =~ /\D/) {
-		croak("Invalid value for '$self->{_name}': '$value' is not a natural " .
-			  "number");
-	}
-	else {
-		$self->{_value} = 0 + $value;
-	}
+    if (not defined $value) {
+        $self->{_value} = undef;
+    }
+    elsif ($value eq '' or $value =~ /\D/) {
+        croak("Invalid value for '$self->{_name}': '$value' is not a natural " .
+              "number");
+    }
+    else {
+        $self->{_value} = 0 + $value;
+    }
 
-	return $self->{_value};
+    return $self->{_value};
 }
 
 1;
@@ -368,55 +368,55 @@ Win32::SharedFileOpen - Open a file for shared reading and/or writing
 
 =head1 SYNOPSIS
 
-	# Read and write files a la open(), but with mandatory file locking:
-	# ------------------------------------------------------------------
+    # Read and write files a la open(), but with mandatory file locking:
+    # ------------------------------------------------------------------
 
-	use Win32::SharedFileOpen;
+    use Win32::SharedFileOpen;
 
-	fsopen(FH1, 'readme', 'r', SH_DENYWR) or
-		die "Can't read 'readme' and take write-lock: $^E\n";
+    fsopen(FH1, 'readme', 'r', SH_DENYWR) or
+        die "Can't read 'readme' and take write-lock: $^E\n";
 
-	fsopen(FH2, 'writeme', 'w', SH_DENYRW) or
-		die "Can't write 'writeme' and take read/write-lock: $^E\n";
+    fsopen(FH2, 'writeme', 'w', SH_DENYRW) or
+        die "Can't write 'writeme' and take read/write-lock: $^E\n";
 
-	# Read and write files a la sysopen(), but with mandatory file locking:
-	# ---------------------------------------------------------------------
+    # Read and write files a la sysopen(), but with mandatory file locking:
+    # ---------------------------------------------------------------------
 
-	use Win32::SharedFileOpen;
+    use Win32::SharedFileOpen;
 
-	sopen(FH1, 'readme', O_RDONLY, SH_DENYWR) or
-		die "Can't read 'readme' and take write-lock: $^E\n";
+    sopen(FH1, 'readme', O_RDONLY, SH_DENYWR) or
+        die "Can't read 'readme' and take write-lock: $^E\n";
 
-	sopen(FH2, 'writeme', O_WRONLY | O_CREAT | O_TRUNC, SH_DENYRW, S_IWRITE) or
-		die "Can't write 'writeme' and take read/write-lock: $^E\n";
+    sopen(FH2, 'writeme', O_WRONLY | O_CREAT | O_TRUNC, SH_DENYRW, S_IWRITE) or
+        die "Can't write 'writeme' and take read/write-lock: $^E\n";
 
-	# Retry opening the file if it fails due to a sharing violation:
-	# --------------------------------------------------------------
+    # Retry opening the file if it fails due to a sharing violation:
+    # --------------------------------------------------------------
 
-	use Win32::SharedFileOpen qw(:DEFAULT :retry);
+    use Win32::SharedFileOpen qw(:DEFAULT :retry);
 
-	$Max_Time      = 10;	# Try opening the file for up to 10 seconds
-	$Retry_Timeout = 500;	# Wait 500 milliseconds between each try
+    $Max_Time      = 10;    # Try opening the file for up to 10 seconds
+    $Retry_Timeout = 500;   # Wait 500 milliseconds between each try
 
-	fsopen(FH, 'readme', 'r', SH_DENYNO) or
-		die "Can't read 'readme' after retrying for $Max_Time seconds: $^E\n";
+    fsopen(FH, 'readme', 'r', SH_DENYNO) or
+        die "Can't read 'readme' after retrying for $Max_Time seconds: $^E\n";
 
-	# Use a lexical indirect filehandle that closes itself when destroyed:
-	# --------------------------------------------------------------------
+    # Use a lexical indirect filehandle that closes itself when destroyed:
+    # --------------------------------------------------------------------
 
-	use Win32::SharedFileOpen qw(:DEFAULT new_fh);
+    use Win32::SharedFileOpen qw(:DEFAULT new_fh);
 
-	{
-		my $fh = new_fh();
+    {
+        my $fh = new_fh();
 
-		fsopen($fh, 'readme', 'r', SH_DENYNO) or
-			die "Can't read 'readme': $^E\n";
+        fsopen($fh, 'readme', 'r', SH_DENYNO) or
+            die "Can't read 'readme': $^E\n";
 
-		while (<$fh>) {
-			# ... Do some stuff ...
-		}
+        while (<$fh>) {
+            # ... Do some stuff ...
+        }
 
-	}	# ... $fh is automatically closed here
+    }   # ... $fh is automatically closed here
 
 =head1 DESCRIPTION
 
@@ -598,19 +598,19 @@ end of the file before any write operation is performed.
 The following table shows the equivalent combination of L<"O_* Flags"> for each
 mode string:
 
-	+------+-------------------------------+
-	| 'r'  | O_RDONLY                      |
-	+------+-------------------------------+
-	| 'w'  | O_WRONLY | O_CREAT | O_TRUNC  |
-	+------+-------------------------------+
-	| 'a'  | O_WRONLY | O_CREAT | O_APPEND |
-	+------+-------------------------------+
-	| 'r+' | O_RDWR                        |
-	+------+-------------------------------+
-	| 'w+' | O_RDWR | O_CREAT | O_TRUNC    |
-	+------+-------------------------------+
-	| 'a+' | O_RDWR | O_CREAT | O_APPEND   |
-	+------+-------------------------------+
+    +------+-------------------------------+
+    | 'r'  | O_RDONLY                      |
+    +------+-------------------------------+
+    | 'w'  | O_WRONLY | O_CREAT | O_TRUNC  |
+    +------+-------------------------------+
+    | 'a'  | O_WRONLY | O_CREAT | O_APPEND |
+    +------+-------------------------------+
+    | 'r+' | O_RDWR                        |
+    +------+-------------------------------+
+    | 'w+' | O_RDWR | O_CREAT | O_TRUNC    |
+    +------+-------------------------------+
+    | 'a+' | O_RDWR | O_CREAT | O_APPEND   |
+    +------+-------------------------------+
 
 See also L<"Text and Binary Modes">.
 
@@ -715,7 +715,7 @@ Text/binary modes are specified for C<fsopen()> by inserting a C<'t'> or a
 C<'b'> respectively into the L<I<$mode>|"Mode Strings"> string, immediately
 following the C<'r'>, C<'w'> or C<'a'>, for example:
 
-	my $fh = fsopen($file, 'wt', SH_DENYNO);
+    my $fh = fsopen($file, 'wt', SH_DENYNO);
 
 =item C<O_TEXT>
 
@@ -728,8 +728,8 @@ Text/binary modes are specified for C<sopen()> by using C<O_TEXT> or C<O_BINARY>
 combination with other C<O_*> flags in the L<I<$oflag>|"O_* Flags"> argument,
 for example:
 
-	my $fh = sopen($file, O_WRONLY | O_CREAT | O_TRUNC | O_TEXT, SH_DENYNO,
-				S_IWRITE);
+    my $fh = sopen($file, O_WRONLY | O_CREAT | O_TRUNC | O_TEXT, SH_DENYNO,
+                S_IWRITE);
 
 =back
 
@@ -806,11 +806,11 @@ The value must be a natural number (i.e. a non-negative integer); an exception
 is raised on any attempt to specify an invalid value.
 
 Setting this variable to a value greater than 0 will cause debug information to
-be emitted (via a straight-forward C<print()> on STDERR). How much output is
-produced depends on the actual value: currently, the value 1 will produce a
-summary of what C<fsopen()> or C<sopen()> did just before it returns, while a
-value greater than 1 will provide additional information in the event of a
-failure revealing exactly what failed.
+be emitted (via C<warn()>, so that it can be captured with a I<$SIG{__WARN__}>
+handler if required). How much output is produced depends on the actual value:
+currently, the value 1 will produce a summary of what C<fsopen()> or C<sopen()>
+did just before it returns, while a value greater than 1 will provide additional
+information in the event of a failure revealing exactly what failed.
 
 The default value is 0, i.e. debug mode is "off".
 
@@ -865,9 +865,9 @@ The default value is 250, i.e. wait for one quarter of a second between tries.
 The following diagnostic messages may be produced by this module. They are
 classified as follows (a la L<perldiag>):
 
-	(W) A warning (optional).
-	(F) A fatal error (trappable).
-	(I) An internal error that you should never see (trappable).
+    (W) A warning (optional).
+    (F) A fatal error (trappable).
+    (I) An internal error that you should never see (trappable).
 
 =over 4
 
@@ -974,8 +974,8 @@ and L<Win32::WinError> for details on how to check these values.
 
 =item Open a file for reading, denying write access to other processes:
 
-	fsopen(FH, $file, 'r', SH_DENYWR) or
-		die "Can't read '$file' and take write-lock: $^E\n";
+    fsopen(FH, $file, 'r', SH_DENYWR) or
+        die "Can't read '$file' and take write-lock: $^E\n";
 
 This example could be used for sharing a file amongst several processes for
 reading, but protecting the reads from interference by other processes trying to
@@ -984,10 +984,10 @@ write the file.
 =item Open a file for reading, denying write access to other processes, with
 automatic open-retrying:
 
-	$Win32::SharedFileOpen::Max_Time = 10;
+    $Win32::SharedFileOpen::Max_Time = 10;
 
-	fsopen(FH, $file, 'r', SH_DENYWR) or
-		die "Can't read '$file' and take write-lock: $^E\n";
+    fsopen(FH, $file, 'r', SH_DENYWR) or
+        die "Can't read '$file' and take write-lock: $^E\n";
 
 This example could be used in the same scenario as above, but when we actually
 I<expect> there to be other processes trying to write to the file, e.g. we are
@@ -1003,8 +1003,8 @@ writer updating the file to take very long to do so.
 =item Open a file for "update", denying read and write access to other
 processes:
 
-	fsopen(FH, $file, 'r+', SH_DENYRW) or
-		die "Can't update '$file' and take read/write-lock: $^E\n";
+    fsopen(FH, $file, 'r+', SH_DENYRW) or
+        die "Can't update '$file' and take read/write-lock: $^E\n";
 
 This example could be used by a process to both read and write a file (e.g. a
 simple database) and guard against other processes interfering with the reads or
@@ -1013,8 +1013,8 @@ being interfered with by the writes.
 =item Open a file for writing if and only if it doesn't already exist, denying
 write access to other processes:
 
-	sopen(FH, $file, O_WRONLY | O_CREAT | O_EXCL, SH_DENYWR, S_IWRITE) or
-		die "Can't create '$file' and take write-lock: $^E\n";
+    sopen(FH, $file, O_WRONLY | O_CREAT | O_EXCL, SH_DENYWR, S_IWRITE) or
+        die "Can't create '$file' and take write-lock: $^E\n";
 
 This example could be used by a process wishing to take an "advisory lock" on
 some non-file resource that can't be explicitly locked itself by dropping a
@@ -1026,9 +1026,9 @@ facilitate a "lock discovery" mechanism.
 =item Open a temporary file for "update", denying read and write access to other
 processes:
 
-	sopen(FH, $file, O_RDWR | O_CREAT | O_TRUNC | O_TEMPORARY, SH_DENYRW,
-			S_IWRITE) or
-		die "Can't update '$file' and take write-lock: $^E\n";
+    sopen(FH, $file, O_RDWR | O_CREAT | O_TRUNC | O_TEMPORARY, SH_DENYRW,
+            S_IWRITE) or
+        die "Can't update '$file' and take write-lock: $^E\n";
 
 This example could be used by a process wishing to use a file as a temporary
 "scratch space" for both reading and writing. The space is protected from the
@@ -1049,31 +1049,31 @@ indirect filehandle as their first argument.
 
 Using a filehandle:
 
-	fsopen(FH, $file, 'r', SH_DENYWR) or
-		die "Can't read '$file': $!\n";
+    fsopen(FH, $file, 'r', SH_DENYWR) or
+        die "Can't read '$file': $!\n";
 
 is the simplest approach, but filehandles have a big drawback: they are global
 in scope so they are always in danger of clobbering a filehandle of the same
 name being used elsewhere. For example, consider this:
 
-	fsopen(FH, $file1, 'r', SH_DENYWR) or
-		die "Can't read '$file1': $!\n";
+    fsopen(FH, $file1, 'r', SH_DENYWR) or
+        die "Can't read '$file1': $!\n";
 
-	while (<FH>) {
-		chomp($line = $_);
-		my_sub($line);
-	}
+    while (<FH>) {
+        chomp($line = $_);
+        my_sub($line);
+    }
 
-	...
+    ...
 
-	close FH;
+    close FH;
 
-	sub my_sub($) {
-		fsopen(FH, $file2, 'r', SH_DENYWR) or
-			die "Can't read '$file2': $!\n";
-		...
-		close FH;
-	}
+    sub my_sub($) {
+        fsopen(FH, $file2, 'r', SH_DENYWR) or
+            die "Can't read '$file2': $!\n";
+        ...
+        close FH;
+    }
 
 The problem here is that when you open a filehandle that is already open it is
 closed first, so calling "C<fsopen(FH, ...)>" in C<my_sub()> causes the
@@ -1088,13 +1088,13 @@ C<my_sub()> hadn't closed C<FH> before returning!)
 One solution to this problem is to localise the typeglob of the filehandle in
 question within C<my_sub()>:
 
-	sub my_sub($) {
-		local *FH;
-		fsopen(FH, $file2, 'r', SH_DENYWR) or
-			die "Can't read '$file2': $!\n";
-		...
-		close FH;
-	}
+    sub my_sub($) {
+        local *FH;
+        fsopen(FH, $file2, 'r', SH_DENYWR) or
+            die "Can't read '$file2': $!\n";
+        ...
+        close FH;
+    }
 
 but this has the unfortunate side-effect of localising all the other members of
 that typeglob as well, so if the caller had global variables I<$FH>, I<@FH> or
@@ -1112,13 +1112,13 @@ IO::Handle object that the C<*foo> typeglob contains, so with this we can
 localise just the IO object, not the whole typeglob, so that we don't
 accidentally hide more than we meant to:
 
-	sub my_sub($) {
-		local *FH{IO};
-		fsopen(FH, $file2, 'r', SH_DENYWR) or
-			die "Can't read '$file2': $!\n";
-		...
-		close FH;	# As in the example above, this is also not necessary
-	}
+    sub my_sub($) {
+        local *FH{IO};
+        fsopen(FH, $file2, 'r', SH_DENYWR) or
+            die "Can't read '$file2': $!\n";
+        ...
+        close FH;   # As in the example above, this is also not necessary
+    }
 
 However, this has a drawback as well: C<*FH{IO}> only works if C<FH> has already
 been used as a filehandle (or some other IO handle), because C<*foo{THING}>
@@ -1171,27 +1171,27 @@ finally give us the answer that we have been looking for.
 
 So we can now write C<my_sub()> like this:
 
-	sub my_sub($) {
-		# Create "my $fh" here: see below
-		fsopen($fh, $file2, 'r', SH_DENYWR) or
-			die "Can't read '$file2': $!\n";
-		...
-		close $fh;		# Not necessary again
-	}
+    sub my_sub($) {
+        # Create "my $fh" here: see below
+        fsopen($fh, $file2, 'r', SH_DENYWR) or
+            die "Can't read '$file2': $!\n";
+        ...
+        close $fh;      # Not necessary again
+    }
 
 where any of the following may be used to create "C<my $fh>":
 
-	use Symbol;
-	my $fh = gensym();
+    use Symbol;
+    my $fh = gensym();
 
-	use IO::Handle;
-	my $fh = IO::Handle->new();
+    use IO::Handle;
+    my $fh = IO::Handle->new();
 
-	use IO::File;
-	my $fh = IO::File->new();
+    use IO::File;
+    my $fh = IO::File->new();
 
-	use FileHandle;
-	my $fh = FileHandle->new();
+    use FileHandle;
+    my $fh = FileHandle->new();
 
 As we have noted in the code segment above, the "C<close $fh;>" is once again
 not necessary: the filehandle is closed automatically when the lexical variable
@@ -1213,8 +1213,8 @@ for this purpose because it is already loaded by this module itself anyway. In
 fact, C<Symbol::gensym()>, imported by this module, is made available for export
 from this module, so one can write:
 
-	use Win32::SharedFileOpen qw(:DEFAULT gensym);
-	my $fh = gensym();
+    use Win32::SharedFileOpen qw(:DEFAULT gensym);
+    my $fh = gensym();
 
 to create "C<my $fh>" above.
 
@@ -1227,7 +1227,7 @@ Filehandle Trick". It is described in an article by Mark-Jason Dominus called
 also be found (at the time of writing) on his website at the URL
 F<http://perl.plover.com/local.html>. It consists simply of the following:
 
-	my $fh = do { local *FH };
+    my $fh = do { local *FH };
 
 It works like this: the C<do { ... }> block simply executes the commands within
 the block and returns the value of the last one. So in this case, the global
@@ -1243,7 +1243,7 @@ typeglobs cannot be returned from their local scopes, one of the few places
 in which typeglobs and references to typeglobs cannot be used interchangeably.
 If we were to try to return a reference to the typeglob, as in:
 
-	my $fh = do { \local *FH };
+    my $fh = do { \local *FH };
 
 then I<$fh> would actually be a reference to the original C<*FH> itself, not the
 temporary, localised, copy of it that existed within the C<do { ... }> block.
@@ -1256,33 +1256,33 @@ If this trick is used only once within a program running under
 "C<use warnings;>" that doesn't mention C<*FH> or any of its members anywhere
 else then a warning like the following will be produced:
 
-	Name "main::FH" used only once: possible typo at ...
+    Name "main::FH" used only once: possible typo at ...
 
 This can be easily avoided by turning off that warning within the C<do { ... }>
 block:
 
-	my $fh = do { no warnings 'once'; local *FH };
+    my $fh = do { no warnings 'once'; local *FH };
 
 For convenience, this solution is implemented by this module itself in the
 function C<new_fh()>, so that one can now simply write:
 
-	use Win32::SharedFileOpen qw(:DEFAULT new_fh);
-	my $fh = new_fh();
+    use Win32::SharedFileOpen qw(:DEFAULT new_fh);
+    my $fh = new_fh();
 
 The only downside to this solution is that any subsequent error messages
 involving this filehandle will refer to C<Win32::SharedFileOpen::FH>, the
 IO member of the typeglob that a temporary, localised, copy of was used. For
 example, the program:
 
-	use strict;
-	use warnings;
-	use Win32::SharedFileOpen qw(:DEFAULT new_fh);
-	my $fh = new_fh();
-	print $fh "Hello, world.\n";
+    use strict;
+    use warnings;
+    use Win32::SharedFileOpen qw(:DEFAULT new_fh);
+    my $fh = new_fh();
+    print $fh "Hello, world.\n";
 
 outputs the warning:
 
-	print() on unopened filehandle Win32::SharedFileOpen::FH at test.pl line 5.
+    print() on unopened filehandle Win32::SharedFileOpen::FH at test.pl line 5.
 
 If several filehandles are being used in this way then it can be confusing to
 have them all referred to by the same name. (Do not be alarmed by this, though:
@@ -1300,16 +1300,16 @@ should also be noted that those two functions both support the use of one other
 value in the first argument that this module's C<fsopen()> and C<sopen()>
 functions do not: the undefined value. The calls
 
-	open my $fh, $file;
-	sysopen my $fh, $file, O_RDONLY;
+    open my $fh, $file;
+    sysopen my $fh, $file, O_RDONLY;
 
 each auto-vivify "C<my $fh>" into something that can be used as an indirect
 filehandle. (In fact, they currently [as of Perl 5.8.0] auto-vivify an entire
 typeglob, but this may change in a future version of Perl to only auto-vivify
 the IO member.) Any attempt to do likewise with this module's functions:
 
-	fsopen(my $fh, $file, 'r', SH_DENYNO);
-	sopen(my $fh, $file, O_RDONLY, SH_DENYNO);
+    fsopen(my $fh, $file, 'r', SH_DENYNO);
+    sopen(my $fh, $file, O_RDONLY, SH_DENYNO);
 
 causes the functions to C<croak()>.
 
@@ -1443,9 +1443,22 @@ or failure.
 B<THIS IS AN INCOMPATIBLE CHANGE. EXISTING SOFTWARE THAT USES THESE FUNCTIONS
 WILL NEED TO BE MODIFIED.>
 
-=head1 BUGS AND CAVEATS
+=head1 KNOWN BUGS AND CAVEATS
 
-I<None known>.
+I<None>.
+
+=head1 FEEDBACK
+
+Patches, bug reports, suggestions and any other feedback are welcome.
+
+Bugs can be reported on the CPAN Request Tracker at
+F<http://rt.cpan.org/NoAuth/ReportBug.html?Queue=Win32-SharedFileOpen>.
+
+Open bugs on the CPAN Request Tracker can be viewed at
+F<http://rt.cpan.org/NoAuth/Bugs.html?Dist=Win32-SharedFileOpen>.
+
+Please rate this distribution on CPAN Ratings at
+F<http://cpanratings.perl.org/rate/?distribution=Win32-SharedFileOpen>.
 
 =head1 SEE ALSO
 
@@ -1478,6 +1491,15 @@ flavours of Perl (all "stable" Perls from 5.6.0 onwards, both with and without
 PERL_IMPLICIT_CONTEXT and/or PERL_IMPLICIT_SYS enabled, are now supported), and
 for help in fixing a text mode/binary mode bug in the fsopen() function.
 
+=head1 AVAILABILITY
+
+The latest version of this module is available from CPAN (see
+L<perlmodlib/"CPAN"> for details) at
+
+F<http://www.cpan.org/authors/id/S/SH/SHAY/> or
+
+F<http://www.cpan.org/modules/by-module/Win32/>.
+
 =head1 AUTHOR
 
 Steve Hay E<lt>shay@cpan.orgE<gt>
@@ -1491,12 +1513,12 @@ the same terms as Perl itself.
 
 =head1 VERSION
 
-Win32::SharedFileOpen, Version 3.14
+Win32::SharedFileOpen, Version 3.15
 
 =head1 HISTORY
 
 See the file F<Changes> in the original distribution archive,
-F<Win32-SharedFileOpen-3.14.tar.gz>.
+F<Win32-SharedFileOpen-3.15.tar.gz>.
 
 =cut
 

@@ -28,8 +28,8 @@ constant_6 (pTHX_ const char *name, IV *iv_return) {
   /* Offset 5 gives the best switch position.  */
   switch (name[5]) {
   case 'L':
-    if (memEQ(name, "O_EXC", 5)) {
-    /*                    L     */
+    if (memEQ(name, "O_EXCL", 6)) {
+    /*                    ^      */
 #ifdef O_EXCL
       *iv_return = O_EXCL;
       return PERL_constant_ISIV;
@@ -39,8 +39,8 @@ constant_6 (pTHX_ const char *name, IV *iv_return) {
     }
     break;
   case 'R':
-    if (memEQ(name, "O_RDW", 5)) {
-    /*                    R     */
+    if (memEQ(name, "O_RDWR", 6)) {
+    /*                    ^      */
 #ifdef O_RDWR
       *iv_return = O_RDWR;
       return PERL_constant_ISIV;
@@ -50,8 +50,8 @@ constant_6 (pTHX_ const char *name, IV *iv_return) {
     }
     break;
   case 'T':
-    if (memEQ(name, "O_TEX", 5)) {
-    /*                    T     */
+    if (memEQ(name, "O_TEXT", 6)) {
+    /*                    ^      */
 #ifdef O_TEXT
       *iv_return = O_TEXT;
       return PERL_constant_ISIV;
@@ -69,22 +69,22 @@ constant_7 (pTHX_ const char *name, IV *iv_return) {
   /* When generated this function returned values for the list of names given
      here.  However, subsequent manual editing may have added or removed some.
      O_CREAT O_TRUNC S_IREAD */
-  /* Offset 6 gives the best switch position.  */
-  switch (name[6]) {
+  /* Offset 2 gives the best switch position.  */
+  switch (name[2]) {
   case 'C':
-    if (memEQ(name, "O_TRUN", 6)) {
-    /*                     C     */
-#ifdef O_TRUNC
-      *iv_return = O_TRUNC;
+    if (memEQ(name, "O_CREAT", 7)) {
+    /*                 ^          */
+#ifdef O_CREAT
+      *iv_return = O_CREAT;
       return PERL_constant_ISIV;
 #else
       return PERL_constant_NOTDEF;
 #endif
     }
     break;
-  case 'D':
-    if (memEQ(name, "S_IREA", 6)) {
-    /*                     D     */
+  case 'I':
+    if (memEQ(name, "S_IREAD", 7)) {
+    /*                 ^          */
 #ifdef S_IREAD
       *iv_return = S_IREAD;
       return PERL_constant_ISIV;
@@ -94,10 +94,10 @@ constant_7 (pTHX_ const char *name, IV *iv_return) {
     }
     break;
   case 'T':
-    if (memEQ(name, "O_CREA", 6)) {
-    /*                     T     */
-#ifdef O_CREAT
-      *iv_return = O_CREAT;
+    if (memEQ(name, "O_TRUNC", 7)) {
+    /*                 ^          */
+#ifdef O_TRUNC
+      *iv_return = O_TRUNC;
       return PERL_constant_ISIV;
 #else
       return PERL_constant_NOTDEF;
@@ -202,8 +202,8 @@ constant_9 (pTHX_ const char *name, IV *iv_return) {
   /* Offset 8 gives the best switch position.  */
   switch (name[8]) {
   case 'D':
-    if (memEQ(name, "SH_DENYR", 8)) {
-    /*                       D     */
+    if (memEQ(name, "SH_DENYRD", 9)) {
+    /*                       ^      */
 #ifdef SH_DENYRD
       *iv_return = SH_DENYRD;
       return PERL_constant_ISIV;
@@ -213,8 +213,8 @@ constant_9 (pTHX_ const char *name, IV *iv_return) {
     }
     break;
   case 'O':
-    if (memEQ(name, "SH_DENYN", 8)) {
-    /*                       O     */
+    if (memEQ(name, "SH_DENYNO", 9)) {
+    /*                       ^      */
 #ifdef SH_DENYNO
       *iv_return = SH_DENYNO;
       return PERL_constant_ISIV;
@@ -224,8 +224,8 @@ constant_9 (pTHX_ const char *name, IV *iv_return) {
     }
     break;
   case 'R':
-    if (memEQ(name, "SH_DENYW", 8)) {
-    /*                       R     */
+    if (memEQ(name, "SH_DENYWR", 9)) {
+    /*                       ^      */
 #ifdef SH_DENYWR
       *iv_return = SH_DENYWR;
       return PERL_constant_ISIV;
@@ -235,8 +235,8 @@ constant_9 (pTHX_ const char *name, IV *iv_return) {
     }
     break;
   case 'W':
-    if (memEQ(name, "SH_DENYR", 8)) {
-    /*                       W     */
+    if (memEQ(name, "SH_DENYRW", 9)) {
+    /*                       ^      */
 #ifdef SH_DENYRW
       *iv_return = SH_DENYRW;
       return PERL_constant_ISIV;
