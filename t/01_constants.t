@@ -14,7 +14,7 @@ use warnings;
 
 use Test;
 
-BEGIN { plan tests => 22 };				# Number of tests to be executed
+BEGIN { plan tests => 23 };				# Number of tests to be executed
 
 use Win32::SharedFileOpen qw(:DEFAULT :retry);
 
@@ -27,13 +27,14 @@ MAIN: {
 										# Test 1: Did we make it this far OK?
 	ok(1);
 
-										# Tests 2-15: Check O_* flags
+										# Tests 2-16: Check O_* flags
 	ok(defined O_APPEND);
 	ok(defined O_BINARY);
 	ok(defined O_CREAT);
 	ok(defined O_EXCL);
 	ok(defined O_NOINHERIT);
 	ok(defined O_RANDOM);
+	ok(defined O_RAW);
 	ok(defined O_RDONLY);
 	ok(defined O_RDWR);
 	ok(defined O_SEQUENTIAL);
@@ -43,17 +44,17 @@ MAIN: {
 	ok(defined O_TRUNC);
 	ok(defined O_WRONLY);
 
-										# Tests 16-17: Check S_* flags
+										# Tests 17-18: Check S_* flags
 	ok(defined S_IREAD);
 	ok(defined S_IWRITE);
 
-										# Tests 18-21: Check SH_* flags
+										# Tests 19-22: Check SH_* flags
 	ok(defined SH_DENYNO);
 	ok(defined SH_DENYRD);
 	ok(defined SH_DENYWR);
 	ok(defined SH_DENYRW);
 
-										# Test 22: Check INFINITE flag
+										# Test 23: Check INFINITE flag
 	ok(defined INFINITE);
 }
 

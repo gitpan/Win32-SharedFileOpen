@@ -1,10 +1,13 @@
 Changes
 Makefile.PL
 MANIFEST
+ppport.h
 README
 SharedFileOpen.pm
 SharedFileOpen.xs
 typemap
+fallback/const-c.inc
+fallback/const-xs.inc
 t/01_constants.t
 t/02_gensym.t
 t/03_new_fh.t

@@ -1,5 +1,5 @@
 
-Win32::SharedFileOpen Version 3.12
+Win32::SharedFileOpen Version 3.13
 ==================================
 
 NAME
@@ -60,7 +60,7 @@ SYNOPSIS
 
 DESCRIPTION
 
-	This module provides a Perl interface to the Microsoft Visual C functions
+	This module provides a Perl interface to the Microsoft C library functions
 	_fsopen() and _sopen(). These functions are counterparts to the standard C
 	library functions fopen(3) and open(2) respectively (which are already
 	effectively available in Perl as open() and sysopen() respectively), but are
@@ -84,8 +84,8 @@ DEPENDENCIES
 	available from CPAN (http://www.perl.com/CPAN/).
 
 	Obviously this module only works on Microsoft Windows platforms, and
-	requires Microsoft Visual C to build it since other C build environments do
-	not implement the Microsoft-specific functions which this module provides
+	requires Microsoft Visual C to build it since other C libraries do not
+	implement the Microsoft-specific functions which this module provides
 	wrappers to.
 
 COMPATIBILITY

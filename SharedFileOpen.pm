@@ -14,11 +14,11 @@ use strict;
 use warnings;
 
 use Carp;
-use DynaLoader qw();
-use Errno;
 use Exporter qw();
 use Symbol;
+use Win32;
 use Win32::WinError qw(ERROR_SHARING_VIOLATION);
+use XSLoader qw();
 
 sub fsopen(*$$$);
 sub sopen(*$$$;$);
@@ -26,14 +26,14 @@ sub new_fh();
 
 BEGIN {
 	# Get the ERROR_SHARING_VIOLATION constant loaded now otherwise loading it
-	# later the first time that we test for an error actually interferes with
+	# later the first time that we test for an error can actually interfere with
 	# the value of $! (which we might also want to test) because the constant is
 	# autoloaded by Win32::WinError and the AUTOLOAD() subroutine in that module
 	# resets $! in the versions included in libwin32-0.18 and earlier.
 	my $dummy = ERROR_SHARING_VIOLATION;
 }
 
-our @ISA = qw(Exporter DynaLoader);
+our @ISA = qw(Exporter);
 
 our @EXPORT = qw(
 	fsopen
@@ -53,6 +53,7 @@ our %EXPORT_TAGS = (
 		O_EXCL
 		O_NOINHERIT
 		O_RANDOM
+		O_RAW
 		O_RDONLY
 		O_RDWR
 		O_SEQUENTIAL
@@ -87,7 +88,7 @@ Exporter::export_tags(qw(oflags pmodes shflags));
 
 Exporter::export_ok_tags(qw(retry));
 
-our $VERSION = '3.12';
+our $VERSION = '3.13';
 
 # Debug setting. (0 = No debug, 1 = summary of what fsopen() or sopen() did, 2 =
 # additional information revealing exactly what failed.)
@@ -104,9 +105,10 @@ tie our $Max_Tries, __PACKAGE__ . '::_NaturalNumber', undef, '$Max_Tries';
 # Time to wait between tries at opening a file. (Milliseconds.)
 tie our $Retry_Timeout, __PACKAGE__ . '::_NaturalNumber', 250, '$Retry_Timeout';
 
-# Autoload the O_*, S_* and SH_* flags from the _constant() XS fuction.
+# Autoload the O_*, S_* and SH_* flags from the constant() XS fuction.
 sub AUTOLOAD {
 	my(	$constant,						# Name of constant being autoloaded
+		$error,							# Error from constant autoload, if any
 		$value							# Value of constant being autoloaded
 		);
 
@@ -116,36 +118,18 @@ sub AUTOLOAD {
 	# Get the name of the constant to generate a subroutine for.
 	($constant = $AUTOLOAD) =~ s/^.*:://;
 
-	# Avoid deep recursion on AUTOLOAD() if _constant() is not defined.
-	croak('Unexpected error in AUTOLOAD(): _constant() is not defined')
-		if $constant eq '_constant';
+	# Avoid deep recursion on AUTOLOAD() if constant() is not defined.
+	croak('Unexpected error in AUTOLOAD(): constant() is not defined')
+		if $constant eq 'constant';
 
-	# Reset any current errors before looking up the constant, but local()ise
-	# our changes so as not to interfere with the value seen by callers.
-	local $! = 0;
+	($error, $value) = constant($constant);
 
-	$value = _constant($constant, @_ ? $_[0] : 0);
-
-	# An error occurred looking up the constant.
-	if ($! != 0) {
-		if ($!{EINVAL}) {
-			# The constant is not one of ours.
-			croak("The symbol '$AUTOLOAD' is not defined");
-		}
-		elsif ($!{ENOENT}) {
-			# The constant is one of ours, but is not defined in the C code.
-			croak("The symbol '$AUTOLOAD' is not defined on this system");
-		}
-		else {
-			croak("Unexpected error autoloading '$AUTOLOAD()': $!");
-		}
-	}
+	# Handle any error from looking up the constant.
+	croak($error) if $error;
 
 	# Generate an in-line subroutine returning the required value.
 	{
-		# Allow symbol table manipulation.
 		no strict 'refs';
-
 		*$AUTOLOAD = sub { return $value };
 	}
 
@@ -153,7 +137,7 @@ sub AUTOLOAD {
 	goto &$AUTOLOAD;
 }
 
-bootstrap Win32::SharedFileOpen $VERSION;
+XSLoader::load('Win32::SharedFileOpen', $VERSION);
 
 #-------------------------------------------------------------------------------
 #
@@ -421,7 +405,7 @@ Win32::SharedFileOpen - Open a file for shared reading and/or writing
 
 =head1 DESCRIPTION
 
-This module provides a Perl interface to the Microsoft Visual C functions
+This module provides a Perl interface to the Microsoft C library functions
 C<_fsopen()> and C<_sopen()>. These functions are counterparts to the standard C
 library functions C<fopen(3)> and C<open(2)> respectively (which are already
 effectively available in Perl as C<open()> and C<sysopen()> respectively), but
@@ -435,9 +419,9 @@ a pointer to a C<FILE> structure, while C<_sopen()>, like C<open(2)>, takes an
 returns an C<int> file descriptor (which the Microsoft documentation confusingly
 refers to as a C run-time "file handle", not to be confused here with a Perl
 "filehandle" (or indeed with the operating-system "file handle" returned by the
-C<CreateFile()> function!)). The C<_sopen()> and C<open(2)> functions also take
-another, optional, "pmode" argument (e.g. C<S_IREAD> and C<S_IWRITE>) specifying
-the permission settings of the file if it has just been created.
+Win32 API function C<CreateFile()>!)). The C<_sopen()> and C<open(2)> functions
+also take another, optional, "pmode" argument (e.g. C<S_IREAD> and C<S_IWRITE>)
+specifying the permission settings of the file if it has just been created.
 
 The difference between the Microsoft-specific functions and their standard
 counterparts is that the Microsoft-specific functions also take an extra
@@ -456,8 +440,8 @@ access to it by simply not honouring the same file opening/locking scheme as
 you.
 
 This module provides straightforward Perl "wrapper" functions, C<fsopen()> and
-C<sopen()>, for both of these Microsoft Visual C functions (with the leading "_"
-character removed from their names). These Perl functions maintain the same
+C<sopen()>, for both of these Microsoft C library functions (with the leading
+"_" character removed from their names). These Perl functions maintain the same
 formal parameters as the original C functions, except for the addition of an
 initial filehandle parameter like the Perl built-in functions C<open()> and
 C<sysopen()> have. This is used to make the Perl filehandle opened available to
@@ -497,9 +481,9 @@ Clearly this module will only build using Microsoft Visual C, so only the flags
 known to that system [as of version 6.0] are exported, rather than re-exporting
 all of the C<O_*> and C<S_I*> flags from the Fcntl module like, for example,
 IO::File does. In any case, Fcntl does not know about the Microsoft-specific
-C<_O_SHORT_LIVED> flag, nor any of the C<_SH_*> flags. These Microsoft-specific
-flags are exported (like the C<_fsopen()> and C<_sopen()> functions themselves)
-I<without> the leading "_" character.
+C<_O_SHORT_LIVED> and C<SH_*> flags. (The C<_O_SHORT_LIVED> flag is exported
+(like the C<_fsopen()> and C<_sopen()> functions themselves) I<without> the
+leading "_" character.)
 
 Both functions can be made to automatically retry opening a file (indefinitely,
 or up to a specified maximum time or number of times, and at a specified
@@ -528,7 +512,7 @@ L<indirect filehandle|"Indirect Filehandles">) I<$fh> in the access mode
 specified by L<I<$oflag>|"O_* Flags"> and prepares the file for subsequent
 shared reading and/or writing as specified by L<I<$shflag>|"SH_* Flags">. The
 optional L<I<$pmode>|"S_I* Flags"> argument specifies the file's permission
-settings if the file has just been created; it is required if and only if the
+settings if the file has just been created; it is required if (and only if) the
 access mode includes C<O_CREAT>.
 
 Returns a non-zero value if the file was successfully opened, or returns
@@ -722,9 +706,12 @@ following the C<'r'>, C<'w'> or C<'a'>, for example:
 
 =item C<O_BINARY>
 
+=item C<O_RAW>
+
 Text/binary modes are specified for C<sopen()> by using C<O_TEXT> or C<O_BINARY>
-respectively in bitwise-OR combination with other C<O_*> flags in the
-L<I<$oflag>|"O_* Flags"> argument, for example:
+(or C<O_RAW>, which is an alias for C<O_BINARY>) respectively in bitwise-OR
+combination with other C<O_*> flags in the L<I<$oflag>|"O_* Flags"> argument,
+for example:
 
 	my $fh = sopen($file, O_WRONLY | O_CREAT | O_TRUNC | O_TEXT, SH_DENYNO,
 				S_IWRITE);
@@ -758,8 +745,8 @@ Denies both read and write access to the file.
 
 =head2 S_I* Flags
 
-The I<$pmode> argument in C<sopen()> is required if and only if the access mode,
-I<$oflag>, includes C<O_CREAT>. If the file does not already exist then
+The I<$pmode> argument in C<sopen()> is required if (and only if) the access
+mode, I<$oflag>, includes C<O_CREAT>. If the file does not already exist then
 I<$pmode> specifies the file's permission settings, which are set the first time
 the file is closed. (It has no effect if the file already exists.) The value is
 specified as follows:
@@ -882,21 +869,7 @@ such a case.
 (F) An attempt was made to set the specified variable to something other than a
 natural number (i.e. a non-negative integer). This is not allowed.
 
-=item The symbol '%s' is not defined
-
-(F) The specified symbol is not known by this module.
-
-=item The symbol '%s' is not defined on this system
-
-(F) The specified symbol is known by this module but was not provided by the C
-environment used to build it.
-
-=item Unexpected error autoloading '%s()': %s
-
-(I) There was an unexpected error looking up the value of the specified
-constant. The error set by the constant-lookup function is also given.
-
-=item Unexpected error in AUTOLOAD(): _constant() is not defined
+=item Unexpected error in AUTOLOAD(): constant() is not defined
 
 (I) There was an unexpected error looking up the value of the specified
 constant: the constant-lookup function itself is apparently not defined.
@@ -904,12 +877,12 @@ constant: the constant-lookup function itself is apparently not defined.
 =item Unknown IoTYPE '%s'
 
 (I) The PerlIO stream associated with the C file stream opened by one of the
-Microsoft Visual C functions C<_fsopen()> or C<_sopen()> is of an unknown type.
+Microsoft C library functions C<_fsopen()> or C<_sopen()> is of an unknown type.
 
 =item Unknown mode '%s'
 
 (I) The PerlIO stream associated with the C file stream opened by one of the
-Microsoft Visual C functions C<_fsopen()> or C<_sopen()> is in an unknown mode.
+Microsoft C library functions C<_fsopen()> or C<_sopen()> is in an unknown mode.
 
 =item Usage: tie SCALAR, '%s', SCALARVALUE, SCALARNAME
 
@@ -942,8 +915,8 @@ The I<$file> cannot be opened because another process already has it open and is
 denying the requested access mode.
 
 This is, of course, the error that other processes will get when trying to open
-a file in a certain access mode, when we have already opened the same file with
-a sharing mode that denies other processes that access mode.
+a file in a certain access mode when we have already opened the same file with a
+sharing mode that denies other processes that access mode.
 
 =item EEXIST (File exists)
 
@@ -968,9 +941,17 @@ The maximum number of file descriptors has been reached.
 
 =item ERROR_FILE_NOT_FOUND (The system cannot find the file specified)
 
-The the filename or path in I<$file> was not found.
+The filename or path in I<$file> was not found.
 
 =back
+
+Other values may also be produced by various functions that are used within this
+module whose possible error codes are not documented.
+
+See L<C<$!>|perlvar/$!>, L<C<%!>|perlvar/%!>, L<C<$^E>|perlvar/$^E> and
+L<Error Indicators|perlvar/"Error Indicators"> in L<perlvar>,
+C<Win32::GetLastError()> and C<Win32::FormatMessage()> in L<Win32>, and L<Errno>
+and L<Win32::WinError> for details on how to check these values.
 
 =head1 EXAMPLES
 
@@ -1008,11 +989,11 @@ writer updating the file to take very long to do so.
 processes:
 
 	fsopen(FH, $file, 'r+', SH_DENYRW) or
-		die "Can't update '$file' and take read-write-lock: $^E\n";
+		die "Can't update '$file' and take read/write-lock: $^E\n";
 
 This example could be used by a process to both read and write a file (e.g. a
 simple database) and guard against other processes interfering with the reads or
-being interefered with by the writes.
+being interfered with by the writes.
 
 =item Open a file for writing if and only if it doesn't already exist, denying
 write access to other processes:
@@ -1036,7 +1017,7 @@ processes:
 
 This example could be used by a process wishing to use a file as a temporary
 "scratch space" for both reading and writing. The space is protected from the
-prying eyes of, and intereference by, other processes, and is deleted when the
+prying eyes of, and interference by, other processes, and is deleted when the
 process that opened it exits, even when dying abnormally.
 
 =back
@@ -1081,11 +1062,11 @@ name being used elsewhere. For example, consider this:
 
 The problem here is that when you open a filehandle that is already open it is
 closed first, so calling "C<fsopen(FH, ...)>" in C<my_sub()> causes the
-filehandle I<FH> which is already open in the caller to be closed first so that
+filehandle C<FH> which is already open in the caller to be closed first so that
 C<my_sub()> can use it. When C<my_sub()> returns the caller will now find that
-I<FH> is closed, causing the next read in the C<while { ... }> loop to fail. (Or
+C<FH> is closed, causing the next read in the C<while { ... }> loop to fail. (Or
 even worse, the caller would end up mistakenly reading from the wrong file if
-C<my_sub()> hadn't closed I<FH> before returning!)
+C<my_sub()> hadn't closed C<FH> before returning!)
 
 =head2 Localised Typeglobs and the C<*foo{THING}> Notation
 
@@ -1124,12 +1105,12 @@ accidentally hide more than we meant to:
 		close FH;	# As in the example above, this is also not necessary
 	}
 
-However, this has a drawback as well: C<*FH{IO}> only works if I<FH> has already
+However, this has a drawback as well: C<*FH{IO}> only works if C<FH> has already
 been used as a filehandle (or some other IO handle), because C<*foo{THING}>
 returns C<undef> if that particular I<THING> hasn't been seen by the compiler
 yet (with the exception of when I<THING> is C<SCALAR>, which is treated
 differently). This is fine in the example above, but would not necessarily have
-been if the caller of C<my_sub()> hadn't used the filehandle I<FH> first, so
+been if the caller of C<my_sub()> hadn't used the filehandle C<FH> first, so
 this approach would be no good if C<my_sub()> was to be put in a module to be
 used by other callers too.
 
@@ -1274,7 +1255,7 @@ function C<new_fh()>, so that one can now simply write:
 	my $fh = new_fh();
 
 The only downside to this solution is that any subsequent error messages
-involving this filehandle will refer to I<Win32::SharedFileOpen::FH>, the
+involving this filehandle will refer to C<Win32::SharedFileOpen::FH>, the
 IO member of the typeglob that a temporary, localised, copy of was used. For
 example, the program:
 
@@ -1317,54 +1298,6 @@ the IO member.) Any attempt to do likewise with this module's functions:
 
 causes the functions to C<croak()>.
 
-=head2 Error Checking
-
-Finally, on the subject of C<croak()>, a brief note on how to check for the
-different errors documented in L<"Error Values"> above.
-
-C<$!> corresponds to the standard C library variable C<errno>, the possible
-values of which are defined in F<E<lt>errno.hE<gt>>. C<$^E> corresponds to the
-Microsoft C "last-error code", the possible values of which are defined in
-F<E<lt>winerror.hE<gt>>.
-
-The C<$!> errors can be checked for by inspecting the values of the I<%!> hash
-exported by the L<Errno|Errno> module. The error which occurred will have a
-"true" value in the hash, for example:
-
-	use Errno;
-
-	if ($!{EACCES}) {
-		...
-	}
-
-The C<$^E> errors can be checked for by comparing against values exported by the
-L<Win32::WinError|Win32::WinError> module, for example:
-
-	use Win32::WinError;
-
-	if ($^E == ERROR_ACCESS_DENIED) {
-		...
-	}
-
-In both cases, the errors should be checked for immediately following the
-function call that failed because many functions that succeed will reset these
-variables.
-
-The system error messages for both C<$!> and C<$^E> can be obtained by simply
-stringifying the special variables, e.g. by C<print()>'ing them:
-
-	print "Errno was: $!\n";
-	print "Last error was: $^E\n";
-
-or, alternatively, the message for C<$^E> can also be obtained (slightly more
-nicely formatted) by calling C<FormatMessage()> in the L<Win32|Win32> module:
-
-	print "Last error was: " . Win32::FormatMessage($^E) . "\n";
-
-The C<$^E> error code itself is also available from a Win32 module function,
-C<GetLastError()>. Both functions are built-in to Perl itself (on Win32) so do
-not require a "C<use Win32;>" statement.
-
 =head1 EXPORTS
 
 The following symbols are, or can be, exported by this module:
@@ -1382,6 +1315,7 @@ C<O_CREAT>,
 C<O_EXCL>,
 C<O_NOINHERIT>,
 C<O_RANDOM>,
+C<O_RAW>,
 C<O_RDONLY>,
 C<O_RDWR>,
 C<O_SEQUENTIAL>,
@@ -1421,6 +1355,7 @@ C<O_CREAT>,
 C<O_EXCL>,
 C<O_NOINHERIT>,
 C<O_RANDOM>,
+C<O_RAW>,
 C<O_RDONLY>,
 C<O_RDWR>,
 C<O_SEQUENTIAL>,
@@ -1462,11 +1397,10 @@ The following modules are C<use()>'d by this module:
 =item Standard Modules
 
 Carp,
-DynaLoader,
-Errno,
 Exporter,
 Symbol,
-Win32.
+Win32,
+XSLoader.
 
 =item CPAN Modules
 
@@ -1512,7 +1446,7 @@ L<Symbol>,
 L<Win32API::File>.
 
 In particular, the Win32API::File module (part of the "libwin32" distribution)
-contains an interface to another, lower-level, Microsoft Visual C function,
+contains an interface to a (lower level) Win32 API function,
 L<C<CreateFile()>|Win32API::File/CreateFile>, which provides similar (and more)
 capabilities but using a completely different set of arguments which are
 unfamiliar to unseasoned Microsoft developers. A more Perl-friendly wrapper
@@ -1521,8 +1455,8 @@ does not entirely alleviate the pain.
 
 =head1 ACKNOWLEDGEMENTS
 
-Some of the XS code used in the re-write for version 3.00 is based on the XS
-code in the standard library module VMS::Stdio.
+Some of the XS code used in the re-write for version 3.00 is based on that in
+the standard library module VMS::Stdio (version 2.3).
 
 Thanks to Nick Ing-Simmons for help in getting this XS to build under different
 flavours of Perl (Perl 5.6.0, 5.6.1 and 5.8.0, both with and without
@@ -1542,12 +1476,12 @@ the same terms as Perl itself.
 
 =head1 VERSION
 
-Win32::SharedFileOpen, Version 3.12
+Win32::SharedFileOpen, Version 3.13
 
 =head1 HISTORY
 
 See the file F<Changes> in the original distribution archive,
-F<Win32-SharedFileOpen-3.12.tar.gz>.
+F<Win32-SharedFileOpen-3.13.tar.gz>.
 
 =cut
 

@@ -3,6 +3,21 @@ ________________________________________________________________________________
 Revision history for Perl extension Win32::SharedFileOpen.
 _________________
 
+v3.13 28 May 2003
+
+	- Regenerated constant() and AUTOLOAD() using h2xs 1.22 with options:
+	  -n Win32::SharedFileOpen -b 5.6.0
+	  to change to new constant loading system.
+
+	- Added new constant, O_RAW, which is an alias for O_BINARY.
+
+	- Removed unnecessary use() of Errno from SharedFileOpen.pm. It is use()'d
+	  by the test suite, though, so left it as a pre-requisite in Makefile.PL,
+	  and added other modules use()'d by the test suite too.
+
+	- Minor cosmetic changes.
+_________________
+
 v3.12 30 Apr 2003
 
 	- Removed unused "len" argument from constant() function and simplified

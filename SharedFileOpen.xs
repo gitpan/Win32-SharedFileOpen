@@ -14,10 +14,12 @@
 
 #include <io.h>							/* For _sopen().					*/
 #include <stdio.h>						/* For _fsopen().					*/
-#include <fcntl.h>						/* For the _O_* flags.				*/
-#include <share.h>						/* For the _SH_DENY* flags.			*/
+#include <fcntl.h>						/* For the O_* and _O_* flags.		*/
+#include <share.h>						/* For the SH_DENY* flags.			*/
 #include <string.h>						/* For strchr().					*/
-#include <sys/stat.h>					/* For the _S_* flags.				*/
+#include <sys/stat.h>					/* For the S_* flags.				*/
+
+#define O_SHORT_LIVED _O_SHORT_LIVED	/* We export without leading "_".	*/
 
 #define WIN32_LEAN_AND_MEAN				/* Don't pull in too much crap when	*/
 										/* including <windows.h> next.		*/
@@ -44,9 +46,9 @@
  * provide the standard "perlsdio.h" definitions for them here, i.e. a
  * "PerlIO *" _is_ a "FILE *", and PerlIO_importFILE() is a no-op macro.
  * Under Perl 5.8.0 a "real" PerlIO was introduced which raised questions
- * concerning the co-existence of PerlIO with the original stdio, which is dealt
- * according to whether or not PERLIO_NOT_STDIO is defined and, if it is,
- * whether or not it is true. (See the "perlapio" mangpage in Perl 5.8.0 for
+ * concerning the co-existence of PerlIO with the original stdio, which are
+ * dealt with according to whether or not PERLIO_NOT_STDIO is defined and, if it
+ * is, whether or not it is true. (See the "perlapio" mangpage in Perl 5.8.0 for
  * more details on this.) The original stdio functions should now properly be
  * accessed via the PerlSIO_*() macros; these did not exist under earlier
  * versions of Perl, so we provide a suitable definition for the two such macros
@@ -80,161 +82,14 @@
 #include "EXTERN.h"
 #include "perl.h"
 #include "XSUB.h"
+#include "ppport.h"
+#include "const-c.inc"
 
-/*
- * Function to expose relevant C #define's.
- * Sets errno to EINVAL and returns 0 if the requested name is not one of ours;
- * sets errno to ENOENT and returns 0 if the requested name is one of ours but
- * is not defined;
- * otherwise sets errno to 0 and returns the value of the requested name.
- */
-
-static DWORD constant(const char *name, int arg) {
-	errno = 0;
-
-	switch (*name) {
-		case 'I':
-			if (strEQ(name, "INFINITE"))
-				#ifdef INFINITE
-					return INFINITE;
-				#else
-					goto not_there;
-				#endif
-		case 'O':
-			if (strEQ(name, "O_APPEND"))
-				#ifdef _O_APPEND
-					return _O_APPEND;
-				#else
-					goto not_there;
-				#endif
-			if (strEQ(name, "O_BINARY"))
-				#ifdef _O_BINARY
-					return _O_BINARY;
-				#else
-					goto not_there;
-				#endif
-			if (strEQ(name, "O_CREAT"))
-				#ifdef _O_CREAT
-					return _O_CREAT;
-				#else
-					goto not_there;
-				#endif
-			if (strEQ(name, "O_EXCL"))
-				#ifdef _O_EXCL
-					return _O_EXCL;
-				#else
-					goto not_there;
-				#endif
-			if (strEQ(name, "O_NOINHERIT"))
-				#ifdef _O_NOINHERIT
-					return _O_NOINHERIT;
-				#else
-					goto not_there;
-				#endif
-			if (strEQ(name, "O_RANDOM"))
-				#ifdef _O_RANDOM
-					return _O_RANDOM;
-				#else
-					goto not_there;
-				#endif
-			if (strEQ(name, "O_RDONLY"))
-				#ifdef _O_RDONLY
-					return _O_RDONLY;
-				#else
-					goto not_there;
-				#endif
-			if (strEQ(name, "O_RDWR"))
-				#ifdef _O_RDWR
-					return _O_RDWR;
-				#else
-					goto not_there;
-				#endif
-			if (strEQ(name, "O_SEQUENTIAL"))
-				#ifdef _O_SEQUENTIAL
-					return _O_SEQUENTIAL;
-				#else
-					goto not_there;
-				#endif
-			if (strEQ(name, "O_SHORT_LIVED"))
-				#ifdef _O_SHORT_LIVED
-					return _O_SHORT_LIVED;
-				#else
-					goto not_there;
-				#endif
-			if (strEQ(name, "O_TEMPORARY"))
-				#ifdef _O_TEMPORARY
-					return _O_TEMPORARY;
-				#else
-					goto not_there;
-				#endif
-			if (strEQ(name, "O_TEXT"))
-				#ifdef _O_TEXT
-					return _O_TEXT;
-				#else
-					goto not_there;
-				#endif
-			if (strEQ(name, "O_TRUNC"))
-				#ifdef _O_TRUNC
-					return _O_TRUNC;
-				#else
-					goto not_there;
-				#endif
-			if (strEQ(name, "O_WRONLY"))
-				#ifdef _O_WRONLY
-					return _O_WRONLY;
-				#else
-					goto not_there;
-				#endif
-		case 'S':
-			if (strEQ(name, "S_IREAD"))
-				#ifdef _S_IREAD
-					return _S_IREAD;
-				#else
-					goto not_there;
-				#endif
-			if (strEQ(name, "S_IWRITE"))
-				#ifdef _S_IWRITE
-					return _S_IWRITE;
-				#else
-					goto not_there;
-				#endif
-			if (strEQ(name, "SH_DENYNO"))
-				#ifdef _SH_DENYNO
-					return _SH_DENYNO;
-				#else
-					goto not_there;
-				#endif
-			if (strEQ(name, "SH_DENYRD"))
-				#ifdef _SH_DENYRD
-					return _SH_DENYRD;
-				#else
-					goto not_there;
-				#endif
-			if (strEQ(name, "SH_DENYRW"))
-				#ifdef _SH_DENYRW
-					return _SH_DENYRW;
-				#else
-					goto not_there;
-				#endif
-			if (strEQ(name, "SH_DENYWR"))
-				#ifdef _SH_DENYWR
-					return _SH_DENYWR;
-				#else
-					goto not_there;
-				#endif
-			break;
-
-		default:
-			break;
-	}
-
-    errno = EINVAL;
-    return 0;
-
-not_there:
-	errno = ENOENT;
-	return 0;
-}
+static int debug(pTHX);
+static const char *oflag2binmode(int oflag);
+static const char *mode2binmode(const char *mode);
+static char mode2type(const char *mode);
+static void storePerlIO(pTHX_ SV *fh, PerlIO **pio_fp, const char *mode);
 
 /*
  * Function to retrieve the Perl module's $Debug variable.
@@ -247,13 +102,6 @@ static int debug(pTHX) {
 	return SvIV(get_sv("Win32::SharedFileOpen::Debug", FALSE));
 }
 
-			/* First convert the oflag understood by the MSVC function _sopen()
-			 * to a mode understood by the C function fdopen().
-			 * We cannot explicitly test for O_RDONLY because it is 0 on MSVC
-			 * (as is traditionally the case, according to the "perlopentut"
-			 * manpage), i.e. there are no bits set to look for. Therefore
-			 * assume O_RDONLY if neither O_WRONLY nor O_RDWR are set. */
-
 /*
  * Function to convert an oflag understood by C lowio-level open functions to a
  * mode string understood by C stdio-level open functions, with the "binary"
@@ -264,7 +112,7 @@ static const char *oflag2binmode(int oflag) {
 	const char *binmode;
 
 	/* Note: We cannot check for the O_RDONLY bit being set in oflag because
-	 * its value is zero in Microsoft Visual C (as is traditionally the case,
+	 * its value is zero in Microsoft's C library (as is traditionally the case,
 	 * according to the "perlopentut" manpage), i.e. there are no bits set to
 	 * look for. We therefore assume O_RDONLY if neither O_WRONLY nor O_RDWR are
 	 * set. */
@@ -376,23 +224,12 @@ MODULE = Win32::SharedFileOpen	PACKAGE = Win32::SharedFileOpen
 
 PROTOTYPES: ENABLE
 
+INCLUDE: const-xs.inc
+
 #-------------------------------------------------------------------------------
 #
 # XS code to be converted to C code by xsubpp.
 #
-
-# Function to expose the C function constant() defined above.
-# This is only intended to be used by AUTOLOAD() in the Perl module.
-
-DWORD
-_constant(name, arg)
-	INPUT:
-		const char	*name;
-		int			arg;
-	CODE:
-		RETVAL = constant(name, arg);
-	OUTPUT:
-		RETVAL
 
 #
 # Version 3.00 of this module had a bug whereby under Perl 5.8.0, if a file was
@@ -439,7 +276,7 @@ _constant(name, arg)
 # See the exchanges between myself and Nick Ing-Simmons on the "perl-xs" mailing# list, 20-24 Jan 2003, for more details on all of this.
 #
 
-# Function to expose the Microsoft Visual C function _fsopen().
+# Function to expose the Microsoft C library function _fsopen().
 # This is only intended to be used by fsopen() in the Perl module.
 
 SV *
@@ -526,7 +363,7 @@ _fsopen(fh, file, mode, shflag)
 	OUTPUT:
 		RETVAL
 
-# Function to expose the Microsoft Visual C function _sopen().
+# Function to expose the Microsoft C library function _sopen().
 # This is only intended to be used by sopen() in the Perl module.
 
 SV *
