@@ -101,7 +101,7 @@ BEGIN {
     
     Exporter::export_ok_tags(qw(retry));
     
-    $VERSION = '3.32';
+    $VERSION = '3.33';
 
     # Get the ERROR_SHARING_VIOLATION constant loaded now otherwise loading it
     # later the first time that we test for an error can actually interfere with
@@ -1125,7 +1125,7 @@ typeglob goes out of scope, so the "C<close FH;>" above is no longer necessary.)
 
 This problem can also be addressed by using the so-called C<*foo{THING}>
 syntax.  C<*foo{THING}> returns a reference to the I<THING> member of the
-I<*foo> typeglob.  For example, C<*foo{SCALAR}> is equivalent to C<\$foo>, and
+C<*foo> typeglob.  For example, C<*foo{SCALAR}> is equivalent to C<\$foo>, and
 C<*foo{CODE}> is equivalent to C<\&foo>.  C<*foo{IO}> (or the older, now
 out-of-fashion notation C<*foo{FILEHANDLE}>) yields the actual internal
 IO::Handle object that the C<*foo> typeglob contains, so with this we can
@@ -1524,11 +1524,11 @@ License or the Artistic License, as specified in the F<LICENCE> file.
 
 =head1 VERSION
 
-Version 3.32
+Version 3.33
 
 =head1 DATE
 
-03 Mar 2005
+01 Jun 2005
 
 =head1 HISTORY
 
