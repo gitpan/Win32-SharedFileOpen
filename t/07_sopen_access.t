@@ -7,7 +7,7 @@
 #   Test script to check sopen() access modes.
 #
 # COPYRIGHT
-#   Copyright (C) 2001-2004 Steve Hay.  All rights reserved.
+#   Copyright (C) 2001-2005 Steve Hay.  All rights reserved.
 #
 # LICENCE
 #   You may distribute under the terms of either the GNU General Public License
@@ -20,218 +20,257 @@ use 5.006000;
 use strict;
 use warnings;
 
-use Errno;
-use Test;
+use Errno qw(:POSIX);
+use Test::More tests => 61;
 use Win32::WinError;
 
 #===============================================================================
-# INITIALISATION
+# INITIALIZATION
 #===============================================================================
 
 BEGIN {
-    plan tests => 42;                   # Number of tests to be executed
+    use_ok('Win32::SharedFileOpen', qw(:DEFAULT new_fh));
 }
-
-use Win32::SharedFileOpen qw(:DEFAULT new_fh);
 
 #===============================================================================
 # MAIN PROGRAM
 #===============================================================================
 
 MAIN: {
-                                        # Test 1: Did we make it this far OK?
-    ok(1);
-
     my $file   = 'test.txt';
     my $str    = 'Hello, world.';
     my $strlen = length $str;
 
-    my($fh, $ret, $line);
+    my($fh, $ret, $errno, $lasterror, $line);
 
     unlink $file or die "Can't delete file '$file': $!\n" if -e $file;
 
-                                        # Tests 2-11: Check O_RDONLY/O_WRONLY
     $fh = new_fh();
     $ret = sopen($fh, $file, O_RDONLY, SH_DENYNO);
-    ok(not defined $ret and $!{ENOENT} and $^E == ERROR_FILE_NOT_FOUND);
+    ($errno, $lasterror) = ($! + 0, $^E + 0);
+    is($ret, undef, 'sopen() initially fails with O_RDONLY');
+    is($errno, ENOENT, '... and sets $! correctly');
+    is($lasterror, ERROR_FILE_NOT_FOUND, '... and sets $^E correctly');
 
     $fh = new_fh();
     $ret = sopen($fh, $file, O_WRONLY, SH_DENYNO);
-    ok(not defined $ret and $!{ENOENT} and $^E == ERROR_FILE_NOT_FOUND);
+    ($errno, $lasterror) = ($! + 0, $^E + 0);
+    is($ret, undef, 'sopen() initially fails with O_WRONLY');
+    is($errno, ENOENT, '... and sets $! correctly');
+    is($lasterror, ERROR_FILE_NOT_FOUND, '... and sets $^E correctly');
 
     $fh = new_fh();
     $ret = sopen($fh, $file, O_WRONLY | O_CREAT, SH_DENYNO, S_IWRITE);
-    ok($ret);
+    ($errno, $lasterror) = ($!, $^E);
+    ok($ret, 'sopen() succeeds with O_WRONLY | O_CREAT') or
+        diag("\$! = '$errno', \$^E = '$lasterror'");
 
-    ok(print $fh "$str\n");
+    ok(print($fh "$str\n"), '... and we can print');
 
     seek $fh, 0, 0;
     {
         no warnings 'io';
-        ok(not defined <$fh>);
+        is(<$fh>, undef, '... but not read');
     }
 
     close $fh;
-    ok(-s $file == $strlen + 2);
+    is(-s $file, $strlen + 2, '... and the file is ok');
 
     $fh = new_fh();
     $ret = sopen($fh, $file, O_RDONLY, SH_DENYNO);
-    ok($ret);
+    ($errno, $lasterror) = ($!, $^E);
+    ok($ret, 'sopen() now succeeds with O_RDONLY') or
+        diag("\$! = '$errno', \$^E = '$lasterror'");
 
     {
         no warnings 'io';
-        ok(not print $fh "$str\n");
+        ok(!print($fh "$str\n"), "... and we can't print");
     }
 
     seek $fh, 0, 0;
     chomp($line = <$fh>);
-    ok($line eq $str);
+    is($line, $str, '... but we can read');
 
     close $fh;
-    ok(-s $file == $strlen + 2);
+    is(-s $file, $strlen + 2, '... and the file is still ok');
 
-                                        # Tests 12-15: Check O_WRONLY | O_APPEND
     $fh = new_fh();
-    $ret = sopen($fh, $file, O_WRONLY | O_APPEND, SH_DENYNO);
-    ok($ret);
+    $ret = sopen($fh, $file, O_WRONLY, SH_DENYNO, S_IWRITE);
+    ($errno, $lasterror) = ($!, $^E);
+    ok($ret, 'sopen() now succeeds with O_WRONLY') or
+        diag("\$! = '$errno', \$^E = '$lasterror'");
 
-    ok(print $fh "$str\n");
+    ok(print($fh "$str\n"), '... and we can print');
 
     seek $fh, 0, 0;
     {
         no warnings 'io';
-        ok(not defined <$fh>);
+        is(<$fh>, undef, '... but not read');
     }
 
     close $fh;
-    ok(-s $file == ($strlen + 2) * 2);
+    is(-s $file, $strlen + 2, '... and the file is ok');
+
+    $fh = new_fh();
+    $ret = sopen($fh, $file, O_WRONLY | O_APPEND, SH_DENYNO);
+    ($errno, $lasterror) = ($!, $^E);
+    ok($ret, 'sopen() succeeds with O_WRONLY | O_APPEND') or
+        diag("\$! = '$errno', \$^E = '$lasterror'");
+
+    ok(print($fh "$str\n"), '... and we can print');
+
+    seek $fh, 0, 0;
+    {
+        no warnings 'io';
+        is(<$fh>, undef, '... but not read');
+    }
+
+    close $fh;
+    is(-s $file, ($strlen + 2) * 2, '... and the file is ok');
 
     unlink $file;
 
-                                        # Tests 16-24: Check O_RDWR
     $fh = new_fh();
     $ret = sopen($fh, $file, O_RDWR, SH_DENYNO);
-    ok(not defined $ret and $!{ENOENT} and $^E == ERROR_FILE_NOT_FOUND);
+    ($errno, $lasterror) = ($! + 0, $^E + 0);
+    is($ret, undef, 'sopen() initially fails with O_RDWR');
+    is($errno, ENOENT, '... and sets $! correctly');
+    is($lasterror, ERROR_FILE_NOT_FOUND, '... and sets $^E correctly');
 
     $fh = new_fh();
     $ret = sopen($fh, $file, O_RDWR | O_CREAT, SH_DENYNO, S_IWRITE);
-    ok($ret);
+    ($errno, $lasterror) = ($!, $^E);
+    ok($ret, 'sopen() succeeds with O_RDWR | O_CREAT') or
+        diag("\$! = '$errno', \$^E = '$lasterror'");
 
-    ok(print $fh "$str\n");
+    ok(print($fh "$str\n"), '... and we can print');
 
     seek $fh, 0, 0;
     chomp($line = <$fh>);
-    ok($line eq $str);
+    is($line, $str, '... and read');
 
     close $fh;
-    ok(-s $file == $strlen + 2);
+    is(-s $file, $strlen + 2, '... and the file is ok');
 
     $fh = new_fh();
     $ret = sopen($fh, $file, O_RDWR, SH_DENYNO);
-    ok($ret);
+    ($errno, $lasterror) = ($!, $^E);
+    ok($ret, 'sopen() now succeeds with O_RDWR') or
+        diag("\$! = '$errno', \$^E = '$lasterror'");
 
-    ok(print $fh "$str\n");
+    ok(print($fh "$str\n"), '... and we can print');
 
     seek $fh, 0, 0;
     chomp($line = <$fh>);
-    ok($line eq $str);
+    is($line, $str, '... and read');
 
     close $fh;
-    ok(-s $file == $strlen + 2);
+    is(-s $file, $strlen + 2, '... and the file is ok');
 
-                                        # Tests 25-28: Check O_RDWR | O_APPEND
     $fh = new_fh();
     $ret = sopen($fh, $file, O_RDWR | O_APPEND, SH_DENYNO);
-    ok($ret);
+    ($errno, $lasterror) = ($!, $^E);
+    ok($ret, 'sopen() succeeds with O_RDWR | O_APPEND') or
+        diag("\$! = '$errno', \$^E = '$lasterror'");
 
-    ok(print $fh "$str\n");
+    ok(print($fh "$str\n"), '... and we can print');
 
     seek $fh, 0, 0;
     chomp($line = <$fh>);
-    ok($line eq $str);
+    is($line, $str, '... and read');
 
     close $fh;
-    ok(-s $file == ($strlen + 2) * 2);
+    is(-s $file, ($strlen + 2) * 2, '... and the file is ok');
 
     unlink $file;
 
-                                        # Tests 29-34: Check O_TEXT/O_BINARY|RAW
     $fh = new_fh();
     sopen($fh, $file, O_WRONLY | O_CREAT | O_TEXT, SH_DENYNO, S_IWRITE);
     print $fh "$str\n";
     close $fh;
-    ok(-s $file == $strlen + 2);
+    is(-s $file, $strlen + 2, 'O_TEXT works');
 
     $fh = new_fh();
     sopen($fh, $file, O_WRONLY | O_TRUNC | O_TEXT, SH_DENYNO);
     binmode $fh, ':raw';
     print $fh "$str\n";
     close $fh;
-    ok(-s $file == $strlen + 1);
+    is(-s $file, $strlen + 1, "O_TEXT and a ':raw' layer works");
 
     $fh = new_fh();
     sopen($fh, $file, O_WRONLY | O_TRUNC | O_BINARY, SH_DENYNO);
     print $fh "$str\n";
     close $fh;
-    ok(-s $file == $strlen + 1);
+    is(-s $file, $strlen + 1, 'O_BINARY works');
 
     $fh = new_fh();
     sopen($fh, $file, O_WRONLY | O_TRUNC | O_RAW, SH_DENYNO);
     print $fh "$str\n";
     close $fh;
-    ok(-s $file == $strlen + 1);
+    is(-s $file, $strlen + 1, 'O_RAW works');
 
     $fh = new_fh();
     sopen($fh, $file, O_WRONLY | O_TRUNC | O_BINARY, SH_DENYNO);
     binmode $fh, ':crlf';
     print $fh "$str\n";
     close $fh;
-    ok(-s $file == $strlen + 2);
+    is(-s $file, $strlen + 2, "O_BINARY and a ':crlf' layer works");
 
     $fh = new_fh();
     sopen($fh, $file, O_WRONLY | O_TRUNC | O_RAW, SH_DENYNO);
     binmode $fh, ':crlf';
     print $fh "$str\n";
     close $fh;
-    ok(-s $file == $strlen + 2);
+    is(-s $file, $strlen + 2, "O_RAW and a ':crlf' layer works");
 
     unlink $file;
 
-                                        # Tests 35-36: Check O_CREAT | O_EXCL
     $fh = new_fh();
     $ret = sopen($fh, $file, O_WRONLY | O_CREAT | O_EXCL, SH_DENYNO, S_IWRITE);
-    ok($ret);
+    ($errno, $lasterror) = ($!, $^E);
+    ok($ret, 'sopen() initially succeeds with O_CREAT | O_EXCL') or
+        diag("\$! = '$errno', \$^E = '$lasterror'");
     close $fh;
 
     $fh = new_fh();
     $ret = sopen($fh, $file, O_WRONLY | O_CREAT | O_EXCL, SH_DENYNO, S_IWRITE);
-    ok(not defined $ret and $!{EEXIST} and $^E == ERROR_FILE_EXISTS);
+    ($errno, $lasterror) = ($! + 0, $^E + 0);
+    is($ret, undef, 'sopen() now fails with O_CREAT | O_EXCL');
+    is($errno, EEXIST, '... and sets $! correctly');
+    is($lasterror, ERROR_FILE_EXISTS, '... and sets $^E correctly');
 
-                                        # Test 37: Check O_TEMPORARY
     $fh = new_fh();
     sopen($fh, $file, O_WRONLY | O_CREAT | O_TEMPORARY, SH_DENYNO, S_IWRITE);
     print $fh "$str\n";
     close $fh;
-    ok(not -e $file);
+    ok(! -e $file, 'O_TEMPORARY works');
 
-                                        # Tests 38-39: Check O_TRUNC
     $fh = new_fh();
     sopen($fh, $file, O_WRONLY | O_CREAT, SH_DENYNO, S_IWRITE);
     print $fh "$str\n";
     close $fh;
-    ok(-s $file == $strlen + 2);
 
     $fh = new_fh();
     sopen($fh, $file, O_WRONLY | O_TRUNC, SH_DENYNO);
     close $fh;
-    ok(-e $file and -s $file == 0);
+    ok(-e $file, 'O_TRUNC works: file exists');
+    is(-s $file, 0, 'O_TRUNC works: file is empty');
 
     unlink $file;
 
-                                        # Tests 40-42: Check permissions
     $fh = new_fh();
     $ret = sopen($fh, '.', O_RDONLY, SH_DENYNO);
-    ok(not defined $ret and $!{EACCES} and $^E == ERROR_ACCESS_DENIED);
+    ($errno, $lasterror) = ($! + 0, $^E + 0);
+    is($ret, undef, 'sopen() fails reading a directory');
+    is($errno, EACCES, '... and sets $! correctly');
+    is($lasterror, ERROR_ACCESS_DENIED, '... and sets $^E correctly');
+
+    $fh = new_fh();
+    $ret = sopen($fh, '.', O_WRONLY, SH_DENYNO);
+    ($errno, $lasterror) = ($! + 0, $^E + 0);
+    is($ret, undef, 'sopen() fails writing a directory');
+    is($errno, EACCES, '... and sets $! correctly');
+    is($lasterror, ERROR_ACCESS_DENIED, '... and sets $^E correctly');
 
     $fh = new_fh();
     sopen($fh, $file, O_WRONLY | O_CREAT, SH_DENYNO, S_IWRITE);
@@ -241,12 +280,17 @@ MAIN: {
 
     $fh = new_fh();
     $ret = sopen($fh, $file, O_RDONLY, SH_DENYNO);
-    ok($ret);
+    ($errno, $lasterror) = ($!, $^E);
+    ok($ret, 'sopen() succeeds reading a read-only file') or
+        diag("\$! = '$errno', \$^E = '$lasterror'");
     close $fh;
 
     $fh = new_fh();
     $ret = sopen($fh, $file, O_WRONLY, SH_DENYNO);
-    ok(not defined $ret and $!{EACCES} and $^E == ERROR_ACCESS_DENIED);
+    ($errno, $lasterror) = ($! + 0, $^E + 0);
+    is($ret, undef, 'sopen() fails writing a read-only file');
+    is($errno, EACCES, '... and sets $! correctly');
+    is($lasterror, ERROR_ACCESS_DENIED, '... and sets $^E correctly');
 
     unlink $file;
 }

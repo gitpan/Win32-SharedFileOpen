@@ -7,7 +7,7 @@
 #   Test script to check fsopen() access modes.
 #
 # COPYRIGHT
-#   Copyright (C) 2001-2004 Steve Hay.  All rights reserved.
+#   Copyright (C) 2001-2005 Steve Hay.  All rights reserved.
 #
 # LICENCE
 #   You may distribute under the terms of either the GNU General Public License
@@ -20,170 +20,187 @@ use 5.006000;
 use strict;
 use warnings;
 
-use Errno;
-use Test;
+use Errno qw(:POSIX);
+use Test::More tests => 45;
 use Win32::WinError;
 
 #===============================================================================
-# INITIALISATION
+# INITIALIZATION
 #===============================================================================
 
 BEGIN {
-    plan tests => 34;                   # Number of tests to be executed
+    use_ok('Win32::SharedFileOpen', qw(:DEFAULT new_fh));
 }
-
-use Win32::SharedFileOpen qw(:DEFAULT new_fh);
 
 #===============================================================================
 # MAIN PROGRAM
 #===============================================================================
 
 MAIN: {
-                                        # Test 1: Did we make it this far OK?
-    ok(1);
-
     my $file   = 'test.txt';
     my $str    = 'Hello, world.';
     my $strlen = length $str;
 
-    my($fh, $ret, $line);
+    my($fh, $ret, $errno, $lasterror, $line);
 
     unlink $file or die "Can't delete file '$file': $!\n" if -e $file;
 
-                                        # Tests 2-10: Check 'r'/'w'
     $fh = new_fh();
     $ret = fsopen($fh, $file, 'r', SH_DENYNO);
-    ok(not defined $ret and $!{ENOENT} and $^E == ERROR_FILE_NOT_FOUND);
+    ($errno, $lasterror) = ($! + 0, $^E + 0);
+    is($ret, undef, "fsopen() initially fails with 'r'");
+    is($errno, ENOENT, '... and sets $! correctly');
+    is($lasterror, ERROR_FILE_NOT_FOUND, '... and sets $^E correctly');
 
     $fh = new_fh();
     $ret = fsopen($fh, $file, 'w', SH_DENYNO);
-    ok($ret);
+    ($errno, $lasterror) = ($!, $^E);
+    ok($ret, "fsopen() succeeds with 'w'") or
+        diag("\$! = '$errno', \$^E = '$lasterror'");
 
-    ok(print $fh "$str\n");
+    ok(print($fh "$str\n"), '... and we can print');
 
     seek $fh, 0, 0;
     {
         no warnings 'io';
-        ok(not defined <$fh>);
+        is(<$fh>, undef, '... but not read');
     }
 
     close $fh;
-    ok(-s $file == $strlen + 2);
+    is(-s $file, $strlen + 2, '... and the file is ok');
 
     $fh = new_fh();
     $ret = fsopen($fh, $file, 'r', SH_DENYNO);
-    ok($ret);
+    ($errno, $lasterror) = ($!, $^E);
+    ok($ret, "fsopen() now succeeds with 'r'") or
+        diag("\$! = '$errno', \$^E = '$lasterror'");
 
     {
         no warnings 'io';
-        ok(not print $fh "$str\n");
+        ok(!print($fh "$str\n"), "... and we can't print");
     }
 
     seek $fh, 0, 0;
     chomp($line = <$fh>);
-    ok($line eq $str);
+    is($line, $str, '... but we can read');
 
     close $fh;
-    ok(-s $file == $strlen + 2);
+    is(-s $file, $strlen + 2, '... and the file is still ok');
 
-                                        # Tests 11-14: Check 'a'
     $fh = new_fh();
     $ret = fsopen($fh, $file, 'a', SH_DENYNO);
-    ok($ret);
+    ($errno, $lasterror) = ($!, $^E);
+    ok($ret, "fsopen() succeeds with 'a'") or
+        diag("\$! = '$errno', \$^E = '$lasterror'");
 
-    ok(print $fh "$str\n");
+    ok(print($fh "$str\n"), '... and we can print');
 
     seek $fh, 0, 0;
     {
         no warnings 'io';
-        ok(not defined <$fh>);
+        is(<$fh>, undef, '... but not read');
     }
 
     close $fh;
-    ok(-s $file == ($strlen + 2) * 2);
+    is(-s $file, ($strlen + 2) * 2, '... and the file is ok');
 
     unlink $file;
 
-                                        # Tests 15-23: Check 'r+'/'w+'
     $fh = new_fh();
     $ret = fsopen($fh, $file, 'r+', SH_DENYNO);
-    ok(not defined $ret and $!{ENOENT} and $^E == ERROR_FILE_NOT_FOUND);
+    ($errno, $lasterror) = ($! + 0, $^E + 0);
+    is($ret, undef, "fsopen() initially fails with 'r+'");
+    is($errno, ENOENT, '... and sets $! correctly');
+    is($lasterror, ERROR_FILE_NOT_FOUND, '... and sets $^E correctly');
 
     $fh = new_fh();
     $ret = fsopen($fh, $file, 'w+', SH_DENYNO);
-    ok($ret);
+    ($errno, $lasterror) = ($!, $^E);
+    ok($ret, "fsopen() succeeds with 'w+'") or
+        diag("\$! = '$errno', \$^E = '$lasterror'");
 
-    ok(print $fh "$str\n");
+    ok(print($fh "$str\n"), '... and we can print');
 
     seek $fh, 0, 0;
     chomp($line = <$fh>);
-    ok($line eq $str);
+    is($line, $str, '... and read');
 
     close $fh;
-    ok(-s $file == $strlen + 2);
+    is(-s $file, $strlen + 2, '... and the file is ok');
 
     $fh = new_fh();
     $ret = fsopen($fh, $file, 'r+', SH_DENYNO);
-    ok($ret);
+    ($errno, $lasterror) = ($!, $^E);
+    ok($ret, "fsopen() now succeeds with 'r+'") or
+        diag("\$! = '$errno', \$^E = '$lasterror'");
 
-    ok(print $fh "$str\n");
+    ok(print($fh "$str\n"), '... and we can print');
 
     seek $fh, 0, 0;
     chomp($line = <$fh>);
-    ok($line eq $str);
+    is($line, $str, '... and read');
 
     close $fh;
-    ok(-s $file == $strlen + 2);
+    is(-s $file, $strlen + 2, '... and the file is ok');
 
-                                        # Tests 24-27: Check 'a+'
     $fh = new_fh();
     $ret = fsopen($fh, $file, 'a+', SH_DENYNO);
-    ok($ret);
+    ($errno, $lasterror) = ($!, $^E);
+    ok($ret, "fsopen() succeeds with 'a+'") or
+        diag("\$! = '$errno', \$^E = '$lasterror'");
 
-    ok(print $fh "$str\n");
+    ok(print($fh "$str\n"), '... and we can print');
 
     seek $fh, 0, 0;
     chomp($line = <$fh>);
-    ok($line eq $str);
+    is($line, $str, '... and read');
 
     close $fh;
-    ok(-s $file == ($strlen + 2) * 2);
+    is(-s $file, ($strlen + 2) * 2, '... and the file is ok');
 
     unlink $file;
 
-                                        # Tests 28-31: Check 't'/'b'
     $fh = new_fh();
     fsopen($fh, $file, 'wt', SH_DENYNO);
     print $fh "$str\n";
     close $fh;
-    ok(-s $file == $strlen + 2);
+    is(-s $file, $strlen + 2, "'t' works");
 
     $fh = new_fh();
     fsopen($fh, $file, 'wt', SH_DENYNO);
     binmode $fh, ':raw';
     print $fh "$str\n";
     close $fh;
-    ok(-s $file == $strlen + 1);
+    is(-s $file, $strlen + 1, "'t' and a ':raw' layer works");
 
     $fh = new_fh();
     fsopen($fh, $file, 'wb', SH_DENYNO);
     print $fh "$str\n";
     close $fh;
-    ok(-s $file == $strlen + 1);
+    is(-s $file, $strlen + 1, "'b' works");
 
     $fh = new_fh();
     fsopen($fh, $file, 'wb', SH_DENYNO);
     binmode $fh, ':crlf';
     print $fh "$str\n";
     close $fh;
-    ok(-s $file == $strlen + 2);
+    is(-s $file, $strlen + 2, "'b' and a ':crlf' layer works");
 
     unlink $file;
 
-                                        # Tests 32-34: Check permissions
     $fh = new_fh();
     $ret = fsopen($fh, '.', 'r', SH_DENYNO);
-    ok(not defined $ret and $!{EACCES} and $^E == ERROR_ACCESS_DENIED);
+    ($errno, $lasterror) = ($! + 0, $^E + 0);
+    is($ret, undef, 'fsopen() fails reading a directory');
+    is($errno, EACCES, '... and sets $! correctly');
+    is($lasterror, ERROR_ACCESS_DENIED, '... and sets $^E correctly');
+
+    $fh = new_fh();
+    $ret = fsopen($fh, '.', 'w', SH_DENYNO);
+    ($errno, $lasterror) = ($! + 0, $^E + 0);
+    is($ret, undef, 'fsopen() fails writing a directory');
+    is($errno, EACCES, '... and sets $! correctly');
+    is($lasterror, ERROR_ACCESS_DENIED, '... and sets $^E correctly');
 
     $fh = new_fh();
     fsopen($fh, $file, 'w', SH_DENYNO);
@@ -193,12 +210,17 @@ MAIN: {
 
     $fh = new_fh();
     $ret = fsopen($fh, $file, 'r', SH_DENYNO);
-    ok($ret);
+    ($errno, $lasterror) = ($!, $^E);
+    ok($ret, 'fsopen() succeeds reading a read-only file') or
+        diag("\$! = '$errno', \$^E = '$lasterror'");
     close $fh;
 
     $fh = new_fh();
     $ret = fsopen($fh, $file, 'w', SH_DENYNO);
-    ok(not defined $ret and $!{EACCES} and $^E == ERROR_ACCESS_DENIED);
+    ($errno, $lasterror) = ($! + 0, $^E + 0);
+    is($ret, undef, 'fsopen() fails writing a read-only file');
+    is($errno, EACCES, '... and sets $! correctly');
+    is($lasterror, ERROR_ACCESS_DENIED, '... and sets $^E correctly');
 
     unlink $file;
 }

@@ -39,7 +39,7 @@ sub sopen(*$$$;$);
 sub new_fh();
 
 #===============================================================================
-# MODULE INITIALISATION
+# MODULE INITIALIZATION
 #===============================================================================
 
 our(@ISA, @EXPORT, @EXPORT_OK, %EXPORT_TAGS, $VERSION);
@@ -101,7 +101,7 @@ BEGIN {
     
     Exporter::export_ok_tags(qw(retry));
     
-    $VERSION = '3.33';
+    $VERSION = '3.34';
 
     # Get the ERROR_SHARING_VIOLATION constant loaded now otherwise loading it
     # later the first time that we test for an error can actually interfere with
@@ -467,8 +467,8 @@ I<without> the leading "_" character.)
 Both functions can be made to automatically retry opening a file (indefinitely,
 or up to a specified maximum time or number of times, and at a specified
 frequency) if the file could not be opened due to a sharing violation, via the
-L<"Variables"> I<$Max_Time>, I<$Max_Tries> and I<$Retry_Timeout> and the
-C<INFINITE> flag.
+L<"Variables"> $Max_Time, $Max_Tries and $Retry_Timeout and the C<INFINITE>
+flag.
 
 =head2 Functions
 
@@ -476,26 +476,26 @@ C<INFINITE> flag.
 
 =item C<fsopen($fh, $file, $mode, $shflag)>
 
-Opens the file I<$file> using the L<filehandle|"Filehandles"> (or
-L<indirect filehandle|"Indirect Filehandles">) I<$fh> in the access mode
-specified by L<I<$mode>|"Mode Strings"> and prepares the file for subsequent
-shared reading and/or writing as specified by L<I<$shflag>|"SH_* Flags">.
+Opens the file $file using the L<filehandle|"Filehandles"> (or
+L<indirect filehandle|"Indirect Filehandles">) $fh in the access mode specified
+by L<$mode|"Mode Strings"> and prepares the file for subsequent shared reading
+and/or writing as specified by L<$shflag|"SH_* Flags">.
 
 Returns a non-zero value if the file was successfully opened, or returns
-C<undef> and sets I<$ErrStr> if the file could not be opened.
+C<undef> and sets $ErrStr if the file could not be opened.
 
 =item C<sopen($fh, $file, $oflag, $shflag[, $pmode])>
 
-Opens the file I<$file> using the L<filehandle|"Filehandles"> (or
-L<indirect filehandle|"Indirect Filehandles">) I<$fh> in the access mode
-specified by L<I<$oflag>|"O_* Flags"> and prepares the file for subsequent
-shared reading and/or writing as specified by L<I<$shflag>|"SH_* Flags">.  The
-optional L<I<$pmode>|"S_I* Flags"> argument specifies the file's permission
-settings if the file has just been created; it is required if (and only if) the
-access mode includes C<O_CREAT>.
+Opens the file $file using the L<filehandle|"Filehandles"> (or
+L<indirect filehandle|"Indirect Filehandles">) $fh in the access mode specified
+by L<$oflag|"O_* Flags"> and prepares the file for subsequent shared reading
+and/or writing as specified by L<$shflag|"SH_* Flags">.  The optional
+L<$pmode|"S_I* Flags"> argument specifies the file's permission settings if the
+file has just been created; it is required if (and only if) the access mode
+includes C<O_CREAT>.
 
 Returns a non-zero value if the file was successfully opened, or returns
-C<undef> and sets I<$ErrStr> if the file could not be opened.
+C<undef> and sets $ErrStr if the file could not be opened.
 
 =item C<gensym()>
 
@@ -520,8 +520,8 @@ L<"The First-Class Filehandle Trick"> for more details.
 
 =head2 Mode Strings
 
-The I<$mode> argument in C<fsopen()> specifies the type of access requested for
-the file, as follows:
+The $mode argument in C<fsopen()> specifies the type of access requested for the
+file, as follows:
 
 =over 4
 
@@ -580,8 +580,8 @@ See also L<"Text and Binary Modes">.
 
 =head2 O_* Flags
 
-The I<$oflag> argument in C<sopen()> specifies the type of access requested for
-the file, as follows:
+The $oflag argument in C<sopen()> specifies the type of access requested for the
+file, as follows:
 
 =over 4
 
@@ -613,7 +613,7 @@ operation is performed.
 =item C<O_CREAT>
 
 Creates the file if it does not already exist.  (Has no effect if the file does
-already exist.)  The L<I<$pmode>|"S_I* Flags"> argument is required if (and only
+already exist.)  The L<$pmode|"S_I* Flags"> argument is required if (and only
 if) this flag is used.
 
 =item C<O_EXCL>
@@ -676,7 +676,7 @@ C<binmode()> in the usual way.
 =item C<'b'>
 
 Text/binary modes are specified for C<fsopen()> by inserting a C<'t'> or a
-C<'b'> respectively into the L<I<$mode>|"Mode Strings"> string, immediately
+C<'b'> respectively into the L<$mode|"Mode Strings"> string, immediately
 following the C<'r'>, C<'w'> or C<'a'>, for example:
 
     my $fh = fsopen($file, 'wt', SH_DENYNO);
@@ -689,8 +689,8 @@ following the C<'r'>, C<'w'> or C<'a'>, for example:
 
 Text/binary modes are specified for C<sopen()> by using C<O_TEXT> or C<O_BINARY>
 (or C<O_RAW>, which is an alias for C<O_BINARY>) respectively in bitwise-OR
-combination with other C<O_*> flags in the L<I<$oflag>|"O_* Flags"> argument,
-for example:
+combination with other C<O_*> flags in the L<$oflag|"O_* Flags"> argument, for
+example:
 
     my $fh = sopen($file, O_WRONLY | O_CREAT | O_TRUNC | O_TEXT, SH_DENYNO,
                 S_IWRITE);
@@ -699,7 +699,7 @@ for example:
 
 =head2 SH_* Flags
 
-The I<$shflag> argument in both C<fsopen()> and C<sopen()> specifies the type of
+The $shflag argument in both C<fsopen()> and C<sopen()> specifies the type of
 sharing access permitted for the file, as follows:
 
 =over 4
@@ -724,11 +724,11 @@ Denies both read and write access to the file.
 
 =head2 S_I* Flags
 
-The I<$pmode> argument in C<sopen()> is required if (and only if) the access
-mode, I<$oflag>, includes C<O_CREAT>.  If the file does not already exist then
-I<$pmode> specifies the file's permission settings, which are set the first time
-the file is closed.  (It has no effect if the file already exists.)  The value
-is specified as follows:
+The $pmode argument in C<sopen()> is required if (and only if) the access mode,
+$oflag, includes C<O_CREAT>.  If the file does not already exist then $pmode
+specifies the file's permission settings, which are set the first time the file
+is closed.  (It has no effect if the file already exists.)  The value is
+specified as follows:
 
 =over 4
 
@@ -751,10 +751,10 @@ and C<S_IREAD | S_IWRITE> are equivalent.
 
 =item C<INFINITE>
 
-This flag can be assigned to I<$Max_Time> and/or I<$Max_Tries> (see below) in
-order to have C<fsopen()> or C<sopen()> indefinitely retry opening a file until
-it is either opened successfully or it cannot be opened for some reason other
-than a sharing violation.
+This flag can be assigned to $Max_Time and/or $Max_Tries (see below) in order to
+have C<fsopen()> or C<sopen()> indefinitely retry opening a file until it is
+either opened successfully or it cannot be opened for some reason other than a
+sharing violation.
 
 =back
 
@@ -762,7 +762,7 @@ than a sharing violation.
 
 =over 4
 
-=item I<$ErrStr>
+=item $ErrStr
 
 Last error message.
 
@@ -770,49 +770,49 @@ If either function fails then a description of the last error will be set in
 this variable for use in reporting the cause of the failure, much like the use
 of the Perl Special Variables C<$!> and C<$^E> after failed system calls and
 Win32 API calls.  Note that C<$!> and/or C<$^E> may also be set on failure, but
-this is not always the case so it is better to check I<$ErrStr> instead.  Any
+this is not always the case so it is better to check $ErrStr instead.  Any
 relevant messages from C<$!> or C<$^E> will form part of the message in
-I<$ErrStr> anyway.  See L<"Error Values"> for a listing of the possible values
-of I<$ErrStr>.
+$ErrStr anyway.  See L<"Error Values"> for a listing of the possible values of
+$ErrStr.
 
 If a function succeeds then this variable will be set to the null string.
 
-=item I<$Trace>
+=item $Trace
 
 Trace mode setting.
 
 Boolean value.
 
 Setting this variable to a true value will cause trace information to be emitted
-(via C<warn()>, so that it can be captured with a I<$SIG{__WARN__}> handler if
+(via C<warn()>, so that it can be captured with a $SIG{__WARN__} handler if
 required) showing a summary of what C<fsopen()> or C<sopen()> did just before it
 returns.
 
 The default value is 0, i.e. trace mode is "off".
 
-=item I<$Max_Time>
+=item $Max_Time
 
-=item I<$Max_Tries>
+=item $Max_Tries
 
 These variables specify respectively the maximum time for which to try, and the
 maximum number of times to try, opening a file on a single call to C<fsopen()>
 or C<sopen()> while the file cannot be opened due to a sharing violation
 (specifically, while "C<$^E == ERROR_SHARING_VIOLATION>").
 
-The I<$Max_Time> variable is generally more useful than I<$Max_Tries> because
-even with a common value of I<$Retry_Timeout> (see below) two processes may
-retry opening a shared file at significantly different rates.  For example, if
-I<$Retry_Timeout> is 0 then a process which can access the file in question on a
+The $Max_Time variable is generally more useful than $Max_Tries because even
+with a common value of $Retry_Timeout (see below) two processes may retry
+opening a shared file at significantly different rates.  For example, if
+$Retry_Timeout is 0 then a process which can access the file in question on a
 local disk may retry thousands of times per second, while a process on another
 machine trying to open the same file across a network connection may only retry
 once or twice per second.  Clearly, specifying the maximum time that a process
 is prepared to wait is preferable to specifying the maximum number of times to
 try.
 
-For this reason, if both variables are specified then only I<$Max_Time> is used;
-I<$Max_Tries> is ignored in that case.  Use the undefined value to explicitly
-have one or the other variable ignored.  No retries are attempted if both
-variables are undefined. 
+For this reason, if both variables are specified then only $Max_Time is used;
+$Max_Tries is ignored in that case.  Use the undefined value to explicitly have
+one or the other variable ignored.  No retries are attempted if both variables
+are undefined. 
 
 Otherwise, the values must be natural numbers (i.e. non-negative integers); an
 exception is raised on any attempt to specify an invalid value.
@@ -823,10 +823,10 @@ compatibility with previous versions of this module.
 
 The default values are both C<undef>, i.e. no retries are attempted.
 
-=item I<$Retry_Timeout>
+=item $Retry_Timeout
 
 Specifies the time to wait (in milliseconds) between tries at opening a file
-(see I<$Max_Time> and I<$Max_Tries> above).
+(see $Max_Time and $Max_Tries above).
 
 The value must be a natural number (i.e. a non-negative integer); an exception
 is raised on any attempt to specify an invalid value.
@@ -889,8 +889,8 @@ Microsoft C library functions C<_fsopen()> or C<_sopen()> is in an unknown mode.
 
 =item Usage: tie SCALAR, '%s', SCALARVALUE, SCALARNAME
 
-(I) The class used internally to C<tie()> the I<$Max_Time>, I<$Max_Tries> and
-I<$Retry_Timeout> variables to has been used incorrectly.
+(I) The class used internally to C<tie()> the $Max_Time, $Max_Tries and
+$Retry_Timeout variables to has been used incorrectly.
 
 =item Your vendor has not defined Win32::SharedFileOpen macro %s
 
@@ -901,7 +901,7 @@ Win32::SharedFileOpen module, but that constant is apparently not defined.
 
 =head2 Error Values
 
-Both functions set I<$ErrStr> to a value indicating the cause of the error when
+Both functions set $ErrStr to a value indicating the cause of the error when
 they fail.  The possible values are as follows:
 
 =over 4
@@ -928,9 +928,9 @@ variable is also given.
 
 In some cases, the functions may also leave the Perl Special Variables C<$!>
 and/or C<$^E> set to values indicating the cause of the error when they fail;
-C<$!> will be incorporated into the I<$ErrStr> message in such cases as
-indicated above.  The possible values of each are as follows (C<$!> shown first,
-C<$^E> underneath):
+C<$!> will be incorporated into the $ErrStr message in such cases as indicated
+above.  The possible values of each are as follows (C<$!> shown first, C<$^E>
+underneath):
 
 =over 4
 
@@ -938,15 +938,15 @@ C<$^E> underneath):
 
 =item ERROR_ACCESS_DENIED (Access is denied)
 
-The I<$file> is a directory, or is a read-only file and an attempt was made to
-open it for writing.
+The $file is a directory, or is a read-only file and an attempt was made to open
+it for writing.
 
 =item EACCES (Permission denied) [2]
 
 =item ERROR_SHARING_VIOLATION (The process cannot access the file because it is
 being used by another process.)
 
-The I<$file> cannot be opened because another process already has it open and is
+The $file cannot be opened because another process already has it open and is
 denying the requested access mode.
 
 This is, of course, the error that other processes will get when trying to open
@@ -957,14 +957,15 @@ sharing mode that denies other processes that access mode.
 
 =item ERROR_FILE_EXISTS (The file exists)
 
-[C<sopen()> only.]  The I<$oflag> included C<O_CREAT | O_EXCL>, and the I<$file> already exists.
+[C<sopen()> only.]  The $oflag included C<O_CREAT | O_EXCL>, and the $file
+already exists.
 
 =item EINVAL (Invalid argument)
 
 =item ERROR_ENVVAR_NOT_FOUND (The system could not find the environment option
 that was entered)
 
-The I<$oflag> or I<$shflag> argument was invalid.
+The $oflag or $shflag argument was invalid.
 
 =item EMFILE (Too many open files)
 
@@ -976,7 +977,7 @@ The maximum number of file descriptors has been reached.
 
 =item ERROR_FILE_NOT_FOUND (The system cannot find the file specified)
 
-The filename or path in I<$file> was not found.
+The filename or path in $file was not found.
 
 =back
 
@@ -1012,11 +1013,11 @@ automatic open-retrying:
 This example could be used in the same scenario as above, but when we actually
 I<expect> there to be other processes trying to write to the file, e.g. we are
 reading a file that is being regularly updated.  In this situation we expect to
-get sharing violation errors from time to time, so we use I<$Max_Time> to
+get sharing violation errors from time to time, so we use $Max_Time to
 automatically have another go at reading the file (for up to 10 seconds at the
 most) when that happens.
 
-We may also want to increase I<$Win32::SharedFileOpen::Retry_Timeout> from its
+We may also want to increase $Win32::SharedFileOpen::Retry_Timeout from its
 default value of 250 milliseconds if the file is fairly large and we expect the
 writer updating the file to take very long to do so.
 
@@ -1117,20 +1118,19 @@ question within C<my_sub()>:
     }
 
 but this has the unfortunate side-effect of localizing all the other members of
-that typeglob as well, so if the caller had global variables I<$FH>, I<@FH> or
-I<%FH>, or even a subroutine C<FH()>, which C<my_sub()> needed then it no longer
+that typeglob as well, so if the caller had global variables $FH, @FH or %FH, or
+even a subroutine C<FH()>, which C<my_sub()> needed then it no longer
 has access to them either.  (It does, on the other hand, have the rather nicer
 side-effect that the filehandle is automatically closed when the localized
 typeglob goes out of scope, so the "C<close FH;>" above is no longer necessary.)
 
-This problem can also be addressed by using the so-called C<*foo{THING}>
-syntax.  C<*foo{THING}> returns a reference to the I<THING> member of the
-C<*foo> typeglob.  For example, C<*foo{SCALAR}> is equivalent to C<\$foo>, and
-C<*foo{CODE}> is equivalent to C<\&foo>.  C<*foo{IO}> (or the older, now
-out-of-fashion notation C<*foo{FILEHANDLE}>) yields the actual internal
-IO::Handle object that the C<*foo> typeglob contains, so with this we can
-localize just the IO object, not the whole typeglob, so that we don't
-accidentally hide more than we meant to:
+This problem can also be addressed by using the so-called C<*foo{THING}> syntax.
+C<*foo{THING}> returns a reference to the THING member of the C<*foo> typeglob.
+For example, C<*foo{SCALAR}> is equivalent to C<\$foo>, and C<*foo{CODE}> is
+equivalent to C<\&foo>.  C<*foo{IO}> (or the older, now out-of-fashion notation
+C<*foo{FILEHANDLE}>) yields the actual internal IO::Handle object that the
+C<*foo> typeglob contains, so with this we can localize just the IO object, not
+the whole typeglob, so that we don't accidentally hide more than we meant to:
 
     sub my_sub($) {
         local *FH{IO};
@@ -1142,12 +1142,12 @@ accidentally hide more than we meant to:
 
 However, this has a drawback as well: C<*FH{IO}> only works if C<FH> has already
 been used as a filehandle (or some other IO handle), because C<*foo{THING}>
-returns C<undef> if that particular I<THING> hasn't been seen by the compiler
-yet (with the exception of when I<THING> is C<SCALAR>, which is treated
-differently).  This is fine in the example above, but would not necessarily have
-been if the caller of C<my_sub()> hadn't used the filehandle C<FH> first, so
-this approach would be no good if C<my_sub()> was to be put in a module to be
-used by other callers too.
+returns C<undef> if that particular THING hasn't been seen by the compiler yet
+(with the exception of when THING is C<SCALAR>, which is treated differently).
+This is fine in the example above, but would not necessarily have been if the
+caller of C<my_sub()> hadn't used the filehandle C<FH> first, so this approach
+would be no good if C<my_sub()> was to be put in a module to be used by other
+callers too.
 
 =head2 Indirect Filehandles
 
@@ -1215,7 +1215,7 @@ where any of the following may be used to create "C<my $fh>":
 
 As we have noted in the code segment above, the "C<close $fh;>" is once again
 not necessary: the filehandle is closed automatically when the lexical variable
-I<$fh> is destroyed, i.e. when it goes out of scope (assuming there are no other
+$fh is destroyed, i.e. when it goes out of scope (assuming there are no other
 references to it).
 
 However, there is still another point to bear in mind regarding the four
@@ -1265,7 +1265,7 @@ If we were to try to return a reference to the typeglob, as in:
 
     my $fh = do { \local *FH };
 
-then I<$fh> would actually be a reference to the original C<*FH> itself, not the
+then $fh would actually be a reference to the original C<*FH> itself, not the
 temporary, localized, copy of it that existed within the C<do { ... }> block.
 This means that if we were to use that technique twice to obtain two typeglob
 references to use as two indirect filehandles then we would end up with them
@@ -1524,11 +1524,11 @@ License or the Artistic License, as specified in the F<LICENCE> file.
 
 =head1 VERSION
 
-Version 3.33
+Version 3.34
 
 =head1 DATE
 
-01 Jun 2005
+02 Sep 2005
 
 =head1 HISTORY
 

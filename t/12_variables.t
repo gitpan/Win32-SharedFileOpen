@@ -7,7 +7,7 @@
 #   Test script to check $ErrStr, $Trace and retry variables.
 #
 # COPYRIGHT
-#   Copyright (C) 2002-2004 Steve Hay.  All rights reserved.
+#   Copyright (C) 2002-2005 Steve Hay.  All rights reserved.
 #
 # LICENCE
 #   You may distribute under the terms of either the GNU General Public License
@@ -20,30 +20,25 @@ use 5.006000;
 use strict;
 use warnings;
 
-use Errno;
-use Test;
+use Errno qw(:POSIX);
+use Test::More tests => 45;
 use Win32::WinError;
 
 sub _stderr(;$);
 
 #===============================================================================
-# INITIALISATION
+# INITIALIZATION
 #===============================================================================
 
 BEGIN {
-    plan tests => 57;                   # Number of tests to be executed
+    use_ok('Win32::SharedFileOpen', qw(:DEFAULT :retry $ErrStr new_fh));
 }
-
-use Win32::SharedFileOpen qw(:DEFAULT :retry $ErrStr new_fh);
 
 #===============================================================================
 # MAIN PROGRAM
 #===============================================================================
 
 MAIN: {
-                                        # Test 1: Did we make it this far OK?
-    ok(1);
-
     my $file = 'test.txt';
     my $err = qr/^Invalid value for '(.*?)': '(.*?)' is not a natural number/;
 
@@ -51,36 +46,36 @@ MAIN: {
 
     local $SIG{__WARN__} = \&_stderr;
 
-                                        # Tests 2-5: Check $ErrStr
     $fh1 = new_fh();
     fsopen($fh1, $file, 'w+', SH_DENYNO);
     close $fh1;
-    ok($ErrStr eq '');
+    is($ErrStr, '', '$ErrStr is blank when fsopen() succeeds');
 
     unlink $file;
 
     $fh1 = new_fh();
     fsopen($fh1, $file, 'r', SH_DENYNO);
-    ok($ErrStr =~ /^Can't open C file stream for file '\Q$file\E'/);
+    like($ErrStr, qr/^Can't open C file stream for file '\Q$file\E'/,
+         '$ErrStr is set correctly when fsopen() fails');
 
     $fh1 = new_fh();
     sopen($fh1, $file, O_WRONLY | O_CREAT | O_TRUNC, SH_DENYNO, S_IWRITE);
     close $fh1;
-    ok($ErrStr eq '');
+    is($ErrStr, '', '$ErrStr is blank when sopen() succeeds');
 
     unlink $file;
 
     $fh1 = new_fh();
     sopen($fh1, $file, O_RDONLY, SH_DENYNO);
-    ok($ErrStr =~ /^Can't open C file descriptor for file '\Q$file\E'/);
+    like($ErrStr, qr/^Can't open C file descriptor for file '\Q$file\E'/,
+         '$ErrStr is set correctly when sopen() fails');
 
-                                        # Tests 6-9: Check $Trace
     _stderr(undef);
     $fh1 = new_fh();
     fsopen($fh1, $file, 'w+', SH_DENYNO);
     close $fh1;
     $output = _stderr();
-    ok(not defined $output);
+    is($output, undef, '$Trace output for fsopen() is blank when $Trace is 0');
 
     $Win32::SharedFileOpen::Trace = 1;
 
@@ -89,7 +84,8 @@ MAIN: {
     fsopen($fh1, $file, 'w+', SH_DENYNO);
     close $fh1;
     $output = _stderr();
-    ok(defined $output and $output =~ /_fsopen\(\) on '\Q$file\E' succeeded/);
+    like($output, qr/_fsopen\(\) on '\Q$file\E' succeeded/,
+         '$Trace output for fsopen() is correct when $Trace is 1');
 
     $Win32::SharedFileOpen::Trace = 0;
 
@@ -98,7 +94,7 @@ MAIN: {
     sopen($fh1, $file, O_WRONLY | O_CREAT | O_TRUNC, SH_DENYNO, S_IWRITE);
     close $fh1;
     $output = _stderr();
-    ok(not defined $output);
+    is($output, undef, '$Trace output for sopen() is blank when $Trace is 0');
 
     $Win32::SharedFileOpen::Trace = 1;
 
@@ -107,48 +103,56 @@ MAIN: {
     sopen($fh1, $file, O_WRONLY | O_CREAT | O_TRUNC, SH_DENYNO, S_IWRITE);
     close $fh1;
     $output = _stderr();
-    ok(defined $output and $output =~ /_sopen\(\) on '\Q$file\E' succeeded/);
+    like($output, qr/_sopen\(\) on '\Q$file\E' succeeded/,
+         '$Trace output for sopen() is correct when $Trace is 1');
 
-                                        # Tests 10-25: Check $Max_Time
     eval {
         $Max_Time = '';
     };
-    ok($@ =~ $err and $1 eq '$Max_Time' and $2 eq '');
+    ok($@ =~ $err && $1 eq '$Max_Time' && $2 eq '',
+       '$Max_Time can\'t be set to the null string') or
+       diag("\$@ = '$@'");
 
     eval {
         $Max_Time = 'a';
     };
-    ok($@ =~ $err and $1 eq '$Max_Time' and $2 eq 'a');
+    ok($@ =~ $err && $1 eq '$Max_Time' && $2 eq 'a',
+       '$Max_Time can\'t be set to \'a\'') or
+       diag("\$@ = '$@'");
 
     eval {
         $Max_Time = -1;
     };
-    ok($@ =~ $err and $1 eq '$Max_Time' and $2 eq '-1');
+    ok($@ =~ $err && $1 eq '$Max_Time' && $2 eq '-1',
+       '$Max_Time can\'t be set to -1') or
+       diag("\$@ = '$@'");
 
     eval {
         $Max_Time = 0.5;
     };
-    ok($@ =~ $err and $1 eq '$Max_Time' and $2 eq '0.5');
+    ok($@ =~ $err && $1 eq '$Max_Time' && $2 eq '0.5',
+       '$Max_Time can\'t be set to 0.5') or
+       diag("\$@ = '$@'");
 
     eval {
         $Max_Time = undef;
     };
-    ok($@ eq '');
+    is($@, '', '$Max_Time can be set to the undefined value');
 
     eval {
         $Max_Time = 0;
     };
-    ok($@ eq '');
+    is($@, '', '$Max_Time can be set to 0');
 
     eval {
         $Max_Time = 1;
     };
-    ok($@ eq '');
+    is($@, '', '$Max_Time can be set to 1');
 
     eval {
         $Max_Time = INFINITE;
     };
-    ok($@ eq '');
+    is($@, '', '$Max_Time can be set to INFINITE');
 
     $Max_Time = 1;
 
@@ -159,9 +163,10 @@ MAIN: {
     $start = time;
     $ret = fsopen($fh2, $file, 'r', SH_DENYNO);
     $finish = time;
-    ok(not defined $ret and $!{EACCES} and $^E == ERROR_SHARING_VIOLATION);
     $time = $finish - $start;
-    ok($time >= 1 and $time < 2);
+    ok($time >= 1 && $time < 2,
+       'fsopen() tried for 1 second with $Max_Time == 1') or
+       diag("\$time = '$time'");
 
     $Max_Time = 3;
 
@@ -169,9 +174,10 @@ MAIN: {
     $start = time;
     $ret = fsopen($fh2, $file, 'r', SH_DENYNO);
     $finish = time;
-    ok(not defined $ret and $!{EACCES} and $^E == ERROR_SHARING_VIOLATION);
     $time = $finish - $start;
-    ok($time >= 3 and $time < 4);
+    ok($time >= 3 && $time < 4,
+       'fsopen() tried for 3 seconds with $Max_Time == 3') or
+       diag("\$time = '$time'");
 
     close $fh1;
 
@@ -184,9 +190,10 @@ MAIN: {
     $start = time;
     $ret = sopen($fh2, $file, O_RDONLY, SH_DENYNO);
     $finish = time;
-    ok(not defined $ret and $!{EACCES} and $^E == ERROR_SHARING_VIOLATION);
     $time = $finish - $start;
-    ok($time >= 1 and $time < 2);
+    ok($time >= 1 && $time < 2,
+       'sopen() tried for 1 second with $Max_Time == 1') or
+       diag("\$time = '$time'");
 
     $Max_Time = 3;
 
@@ -194,55 +201,63 @@ MAIN: {
     $start = time;
     $ret = sopen($fh2, $file, O_RDONLY, SH_DENYNO);
     $finish = time;
-    ok(not defined $ret and $!{EACCES} and $^E == ERROR_SHARING_VIOLATION);
     $time = $finish - $start;
-    ok($time >= 3 and $time < 4);
+    ok($time >= 3 && $time < 4,
+       'sopen() tried for 3 seconds with $Max_Time == 3') or
+       diag("\$time = '$time'");
 
     close $fh1;
 
-                                        # Tests 26-41: Check $Max_Tries
-    # Disable off $Max_Time to use $Max_Tries;
+    # Turn off $Max_Time to use $Max_Tries;
     $Max_Time = undef;
 
     eval {
         $Max_Tries = '';
     };
-    ok($@ =~ $err and $1 eq '$Max_Tries' and $2 eq '');
+    ok($@ =~ $err && $1 eq '$Max_Tries' && $2 eq '',
+       '$Max_Tries can\'t be set to the null string') or
+       diag("\$@ = '$@'");
 
     eval {
         $Max_Tries = 'a';
     };
-    ok($@ =~ $err and $1 eq '$Max_Tries' and $2 eq 'a');
+    ok($@ =~ $err && $1 eq '$Max_Tries' && $2 eq 'a',
+       '$Max_Tries can\'t be set to \'a\'') or
+       diag("\$@ = '$@'");
 
     eval {
         $Max_Tries = -1;
     };
-    ok($@ =~ $err and $1 eq '$Max_Tries' and $2 eq '-1');
+    ok($@ =~ $err && $1 eq '$Max_Tries' && $2 eq '-1',
+       '$Max_Tries can\'t be set to -1') or
+       diag("\$@ = '$@'");
 
     eval {
         $Max_Tries = 0.5;
     };
-    ok($@ =~ $err and $1 eq '$Max_Tries' and $2 eq '0.5');
+    ok($@ =~ $err && $1 eq '$Max_Tries' && $2 eq '0.5',
+       '$Max_Tries can\'t be set to 0.5') or
+       diag("\$@ = '$@'");
 
     eval {
         $Max_Tries = undef;
     };
-    ok($@ eq '');
+    is($@, '', '$Max_Tries can be set to the undefined value');
 
     eval {
         $Max_Tries = 0;
     };
-    ok($@ eq '');
+    is($@, '', '$Max_Tries can be set to 0');
 
     eval {
         $Max_Tries = 1;
     };
-    ok($@ eq '');
+    is($@, '', '$Max_Tries can be set to 1');
 
     eval {
         $Max_Tries = INFINITE;
     };
-    ok($@ eq '');
+    is($@, '', '$Max_Tries can be set to INFINITE');
 
     $Max_Tries = 1;
 
@@ -252,18 +267,18 @@ MAIN: {
     _stderr(undef);
     $fh2 = new_fh();
     $ret = fsopen($fh2, $file, 'r', SH_DENYNO);
-    ok(not defined $ret and $!{EACCES} and $^E == ERROR_SHARING_VIOLATION);
     $output = _stderr();
-    ok(defined $output and $output =~ /after 1 try/);
+    like($output, qr/after 1 try/,
+       'fsopen() tried 1 time with $Max_Tries == 1');
 
     $Max_Tries = 10;
 
     _stderr(undef);
     $fh2 = new_fh();
     $ret = fsopen($fh2, $file, 'r', SH_DENYNO);
-    ok(not defined $ret and $!{EACCES} and $^E == ERROR_SHARING_VIOLATION);
     $output = _stderr();
-    ok(defined $output and $output =~ /after 10 tries/);
+    like($output, qr/after 10 tries/,
+       'fsopen() tried 10 times with $Max_Tries == 10');
 
     close $fh1;
 
@@ -275,22 +290,21 @@ MAIN: {
     _stderr(undef);
     $fh2 = new_fh();
     $ret = sopen($fh2, $file, O_RDONLY, SH_DENYNO);
-    ok(not defined $ret and $!{EACCES} and $^E == ERROR_SHARING_VIOLATION);
     $output = _stderr();
-    ok(defined $output and $output =~ /after 1 try/);
+    like($output, qr/after 1 try/,
+       'sopen() tried 1 time with $Max_Tries == 1');
 
     $Max_Tries = 10;
 
     _stderr(undef);
     $fh2 = new_fh();
     $ret = sopen($fh2, $file, O_RDONLY, SH_DENYNO);
-    ok(not defined $ret and $!{EACCES} and $^E == ERROR_SHARING_VIOLATION);
     $output = _stderr();
-    ok(defined $output and $output =~ /after 10 tries/);
+    like($output, qr/after 10 tries/,
+       'sopen() tried 10 times with $Max_Tries == 10');
 
     close $fh1;
 
-                                        # Tests 42-57: Check $Retry_Timeout
     # Use $Max_Tries to check $Retry_Timeout.
     $Max_Time  = undef;
     $Max_Tries = 5;
@@ -298,42 +312,50 @@ MAIN: {
     eval {
         $Retry_Timeout = '';
     };
-    ok($@ =~ $err and $1 eq '$Retry_Timeout' and $2 eq '');
+    ok($@ =~ $err && $1 eq '$Retry_Timeout' && $2 eq '',
+       '$Retry_Timeout can\'t be set to the null string') or
+       diag("\$@ = '$@'");
 
     eval {
         $Retry_Timeout = 'a';
     };
-    ok($@ =~ $err and $1 eq '$Retry_Timeout' and $2 eq 'a');
+    ok($@ =~ $err && $1 eq '$Retry_Timeout' && $2 eq 'a',
+       '$Retry_Timeout can\'t be set to \'a\'') or
+       diag("\$@ = '$@'");
 
     eval {
         $Retry_Timeout = -1;
     };
-    ok($@ =~ $err and $1 eq '$Retry_Timeout' and $2 eq '-1');
+    ok($@ =~ $err && $1 eq '$Retry_Timeout' && $2 eq '-1',
+       '$Retry_Timeout can\'t be set to -1') or
+       diag("\$@ = '$@'");
 
     eval {
         $Retry_Timeout = 0.5;
     };
-    ok($@ =~ $err and $1 eq '$Retry_Timeout' and $2 eq '0.5');
+    ok($@ =~ $err && $1 eq '$Retry_Timeout' && $2 eq '0.5',
+       '$Retry_Timeout can\'t be set to 0.5') or
+       diag("\$@ = '$@'");
 
     eval {
         $Retry_Timeout = undef;
     };
-    ok($@ eq '');
+    is($@, '', '$Retry_Timeout can be set to the undefined value');
 
     eval {
         $Retry_Timeout = 0;
     };
-    ok($@ eq '');
+    is($@, '', '$Retry_Timeout can be set to 0');
 
     eval {
         $Retry_Timeout = 1;
     };
-    ok($@ eq '');
+    is($@, '', '$Retry_Timeout can be set to 1');
 
     eval {
         $Retry_Timeout = INFINITE;
     };
-    ok($@ eq '');
+    is($@, '', '$Retry_Timeout can be set to INFINITE');
 
     $Retry_Timeout = 250;
 
@@ -344,9 +366,10 @@ MAIN: {
     $start = time;
     $ret = fsopen($fh2, $file, 'r', SH_DENYNO);
     $finish = time;
-    ok(not defined $ret and $!{EACCES} and $^E == ERROR_SHARING_VIOLATION);
     $time = $finish - $start;
-    ok($time >= 1 and $time <= 2);
+    ok($time >= 1 && $time < 2,
+       'fsopen() tried for 1 second with $Retry_Timeout == 250') or
+       diag("\$time = '$time'");
 
     $Retry_Timeout = 750;
 
@@ -354,9 +377,10 @@ MAIN: {
     $start = time;
     $ret = fsopen($fh2, $file, 'r', SH_DENYNO);
     $finish = time;
-    ok(not defined $ret and $!{EACCES} and $^E == ERROR_SHARING_VIOLATION);
     $time = $finish - $start;
-    ok($time >= 3 and $time <= 4);
+    ok($time >= 3 && $time < 4,
+       'fsopen() tried for 3 seconds with $Retry_Timeout == 750') or
+       diag("\$time = '$time'");
 
     close $fh1;
 
@@ -369,9 +393,10 @@ MAIN: {
     $start = time;
     $ret = sopen($fh2, $file, O_RDONLY, SH_DENYNO);
     $finish = time;
-    ok(not defined $ret and $!{EACCES} and $^E == ERROR_SHARING_VIOLATION);
     $time = $finish - $start;
-    ok($time >= 1 and $time <= 2);
+    ok($time >= 1 && $time < 2,
+       'sopen() tried for 1 second with $Retry_Timeout == 250') or
+       diag("\$time = '$time'");
 
     $Retry_Timeout = 750;
 
@@ -379,9 +404,10 @@ MAIN: {
     $start = time;
     $ret = sopen($fh2, $file, O_RDONLY, SH_DENYNO);
     $finish = time;
-    ok(not defined $ret and $!{EACCES} and $^E == ERROR_SHARING_VIOLATION);
     $time = $finish - $start;
-    ok($time >= 3 and $time <= 4);
+    ok($time >= 3 && $time < 4,
+       'sopen() tried for 3 seconds with $Retry_Timeout == 750') or
+       diag("\$time = '$time'");
 
     close $fh1;
 

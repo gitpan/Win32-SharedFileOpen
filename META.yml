@@ -1,9 +1,11 @@
 name: Win32-SharedFileOpen
-version: 3.33
+version: 3.34
 abstract: Open a file for shared reading and/or writing
 author: Steve Hay <shay@cpan.org>
 license: perl
 distribution_type: module
+build_requires:
+  Test::More: 0
 requires:
   perl: 5.6.0
   Win32::WinError: 0
@@ -12,4 +14,4 @@ recommends:
 no_index:
   directory:
     - inc
-generated_by: Module::Install version 0.36
+generated_by: Module::Install version 0.37

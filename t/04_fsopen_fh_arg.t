@@ -24,96 +24,100 @@ use FileHandle;
 use IO::File;
 use IO::Handle;
 use Symbol;
-use Test;
+use Test::More tests => 14;
 
 #===============================================================================
-# INITIALISATION
+# INITIALIZATION
 #===============================================================================
 
 BEGIN {
-    plan tests => 14;                   # Number of tests to be executed
+    use_ok('Win32::SharedFileOpen', qw(:DEFAULT new_fh));
 }
-
-use Win32::SharedFileOpen qw(:DEFAULT new_fh);
 
 #===============================================================================
 # MAIN PROGRAM
 #===============================================================================
 
 MAIN: {
-                                        # Test 1: Did we make it this far OK?
-    ok(1);
-
     my $file = 'test.txt';
     my $err = qr/^fsopen\(\) can't use the undefined value/;
 
-    my($fh, $ret);
+    my($fh, $ret, $errno, $lasterror);
     local *FH;
 
     unlink $file or die "Can't delete file '$file': $!\n" if -e $file;
 
-                                        # Test 2: Check undefined scalar
     eval {
         undef $fh;
         fsopen($fh, $file, 'w', SH_DENYNO);
     };
-    ok($@ =~ $err);
+    like($@, $err, 'undefined scalar');
 
-                                        # Test 3: Check uninitialized IO member
     eval {
         fsopen(*FH{IO}, $file, 'w', SH_DENYNO);
     };
-    ok($@ =~ $err);
+    like($@, $err, 'uninitialized IO member');
 
-                                        # Test 4: Check filehandle
     $ret = fsopen(FH, $file, 'w', SH_DENYNO);
-    ok($ret) and close FH;
+    ($errno, $lasterror) = ($!, $^E);
+    ok($ret, 'filehandle')
+        ? close FH : diag("\$! = '$errno', \$^E = '$lasterror'");
 
-                                        # Test 5: Check string
     $ret = fsopen('FH', $file, 'w', SH_DENYNO);
-    ok($ret) and close FH;
+    ($errno, $lasterror) = ($!, $^E);
+    ok($ret, 'string')
+        ? close FH : diag("\$! = '$errno', \$^E = '$lasterror'");
 
-                                        # Test 6: Check named typeglob
     $ret = fsopen(*FH, $file, 'w', SH_DENYNO);
-    ok($ret) and close FH;
+    ($errno, $lasterror) = ($!, $^E);
+    ok($ret, 'named typeglob')
+        ? close FH : diag("\$! = '$errno', \$^E = '$lasterror'");
 
-                                        # Test 7: Check anonymous typeglob (1)
     $fh = gensym();
     $ret = fsopen($fh, $file, 'w', SH_DENYNO);
-    ok($ret) and close $fh;
+    ($errno, $lasterror) = ($!, $^E);
+    ok($ret, 'anonymous typeglob from gensym()')
+        ? close $fh : diag("\$! = '$errno', \$^E = '$lasterror'");
 
-                                        # Test 8: Check anonymous typeglob (2)
     $fh = do { local *FH };
     $ret = fsopen($fh, $file, 'w', SH_DENYNO);
-    ok($ret) and close $fh;
+    ($errno, $lasterror) = ($!, $^E);
+    ok($ret, 'anonymous typeglob from first-class filehandle')
+        ? close $fh : diag("\$! = '$errno', \$^E = '$lasterror'");
 
-                                        # Test 9: Check anonymous typeglob (3)
     $fh = new_fh();
     $ret = fsopen($fh, $file, 'w', SH_DENYNO);
-    ok($ret) and close $fh;
+    ($errno, $lasterror) = ($!, $^E);
+    ok($ret, 'anonymous typeglob from new_fh()')
+        ? close $fh : diag("\$! = '$errno', \$^E = '$lasterror'");
 
-                                        # Test 10: Check typeglob reference
     $ret = fsopen(\*FH, $file, 'w', SH_DENYNO);
-    ok($ret) and close FH;
+    ($errno, $lasterror) = ($!, $^E);
+    ok($ret, 'typeglob reference')
+        ? close FH : diag("\$! = '$errno', \$^E = '$lasterror'");
 
-                                        # Test 11: Check initialized IO member
     $ret = fsopen(*FH{IO}, $file, 'w', SH_DENYNO);
-    ok($ret) and close FH;
+    ($errno, $lasterror) = ($!, $^E);
+    ok($ret, 'initialized IO member')
+        ? close FH : diag("\$! = '$errno', \$^E = '$lasterror'");
 
-                                        # Test 12: Check IO::Handle object
     $fh = IO::Handle->new();
     $ret = fsopen($fh, $file, 'w', SH_DENYNO);
-    ok($ret) and close $fh;
+    ($errno, $lasterror) = ($!, $^E);
+    ok($ret, 'IO::Handle object')
+        ? close $fh : diag("\$! = '$errno', \$^E = '$lasterror'");
 
-                                        # Test 13: Check IO::File object
     $fh = IO::File->new();
     $ret = fsopen($fh, $file, 'w', SH_DENYNO);
-    ok($ret) and close $fh;
+    ($errno, $lasterror) = ($!, $^E);
+    ok($ret, 'IO::File object')
+        ? close $fh : diag("\$! = '$errno', \$^E = '$lasterror'");
 
-                                        # Test 14: Check FileHandle object
     $fh = FileHandle->new();
     $ret = fsopen($fh, $file, 'w', SH_DENYNO);
-    ok($ret) and close $fh;
+    ($errno, $lasterror) = ($!, $^E);
+    ok($ret, 'FileHandle object')
+        ? close $fh : diag("\$! = '$errno', \$^E = '$lasterror'");
 
     unlink $file;
 }
