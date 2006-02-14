@@ -7,7 +7,7 @@
 #   Test script to check sopen() access modes.
 #
 # COPYRIGHT
-#   Copyright (C) 2001-2005 Steve Hay.  All rights reserved.
+#   Copyright (C) 2001-2006 Steve Hay.  All rights reserved.
 #
 # LICENCE
 #   You may distribute under the terms of either the GNU General Public License
@@ -20,9 +20,11 @@ use 5.006000;
 use strict;
 use warnings;
 
-use Errno qw(:POSIX);
-use Test::More tests => 61;
-use Win32::WinError;
+use Config qw(%Config);
+use Errno qw(EACCES EEXIST ENOENT);
+use Test::More tests => 68;
+use Win32::WinError qw(ERROR_ACCESS_DENIED ERROR_FILE_EXISTS
+                       ERROR_FILE_NOT_FOUND);
 
 #===============================================================================
 # INITIALIZATION
@@ -40,6 +42,7 @@ MAIN: {
     my $file   = 'test.txt';
     my $str    = 'Hello, world.';
     my $strlen = length $str;
+    my $bcc    = $Config{cc} =~ /bcc32/io;
 
     my($fh, $ret, $errno, $lasterror, $line);
 
@@ -50,14 +53,20 @@ MAIN: {
     ($errno, $lasterror) = ($! + 0, $^E + 0);
     is($ret, undef, 'sopen() initially fails with O_RDONLY');
     is($errno, ENOENT, '... and sets $! correctly');
-    is($lasterror, ERROR_FILE_NOT_FOUND, '... and sets $^E correctly');
+    SKIP: {
+        skip "Borland CRT doesn't set Win32 last error code", 1 if $bcc;
+        is($lasterror, ERROR_FILE_NOT_FOUND, '... and sets $^E correctly');
+    }
 
     $fh = new_fh();
     $ret = sopen($fh, $file, O_WRONLY, SH_DENYNO);
     ($errno, $lasterror) = ($! + 0, $^E + 0);
     is($ret, undef, 'sopen() initially fails with O_WRONLY');
     is($errno, ENOENT, '... and sets $! correctly');
-    is($lasterror, ERROR_FILE_NOT_FOUND, '... and sets $^E correctly');
+    SKIP: {
+        skip "Borland CRT doesn't set Win32 last error code", 1 if $bcc;
+        is($lasterror, ERROR_FILE_NOT_FOUND, '... and sets $^E correctly');
+    }
 
     $fh = new_fh();
     $ret = sopen($fh, $file, O_WRONLY | O_CREAT, SH_DENYNO, S_IWRITE);
@@ -73,8 +82,8 @@ MAIN: {
         is(<$fh>, undef, '... but not read');
     }
 
-    close $fh;
-    is(-s $file, $strlen + 2, '... and the file is ok');
+    ok(close($fh), '... and the file closes ok');
+    is(-s $file, $strlen + 2, '... and the file size is ok');
 
     $fh = new_fh();
     $ret = sopen($fh, $file, O_RDONLY, SH_DENYNO);
@@ -84,15 +93,15 @@ MAIN: {
 
     {
         no warnings 'io';
-        ok(!print($fh "$str\n"), "... and we can't print");
+        ok(!print($fh "$str\n"), "... and we cannot print");
     }
 
     seek $fh, 0, 0;
     chomp($line = <$fh>);
     is($line, $str, '... but we can read');
 
-    close $fh;
-    is(-s $file, $strlen + 2, '... and the file is still ok');
+    ok(close($fh), '... and the file closes ok');
+    is(-s $file, $strlen + 2, '... and the file size is still ok');
 
     $fh = new_fh();
     $ret = sopen($fh, $file, O_WRONLY, SH_DENYNO, S_IWRITE);
@@ -108,8 +117,8 @@ MAIN: {
         is(<$fh>, undef, '... but not read');
     }
 
-    close $fh;
-    is(-s $file, $strlen + 2, '... and the file is ok');
+    ok(close($fh), '... and the file closes ok');
+    is(-s $file, $strlen + 2, '... and the file size is ok');
 
     $fh = new_fh();
     $ret = sopen($fh, $file, O_WRONLY | O_APPEND, SH_DENYNO);
@@ -125,8 +134,8 @@ MAIN: {
         is(<$fh>, undef, '... but not read');
     }
 
-    close $fh;
-    is(-s $file, ($strlen + 2) * 2, '... and the file is ok');
+    ok(close($fh), '... and the file closes ok');
+    is(-s $file, ($strlen + 2) * 2, '... and the file size is ok');
 
     unlink $file;
 
@@ -135,7 +144,10 @@ MAIN: {
     ($errno, $lasterror) = ($! + 0, $^E + 0);
     is($ret, undef, 'sopen() initially fails with O_RDWR');
     is($errno, ENOENT, '... and sets $! correctly');
-    is($lasterror, ERROR_FILE_NOT_FOUND, '... and sets $^E correctly');
+    SKIP: {
+        skip "Borland CRT doesn't set Win32 last error code", 1 if $bcc;
+        is($lasterror, ERROR_FILE_NOT_FOUND, '... and sets $^E correctly');
+    }
 
     $fh = new_fh();
     $ret = sopen($fh, $file, O_RDWR | O_CREAT, SH_DENYNO, S_IWRITE);
@@ -149,8 +161,8 @@ MAIN: {
     chomp($line = <$fh>);
     is($line, $str, '... and read');
 
-    close $fh;
-    is(-s $file, $strlen + 2, '... and the file is ok');
+    ok(close($fh), '... and the file closes ok');
+    is(-s $file, $strlen + 2, '... and the file size is ok');
 
     $fh = new_fh();
     $ret = sopen($fh, $file, O_RDWR, SH_DENYNO);
@@ -164,8 +176,8 @@ MAIN: {
     chomp($line = <$fh>);
     is($line, $str, '... and read');
 
-    close $fh;
-    is(-s $file, $strlen + 2, '... and the file is ok');
+    ok(close($fh), '... and the file closes ok');
+    is(-s $file, $strlen + 2, '... and the file size is ok');
 
     $fh = new_fh();
     $ret = sopen($fh, $file, O_RDWR | O_APPEND, SH_DENYNO);
@@ -179,8 +191,8 @@ MAIN: {
     chomp($line = <$fh>);
     is($line, $str, '... and read');
 
-    close $fh;
-    is(-s $file, ($strlen + 2) * 2, '... and the file is ok');
+    ok(close($fh), '... and the file closes ok');
+    is(-s $file, ($strlen + 2) * 2, '... and the file size is ok');
 
     unlink $file;
 
@@ -237,13 +249,19 @@ MAIN: {
     ($errno, $lasterror) = ($! + 0, $^E + 0);
     is($ret, undef, 'sopen() now fails with O_CREAT | O_EXCL');
     is($errno, EEXIST, '... and sets $! correctly');
-    is($lasterror, ERROR_FILE_EXISTS, '... and sets $^E correctly');
+    SKIP: {
+        skip "Borland CRT doesn't set Win32 last error code", 1 if $bcc;
+        is($lasterror, ERROR_FILE_EXISTS, '... and sets $^E correctly');
+    }
 
-    $fh = new_fh();
-    sopen($fh, $file, O_WRONLY | O_CREAT | O_TEMPORARY, SH_DENYNO, S_IWRITE);
-    print $fh "$str\n";
-    close $fh;
-    ok(! -e $file, 'O_TEMPORARY works');
+    SKIP: {
+        skip "Borland CRT doesn't support O_TEMPORARY", 1 if $bcc;
+        $fh = new_fh();
+        sopen($fh, $file, O_WRONLY | O_CREAT | O_TEMPORARY(), SH_DENYNO, S_IWRITE);
+        print $fh "$str\n";
+        close $fh;
+        ok(! -e $file, 'O_TEMPORARY works');
+    }
 
     $fh = new_fh();
     sopen($fh, $file, O_WRONLY | O_CREAT, SH_DENYNO, S_IWRITE);
@@ -263,14 +281,20 @@ MAIN: {
     ($errno, $lasterror) = ($! + 0, $^E + 0);
     is($ret, undef, 'sopen() fails reading a directory');
     is($errno, EACCES, '... and sets $! correctly');
-    is($lasterror, ERROR_ACCESS_DENIED, '... and sets $^E correctly');
+    SKIP: {
+        skip "Borland CRT doesn't set Win32 last error code", 1 if $bcc;
+        is($lasterror, ERROR_ACCESS_DENIED, '... and sets $^E correctly');
+    }
 
     $fh = new_fh();
     $ret = sopen($fh, '.', O_WRONLY, SH_DENYNO);
     ($errno, $lasterror) = ($! + 0, $^E + 0);
     is($ret, undef, 'sopen() fails writing a directory');
     is($errno, EACCES, '... and sets $! correctly');
-    is($lasterror, ERROR_ACCESS_DENIED, '... and sets $^E correctly');
+    SKIP: {
+        skip "Borland CRT doesn't set Win32 last error code", 1 if $bcc;
+        is($lasterror, ERROR_ACCESS_DENIED, '... and sets $^E correctly');
+    }
 
     $fh = new_fh();
     sopen($fh, $file, O_WRONLY | O_CREAT, SH_DENYNO, S_IWRITE);
@@ -290,7 +314,10 @@ MAIN: {
     ($errno, $lasterror) = ($! + 0, $^E + 0);
     is($ret, undef, 'sopen() fails writing a read-only file');
     is($errno, EACCES, '... and sets $! correctly');
-    is($lasterror, ERROR_ACCESS_DENIED, '... and sets $^E correctly');
+    SKIP: {
+        skip "Borland CRT doesn't set Win32 last error code", 1 if $bcc;
+        is($lasterror, ERROR_ACCESS_DENIED, '... and sets $^E correctly');
+    }
 
     unlink $file;
 }

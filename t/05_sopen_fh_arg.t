@@ -7,7 +7,7 @@
 #   Test script to check sopen()'s filehandle argument.
 #
 # COPYRIGHT
-#   Copyright (C) 2002, 2004-2005 Steve Hay.  All rights reserved.
+#   Copyright (C) 2002, 2004-2006 Steve Hay.  All rights reserved.
 #
 # LICENCE
 #   You may distribute under the terms of either the GNU General Public License
@@ -20,10 +20,10 @@ use 5.006000;
 use strict;
 use warnings;
 
-use FileHandle;
-use IO::File;
-use IO::Handle;
-use Symbol;
+use FileHandle qw();
+use IO::File qw();
+use IO::Handle qw();
+use Symbol qw(gensym);
 use Test::More tests => 14;
 
 #===============================================================================

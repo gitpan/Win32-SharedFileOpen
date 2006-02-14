@@ -7,7 +7,7 @@
 #   Test script to check sopen() share modes.
 #
 # COPYRIGHT
-#   Copyright (C) 2001-2005 Steve Hay.  All rights reserved.
+#   Copyright (C) 2001-2006 Steve Hay.  All rights reserved.
 #
 # LICENCE
 #   You may distribute under the terms of either the GNU General Public License
@@ -20,9 +20,10 @@ use 5.006000;
 use strict;
 use warnings;
 
-use Errno qw(:POSIX);
+use Config qw(%Config);
+use Errno qw(EACCES);
 use Test::More tests => 27;
-use Win32::WinError;
+use Win32::WinError qw(ERROR_SHARING_VIOLATION);
 
 #===============================================================================
 # INITIALIZATION
@@ -38,6 +39,7 @@ BEGIN {
 
 MAIN: {
     my $file = 'test.txt';
+    my $bcc  = $Config{cc} =~ /bcc32/io;
 
     my($fh1, $fh2, $ret, $errno, $lasterror);
 
@@ -47,21 +49,21 @@ MAIN: {
     $fh2 = new_fh();
     $ret = sopen($fh2, $file, O_RDONLY, SH_DENYNO);
     ($errno, $lasterror) = ($!, $^E);
-    ok($ret, "SH_DENYNO doesn't deny readers") or
+    ok($ret, "SH_DENYNO does not deny readers") or
         diag("\$! = '$errno', \$^E = '$lasterror'");
     close $fh2;
 
     $fh2 = new_fh();
     $ret = sopen($fh2, $file, O_WRONLY, SH_DENYNO);
     ($errno, $lasterror) = ($!, $^E);
-    ok($ret, "SH_DENYNO doesn't deny writers") or
+    ok($ret, "SH_DENYNO does not deny writers") or
         diag("\$! = '$errno', \$^E = '$lasterror'");
     close $fh2;
 
     $fh2 = new_fh();
     $ret = sopen($fh2, $file, O_RDWR, SH_DENYNO);
     ($errno, $lasterror) = ($!, $^E);
-    ok($ret, "SH_DENYNO doesn't deny read-writers") or
+    ok($ret, "SH_DENYNO does not deny read-writers") or
         diag("\$! = '$errno', \$^E = '$lasterror'");
     close $fh2;
 
@@ -75,12 +77,15 @@ MAIN: {
     ($errno, $lasterror) = ($! + 0, $^E + 0);
     is($ret, undef, 'SH_DENYRD denies readers');
     is($errno, EACCES, '... and $! is set correctly');
-    is($lasterror, ERROR_SHARING_VIOLATION, '... and $^E is set correctly');
+    SKIP: {
+        skip "Borland CRT doesn't set Win32 last error code", 1 if $bcc;
+        is($lasterror, ERROR_SHARING_VIOLATION, '... and $^E is set correctly');
+    }
 
     $fh2 = new_fh();
     $ret = sopen($fh2, $file, O_WRONLY, SH_DENYNO);
     ($errno, $lasterror) = ($!, $^E);
-    ok($ret, "SH_DENYRD doesn't deny writers") or
+    ok($ret, "SH_DENYRD does not deny writers") or
         diag("\$! = '$errno', \$^E = '$lasterror'");
     close $fh2;
 
@@ -89,7 +94,10 @@ MAIN: {
     ($errno, $lasterror) = ($! + 0, $^E + 0);
     is($ret, undef, 'SH_DENYRD denies read-writers');
     is($errno, EACCES, '... and $! is set correctly');
-    is($lasterror, ERROR_SHARING_VIOLATION, '... and $^E is set correctly');
+    SKIP: {
+        skip "Borland CRT doesn't set Win32 last error code", 1 if $bcc;
+        is($lasterror, ERROR_SHARING_VIOLATION, '... and $^E is set correctly');
+    }
 
     close $fh1;
 
@@ -99,7 +107,7 @@ MAIN: {
     $fh2 = new_fh();
     $ret = sopen($fh2, $file, O_RDONLY, SH_DENYNO);
     ($errno, $lasterror) = ($!, $^E);
-    ok($ret, "SH_DENYWR doesn't deny readers") or
+    ok($ret, "SH_DENYWR does not deny readers") or
         diag("\$! = '$errno', \$^E = '$lasterror'");
     close $fh2;
 
@@ -108,14 +116,20 @@ MAIN: {
     ($errno, $lasterror) = ($! + 0, $^E + 0);
     is($ret, undef, 'SH_DENYWR denies writers');
     is($errno, EACCES, '... and $! is set correctly');
-    is($lasterror, ERROR_SHARING_VIOLATION, '... and $^E is set correctly');
+    SKIP: {
+        skip "Borland CRT doesn't set Win32 last error code", 1 if $bcc;
+        is($lasterror, ERROR_SHARING_VIOLATION, '... and $^E is set correctly');
+    }
 
     $fh2 = new_fh();
     $ret = sopen($fh2, $file, O_RDWR, SH_DENYNO);
     ($errno, $lasterror) = ($! + 0, $^E + 0);
     is($ret, undef, 'SH_DENYWR denies read-writers');
     is($errno, EACCES, '... and $! is set correctly');
-    is($lasterror, ERROR_SHARING_VIOLATION, '... and $^E is set correctly');
+    SKIP: {
+        skip "Borland CRT doesn't set Win32 last error code", 1 if $bcc;
+        is($lasterror, ERROR_SHARING_VIOLATION, '... and $^E is set correctly');
+    }
 
     close $fh1;
 
@@ -127,21 +141,30 @@ MAIN: {
     ($errno, $lasterror) = ($! + 0, $^E + 0);
     is($ret, undef, 'SH_DENYRW denies readers');
     is($errno, EACCES, '... and $! is set correctly');
-    is($lasterror, ERROR_SHARING_VIOLATION, '... and $^E is set correctly');
+    SKIP: {
+        skip "Borland CRT doesn't set Win32 last error code", 1 if $bcc;
+        is($lasterror, ERROR_SHARING_VIOLATION, '... and $^E is set correctly');
+    }
 
     $fh2 = new_fh();
     $ret = sopen($fh2, $file, O_WRONLY, SH_DENYNO);
     ($errno, $lasterror) = ($! + 0, $^E + 0);
     is($ret, undef, 'SH_DENYRW denies writers');
     is($errno, EACCES, '... and $! is set correctly');
-    is($lasterror, ERROR_SHARING_VIOLATION, '... and $^E is set correctly');
+    SKIP: {
+        skip "Borland CRT doesn't set Win32 last error code", 1 if $bcc;
+        is($lasterror, ERROR_SHARING_VIOLATION, '... and $^E is set correctly');
+    }
 
     $fh2 = new_fh();
     $ret = sopen($fh2, $file, O_RDWR, SH_DENYNO);
     ($errno, $lasterror) = ($! + 0, $^E + 0);
     is($ret, undef, 'SH_DENYRW denies read-writers');
     is($errno, EACCES, '... and $! is set correctly');
-    is($lasterror, ERROR_SHARING_VIOLATION, '... and $^E is set correctly');
+    SKIP: {
+        skip "Borland CRT doesn't set Win32 last error code", 1 if $bcc;
+        is($lasterror, ERROR_SHARING_VIOLATION, '... and $^E is set correctly');
+    }
 
     close $fh1;
 

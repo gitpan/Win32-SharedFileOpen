@@ -1,9 +1,65 @@
 ________________________________________________________________________________
 
-                      Win32::SharedFileOpen, Version 3.34
+                      Win32::SharedFileOpen, Version 3.35
 ________________________________________________________________________________
 
 Revision history for Perl extension Win32::SharedFileOpen.
+_________________
+
+v3.35 14 Feb 2006
+
+    - Fixes for building with Borland C++:
+
+      * Added definition of O_RAW which Borland C++ omits;
+
+      * Excluded export of O_RANDOM, O_SEQUENTIAL, O_SHORT_LIVED and
+        O_TEMPORARY, which Borland C++ does not support;
+
+      * Restricted the declaration of _fsopen() to MinGW builds only since they
+        are the only builds that require it, and Borland C++ objects to it;
+
+      * Disabled the $Max_Time, $Max_Tries and $Retry_Timeout variables'
+        functionality for Borland C++ builds since these depend on $^E (the
+        Win32 last error code) being set after a CRT function call, but Borland
+        C++'s CRT (at least, the one used by perl) does not do this;
+
+      * Skipped various tests of things that are not supported with Borland C++
+        builds, namely: the use of the $Max_Time, $Max_Tries and $Retry_Timeout
+        variables, the setting of $^E after a CRT function call, and the use of
+        the O_TEMPORARY flag.
+
+      This module should now build (and test) cleanly with Perls built using
+      Borland C++ and dmake, except for a couple of known test failures detailed
+      in the KNOWN BUGS section of the manpage.
+
+    - Changed various "use MODULE;" lines to be explicit about what is being
+      imported, and in particular to not import things that are not required.
+
+      This suppresses various warnings from the test suite when run under Perl
+      5.9.3 relating to redefinitions of the constant subroutines that implement
+      the O_* flags due to them having been unintentionally imported from Fcntl
+      via IO::File as well as having been imported from this module itself.
+
+    - Updated Module::Install::PRIVATE to version 1.04 for Makefile.PL
+      improvements:
+
+      * Fixed the handling of user-input relative directory paths so that they
+        are converted to absolute paths before use in case the Makefile.PL has
+        changed to another directory in the meantime.
+
+      * Renamed lots of methods for a better naming convention.
+
+    - Updated Module::Install components from version 0.56 of that distribution.
+      This includes Module::AutoInstall, which supersedes ExtUtils::AutoInstall.
+      Changed Makefile.PL appropriately to take advantage of the new features.
+
+    - Updated ppport.h using version 3.08 of the Devel::PPPort distribution.
+
+    - Modified PREOP key in the dist option in Makefile.PL to ensure files are
+      all Windows end-of-line format.
+
+    - Corrected spelling mistakes and improved the grammar in some of the
+      documentation.
 _________________
 
 v3.34 02 Sep 2005
@@ -16,15 +72,15 @@ v3.34 02 Sep 2005
 
       * Relaxed the compiler version checking so that only the major version
         numbers have to match (and also the minor version numbers for VC++ 7 and
-        later which use CRT DLL's named msvcr70.dll, msvcr71.dll, etc);
+        later, which use CRT DLL's named msvcr70.dll, msvcr71.dll, etc)
         
         (Thanks to Sisyphus <sisyphus1@optusnet.com.au> for drawing attention to
-        this problem via the PAR mailing list (par@perl.org).)
+        this problem via the PAR mailing list (par@perl.org));
 
-      * Fixed the parsing of bcc32's output as per perl #24855.
+      * Fixed the parsing of bcc32's output as per perl change #24855.
 
     - Dropped the use of I<> for Perl variables in POD, in line with changes
-      made (some time ago) to the perlpod manpage (perl #12542).
+      made (some time ago) to the perlpod manpage (perl change #12542).
 
     - Corrected spelling mistake: INITIALISATION should be INITIALIZATION.
 
@@ -38,7 +94,7 @@ v3.33 01 Jun 2005
       improvements:
 
       * ExtUtils::AutoInstall command-line options are now better supported,
-        fixing problems with custom option handling that didn't recognize them;
+        fixing problems with custom option handling that did not recognize them;
 
       * Errors now croak() rather than die() so that the error messages look a
         little more friendly;
@@ -60,7 +116,7 @@ v3.32 03 Mar 2005
       * Added code to try to check that on Win32 the same compiler is being used
         to build this module as was used to build Perl itself to avoid problems
         with binaries built by different compiler versions loading different C
-        runtime DLL's.
+        run-time DLL's.
 
     - Added a recommendation for Test::Pod to Makefile.PL to test the POD when
       building these modules.
@@ -124,8 +180,8 @@ v3.19 08 Aug 2004
       This module does not function correctly when built using the free Visual
       C++ Toolkit 2003 compiler in conjunction with a Perl (e.g. ActivePerl
       Build 810) that was built using Visual C++ 6.0.  (Passing CRT resources
-      between the msvcr71.dll and msvcrt.dll C runtime libraries used by those
-      compilers respectively doesn't work.)
+      between the msvcr71.dll and msvcrt.dll C run-time libraries used by those
+      compilers respectively does not work.)
 _________________
 
 v3.18 01 Aug 2004
@@ -142,13 +198,14 @@ v3.18 01 Aug 2004
 
     - Fixes for building under MinGW:
 
-      * Added declarations of O_RAW and _fsopen() which are missing from some
+      * Added declarations of O_RAW and _fsopen(), which are missing from some
         versions of MinGW;
 
-      * Changed a "#else if" to the more correct "#elif" since GCC doesn't
+      * Changed a "#else if" to the more correct "#elif" since GCC does not
         tolerate the former like VC++ does.
 
-      This module should now build cleanly with Perls built using MinGW / dmake.
+      This module should now build cleanly with Perls built using MinGW and
+      dmake.
 
     - Improved warning and error messages to include the message string for the
       relevant standard C library errno or Win32 API last-error code where
@@ -166,7 +223,7 @@ v3.17 26 Feb 2004
     - Use Module::Install as a front-end to ExtUtils::MakeMaker.  The same build
       script can also be used as a front-end to Module::Build in due course
       (once problems building XS modules with Module::Build are ironed out), and
-      it also creates a META.yml file that contains a "license" key which
+      it also creates a META.yml file that contains a "license" key, which
       http://search.cpan.org/ makes use of.
 
     - Added new test to check for POD errors if Test::Pod is available.
@@ -176,7 +233,7 @@ v3.16 21 Feb 2004
 
     - Separated the two debug modes into a more traditional Boolean debug mode
       emitting warnings about function failures, plus a new Boolean trace mode
-      which emits the information regarding what fsopen() and sopen() did.
+      that emits the information regarding what fsopen() and sopen() did.
 
       This is a change in behaviour, but should only affect users investigating
       errors; it should not affect any production systems.
@@ -187,8 +244,8 @@ v3.16 21 Feb 2004
     - Moved installation instructions to a separate INSTALL file.
 
     - Added PREOP to the dist option in Makefile.PL to ensure permissions are
-      set correctly within the distdir (since they often aren't set correctly in
-      the top-level directory when working on Windows) to stop CPANTS from
+      set correctly within the distdir (since they often are not set correctly
+      in the top-level directory when working on Windows) to stop CPANTS from
       complaining about bad permissions.
 
     - Added COMPRESS (and SUFFIX) and ZIPFLAGS to the dist option in Makefile.PL
@@ -220,7 +277,7 @@ v3.15 24 Sep 2003
     - Renamed some functions in the XS and C code.
 
     - Reverted the typemap for "const char *" back to the default T_PV.  There
-      didn't seem to be any point in the custom typemap.
+      did not seem to be any point in the custom typemap.
 
     - Changed tabs to spaces (via "expand -t 4 infile > outfile") to avoid
       irritation when switching between editors that use 4- or 8-space tabs.
@@ -233,7 +290,7 @@ _________________
 
 v3.14 31 Jul 2003
 
-    - Preload some ERROR_* constants that our use()'rs might need otherwise the
+    - Preload some ERROR_* constants that our use()'rs might need, otherwise the
       value of $^E gets interfered with when they are autoloaded by
       Win32::WinError in libwin32-0.191 and earlier when using debug builds of
       Perl.
@@ -283,7 +340,7 @@ v3.11 08 Mar 2003
 
     - Changed the typemap for "const char *" from the default T_PV (which uses
       SvPV_nolen() for INPUT) to a custom T_PV_len (which uses SvPV() for
-      INPUT).  This avoids occasional bizarre problems which I can't reproduce.
+      INPUT).  This avoids occasional bizarre problems that I cannot reproduce.
 
     - Removed WHAT'S NEW section from POD, since there is not currently anything
       of note that is very new, and moved the sections on "Filehandles and
@@ -335,7 +392,7 @@ v2.12 05 Sep 2002
 
     - Fixes for Perl Version 5.8.0:
 
-      * Explicitly quoted Win32::WinError in Makefile.PL otherwise it now dies
+      * Explicitly quoted Win32::WinError in Makefile.PL, otherwise it now dies
         with an error about 'Bareword not allowed while "strict subs" in use';
 
       * Explicitly put fdopen()'d Perl filehandle into binary mode because it no
@@ -354,7 +411,7 @@ v2.11 02 Jul 2002
       rather than defining our own constant, to avoid clashes with them.
 
     - Added $Max_Time as a better means than $Max_Tries of controlling when to
-      give up retrying when a file can't be opened due to a sharing violation.
+      give up retrying when a file cannot be opened due to a sharing violation.
 
     - Allowed the tie()'d variables to have the undefined value: this is
       necessary because local()'izing a tie()'d variable currently leaves it
@@ -382,7 +439,7 @@ _________________
 v2.00 27 May 2002
 
     - Changed arguments and return values of fsopen() and sopen() to require a
-      "filehandle" argument and simply return a boolean, rather than returning
+      "filehandle" argument and simply return a Boolean, rather than returning
       the filehandle opened.
 
     - Updated documentation to reflect the changes made to fsopen() and sopen()

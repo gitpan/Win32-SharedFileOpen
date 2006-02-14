@@ -6,7 +6,7 @@
  *   C and XS portions of Win32::SharedFileOpen module.
  *
  * COPYRIGHT
- *   Copyright (C) 2001-2004 Steve Hay.  All rights reserved.
+ *   Copyright (C) 2001-2004, 2006 Steve Hay.  All rights reserved.
  *
  * LICENCE
  *   You may distribute under the terms of either the GNU General Public License
@@ -27,7 +27,7 @@
 #include <string.h>                     /* For strchr() and strerror().       */
 #include <sys/stat.h>                   /* For the S_* flags.                 */
 
-#define WIN32_LEAN_AND_MEAN             /* Don't pull in too much crap when   */
+#define WIN32_LEAN_AND_MEAN             /* Do not pull in too much crap when  */
                                         /* including <windows.h> next.        */
 #include <windows.h>                    /* For the DWORD typedef (in          */
                                         /* <windef.h>) and the INFINITE flag  */
@@ -52,20 +52,23 @@
 #include "XSUB.h"
 #include "ppport.h"
 
-/* We export _O_SHORT_LIVED without the leading "_", so define O_SHORT_LIVED
- * here, *before* we pull in "const-c.inc" below.
- * Likewise for _O_RAW.  (MSVC++ 6.0 provides O_RAW for us, but MinGW (as of
- * __MINGW32_VERSION 3.3) doesn't.)                                           */
-#define O_SHORT_LIVED _O_SHORT_LIVED
-#ifndef O_RAW
+/* We export the O_* flags without the leading "_" with which they are initially
+ * named in the MSVC++ and MinGW header files, so make sure that all the names
+ * without the leading "_" exist too, *before* we pull in "const-c.inc" below.
+ * (MSVC++ 6.0 omits O_SHORT_LIVED, while MinGW 3.9 and Borland C++ 5.5.1 omit
+ * this and O_RAW.) */
+#if (!defined(O_RAW) && defined(_O_RAW))
 #  define O_RAW _O_RAW
+#endif
+#if (!defined(O_SHORT_LIVED) && defined(_O_SHORT_LIVED))
+#  define O_SHORT_LIVED _O_SHORT_LIVED
 #endif
 
 #include "const-c.inc"
 
-/* Prior to __MINGW32_VERSION 3.3, MinGW also omits the declaration of _fsopen.
+/* Before __MINGW32_VERSION 3.3, MinGW also omits the declaration of _fsopen.
  * (The definition itself, however, is thankfully provided in "libmsvcrt.a".) */
-#ifndef _fsopen
+#ifdef __MINGW32__
   _CRTIMP FILE * __cdecl _fsopen(const char *, const char *, int);
 #endif
 
@@ -86,22 +89,22 @@
  * never actually defined.  We therefore provide the standard "perlsdio.h"
  * definition for it here, i.e. a no-op macro.
  *
- * Under Perl 5.8.0 a "real" PerlIO was introduced which raised questions
- * concerning the co-existence of PerlIO with the original stdio, which are
- * dealt with according to whether or not PERLIO_IS_STDIO and PERLIO_NOT_STDIO
- * are defined and, if the latter is, whether or not it is true.  (If
- * PERLIO_IS_STDIO is defined then PerlIO is as close to the original stdio as
- * possible; if PERLIO_NOT_STDIO is defined and true then the original stdio is
- * disabled (all the functions are undefined and made into errors), while if
- * PERLIO_NOT_STDIO is defined but false then co-existence is allowed.  See the
- * "perlapio" manpage and comments in "perlsdio.h" in Perl 5.8.0 for more
- * details on this.)  The original stdio functions should now properly be
- * accessed via the PerlSIO_*() macros.  Those macros did not exist under Perl
- * 5.6.x, so we provide suitable definitions for the two such macros that we
- * use, namely, PerlSIO_fclose() and PerlSIO_fileno.  (The lowio functions
- * should similarly be accessed via the PerlLIO_*() macros.  Those macros are
- * available in Perl 5.6.x anyway so we do not need to worry about the
- * PerlLIO_close() and PerlLIO_setmode() macros that we use.)
+ * Under Perl 5.8.0 a "real" PerlIO was introduced, which raised questions
+ * concerning the co-existence of PerlIO with the original stdio that are dealt
+ * with according to whether PERLIO_IS_STDIO and PERLIO_NOT_STDIO are defined
+ * and, if the latter is, whether it is true.  (If PERLIO_IS_STDIO is defined
+ * then PerlIO is as close to the original stdio as possible; if
+ * PERLIO_NOT_STDIO is defined and true then the original stdio is disabled (all
+ * the functions are undefined and made into errors), while if PERLIO_NOT_STDIO
+ * is defined but false then co-existence is allowed.  See the "perlapio"
+ * manpage and comments in "perlsdio.h" in Perl 5.8.0 for more details on this.)
+ * The original stdio functions should now properly be accessed via the
+ * PerlSIO_*() macros.  Those macros did not exist under Perl 5.6.x, so we
+ * provide suitable definitions for the two such macros that we use, namely,
+ * PerlSIO_fclose() and PerlSIO_fileno.  (The lowio functions should similarly
+ * be accessed via the PerlLIO_*() macros.  Those macros are available in Perl
+ * 5.6.x anyway so we do not need to worry about the PerlLIO_close() and
+ * PerlLIO_setmode() macros that we use.)
  *
  * The definitions that we have provided here for PerlIO_importFILE(),
  * PerlSIO_fclose() and PerlSIO_fileno() under Perl 5.6.x are based on the
@@ -255,8 +258,9 @@ static void Win32SharedFileOpen_StorePerlIO(pTHX_ SV *fh, PerlIO **pio_fp,
 
         case IoTYPE_WRONLY:
         case IoTYPE_APPEND:
-            /* Store the PerlIO file stream as the output stream.  Apparently it
-             * must be stored as the input stream as well.  I don't know why. */
+            /* Store the PerlIO file stream as the output stream.  Apparently,
+             * it must be stored as the input stream as well.  I do not know
+             * why. */
             IoIFP(io) = *pio_fp;
             IoOFP(io) = *pio_fp;
             break;
@@ -317,13 +321,13 @@ CLONE(...)
 # Version 3.00 of this module had a bug whereby under Perl 5.8.0, if a file was
 # opened in "text" mode by fsopen() then it could not subsequently be changed to
 # "binary" mode.  The reason is that in Perl 5.8.0 a "real" PerlIO was
-# introduced which applies IO "layers" on top of some "base" layer.  The "base"
+# introduced, which applies IO "layers" on top of some "base" layer.  The "base"
 # layer is determined by the mode of the "FILE *" that is initially imported
 # into the "PerlIO *": layers can be pushed on top of that, and any layers that
 # have been pushed on can be popped off again, but it is not possible to remove
 # the "base" layer(s).  Thus, when a file is opened in "text" mode (with a
 # ":crlf" layer), all we can do is push further layers on top and pop them off
-# again; we can't remove the "text" mode base layer.
+# again; we cannot remove the "text" mode base layer.
 # This behaviour is a characteristic of PerlIO_importFILE(): the "PerlIO *"
 # created by it potentially has a "text" mode base layer, when perhaps it would
 # be better to always have a "binary" mode base layer with a "text" mode layer
@@ -345,7 +349,7 @@ CLONE(...)
 # instead the "text" mode layer is pushed onto the "PerlIO *" by calling the
 # Perl built-in function binmode() back in the Perl module.
 # The same philosophy has been applied to sopen() as well for the sake of
-# consistency.  It didn't actually exhibit the same bug in version 3.00 anyway,
+# consistency.  It did not actually exhibit the same bug in version 3.00 anyway,
 # probably due to differences between the PerlIO_fdopen() call that it makes and
 # the PerlIO_importFILE() call that fsopen() makes; in particular it is possible
 # that PerlIO_fdopen() already employs the "binary" base layer strategy outlined
@@ -378,8 +382,8 @@ _fsopen(fh, file, mode, shflag)
 
         /* Call the MSVC function _fsopen() to get a C file stream. */
         if ((fp = _fsopen(file, mode, shflag)) != Null(FILE *)) {
-            /* Set the C file stream into "binary" mode if it wasn't opened that
-             * way already.  (See comments above for why.) */
+            /* Set the C file stream into "binary" mode if it was not opened
+             * that way already.  (See comments above for why.) */
             if (strchr(mode, 'b') == NULL) {
                 if (PerlLIO_setmode(PerlSIO_fileno(fp), O_BINARY) == -1) {
                     Win32SharedFileOpen_SetErrStr(aTHX_
@@ -459,7 +463,7 @@ _sopen(fh, file, oflag, shflag, ...)
         }
 
         if (fd != -1) {
-            /* Set the C file descriptor into "binary" mode if it wasn't opened
+            /* Set the C file descriptor into "binary" mode if it was not opened
              * that way already.  (See comments above _fsopen() for why.) */
             if (!(oflag & O_BINARY)) {
                 if (PerlLIO_setmode(fd, O_BINARY) == -1) {

@@ -141,7 +141,7 @@ constant_8 (pTHX_ const char *name, IV *iv_return) {
     if (memEQ(name, "INFINITE", 8)) {
     /*                 ^           */
 #ifdef INFINITE
-      *iv_return = (IV) INFINITE;
+      *iv_return = (IV)INFINITE;
       return PERL_constant_ISUV;
 #else
       return PERL_constant_NOTDEF;
@@ -262,7 +262,7 @@ constant (pTHX_ const char *name, STRLEN len, IV *iv_return) {
      Regenerate these constant functions by feeding this entire source file to
      perl -x
 
-#!C:\perl5\bin\perl.exe -w
+#!C:\Dev\Perls\VC6\Release\perl588\bin\perl.exe -w
 use ExtUtils::Constant qw (constant_types C_constant XS_constant);
 
 my $types = {map {($_, 1)} qw(IV UV)};

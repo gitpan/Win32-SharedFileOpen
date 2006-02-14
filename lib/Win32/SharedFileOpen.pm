@@ -6,7 +6,7 @@
 #   Module providing functions to open a file for shared reading and/or writing.
 #
 # COPYRIGHT
-#   Copyright (C) 2001-2005 Steve Hay.  All rights reserved.
+#   Copyright (C) 2001-2006 Steve Hay.  All rights reserved.
 #
 # LICENCE
 #   You may distribute under the terms of either the GNU General Public License
@@ -21,9 +21,10 @@ use 5.006000;
 use strict;
 use warnings;
 
-use Carp;
+use Carp qw(croak);
+use Config qw(%Config);
 use Exporter qw();
-use Symbol;
+use Symbol qw(gensym qualify_to_ref);
 use Win32::WinError qw(
     ERROR_ACCESS_DENIED
     ERROR_SHARING_VIOLATION
@@ -42,6 +43,7 @@ sub new_fh();
 # MODULE INITIALIZATION
 #===============================================================================
 
+my($bcc);
 our(@ISA, @EXPORT, @EXPORT_OK, %EXPORT_TAGS, $VERSION);
 
 BEGIN {
@@ -57,25 +59,38 @@ BEGIN {
         gensym
         new_fh
     );
-    
-    %EXPORT_TAGS = (
-        oflags => [ qw(
+
+    my @oflags = qw(
             O_APPEND
             O_BINARY
             O_CREAT
             O_EXCL
             O_NOINHERIT
-            O_RANDOM
             O_RAW
             O_RDONLY
             O_RDWR
-            O_SEQUENTIAL
-            O_SHORT_LIVED
-            O_TEMPORARY
             O_TEXT
             O_TRUNC
             O_WRONLY
-        ) ],
+    );
+
+    $bcc = $Config{cc} =~ /bcc32/io;
+
+    # Borland C++ (as of 5.5.1) doesn't support the following flags, so don't
+    # try to export them.
+    if (not $bcc) {
+        push @oflags, qw(
+            O_RANDOM
+            O_SEQUENTIAL
+            O_SHORT_LIVED
+            O_TEMPORARY
+        );
+    }
+
+    %EXPORT_TAGS = (
+        oflags => [
+            @oflags
+        ],
     
         pmodes => [ qw(
             S_IREAD
@@ -88,7 +103,7 @@ BEGIN {
             SH_DENYRW
             SH_DENYWR
         ) ],
-    
+
         retry => [ qw(
             INFINITE
             $Max_Time
@@ -96,21 +111,21 @@ BEGIN {
             $Retry_Timeout
         ) ]
     );
-    
+
     Exporter::export_tags(qw(oflags pmodes shflags));
-    
+
     Exporter::export_ok_tags(qw(retry));
     
-    $VERSION = '3.34';
+    $VERSION = '3.35';
 
-    # Get the ERROR_SHARING_VIOLATION constant loaded now otherwise loading it
+    # Get the ERROR_SHARING_VIOLATION constant loaded now, otherwise loading it
     # later the first time that we test for an error can actually interfere with
     # the value of $! (which we might also want to test) because the constant is
     # autoloaded by Win32::WinError and the AUTOLOAD() subroutine in that module
     # resets $! in the versions included in libwin32-0.18 and earlier.
-    # Likewise preload some other ERROR_* constants that our use()'rs might need
-    # otherwise loading them later can similarly interfere with the value of $^E
-    # in libwin32-0.191 and earlier with debug builds of Perl.
+    # Likewise preload some other ERROR_* constants that our use()'rs might
+    # need, otherwise loading them later can similarly interfere with the value
+    # of $^E in libwin32-0.191 and earlier with debug builds of Perl.
     ERROR_ACCESS_DENIED;
     ERROR_SHARING_VIOLATION;
     ERROR_FILE_EXISTS;
@@ -187,6 +202,7 @@ sub fsopen(*$$$) {
         $tries++;
 
         last if $success
+             or $bcc
              or $^E != ERROR_SHARING_VIOLATION
              or (not defined $Max_Time and not defined $Max_Tries)
              or (defined $Max_Time and $Max_Time != 0 and
@@ -203,7 +219,7 @@ sub fsopen(*$$$) {
             ($success ? 'succeeded' : 'failed'),
             ($time == 1 ? 'second' : 'seconds'),
             ($tries == 1 ? 'try' : 'tries'),
-            ($success ? 'using file descriptor ' . fileno($fh) : $^E);
+            ($success ? 'using file descriptor ' . fileno($fh) : "$! ($^E)");
     }
 
     if ($success) {
@@ -247,6 +263,7 @@ sub sopen(*$$$;$) {
         $tries++;
 
         last if $success
+             or $bcc
              or $^E != ERROR_SHARING_VIOLATION
              or (not defined $Max_Time and not defined $Max_Tries)
              or (defined $Max_Time and $Max_Time != 0 and
@@ -263,7 +280,7 @@ sub sopen(*$$$;$) {
             ($success ? 'succeeded' : 'failed'),
             ($time == 1 ? 'second' : 'seconds'),
             ($tries == 1 ? 'try' : 'tries'),
-            ($success ? 'using file descriptor ' . fileno($fh) : $^E);
+            ($success ? 'using file descriptor ' . fileno($fh) : "$! ($^E)");
     }
 
     if ($success) {
@@ -296,31 +313,53 @@ sub new_fh() {
 {
     package Win32::SharedFileOpen::_NaturalNumber;
 
-    use Carp;
-    
+    use Carp qw(carp croak);
+    use Config qw(%Config);
+
+    my($bcc);
+
+    BEGIN {
+        $bcc = $Config{cc} =~ /bcc32/io;
+    }
+
     sub TIESCALAR {
         my($class, $value, $name) = @_;
-    
+
         croak("Usage: tie SCALAR, '$class', SCALARVALUE, SCALARNAME")
             unless @_ == 3;
-    
-        my $self = bless { _name => $name, _value => undef }, $class;
-    
+
+        my $self = bless {
+            _name  => $name,
+            _value => undef,
+            _init  => 0
+        }, $class;
+
         # Use our own STORE() method to store the value to make sure it is
         # valid.
         $self->STORE($value);
-    
+
+        $self->{_init} = 1;
+
         return $self;
     }
-    
+
     sub FETCH {
         my $self = shift;
         return $self->{_value};
     }
-    
+
     sub STORE {
         my($self, $value) = @_;
-    
+
+        # See "LIMITATIONS" in the manpage.
+        if ( $bcc and $self->{_init} and
+            ($self->{_name} eq '$Max_Time'  or
+             $self->{_name} eq '$Max_Tries' or
+             $self->{_name} eq '$Retry_Timeout'))
+        {
+            carp("'$self->{_name}' is not supported with Borland builds");
+        }
+
         if (not defined $value) {
             $self->{_value} = undef;
         }
@@ -331,7 +370,7 @@ sub new_fh() {
         else {
             $self->{_value} = 0 + $value;
         }
-    
+
         return $self->{_value};
     }
 }
@@ -404,18 +443,18 @@ specifying the permission settings of the file if it has just been created.
 
 The difference between the Microsoft-specific functions and their standard
 counterparts is that the Microsoft-specific functions also take an extra
-"shflag" argument (e.g. C<SH_DENYRD> and C<SH_DENYWR>) which specifies how to
+"shflag" argument (e.g. C<SH_DENYRD> and C<SH_DENYWR>) that specifies how to
 prepare the file for subsequent shared reading and/or writing.  This flag can be
 used to specify that either, both or neither of read access and write access
 will be denied to other processes sharing the file.
 
-This share access control is thus effectively a form a file-locking which,
+This share access control is thus effectively a form a file-locking, which,
 unlike C<flock(3)> and C<lockf(3)> and their corresponding Perl function
 C<flock()>, is I<mandatory> rather than just I<advisory>.  This means that if,
 for example, you "deny read access" for the file that you have opened then no
 other process will be able to read that file while you still have it open,
 whether or not they are playing the same ball game as you.  They cannot gain
-read access to it by simply not honouring the same file opening/locking scheme
+read access to it simply by not honouring the same file opening/locking scheme
 as you.
 
 This module provides straightforward Perl "wrapper" functions, C<fsopen()> and
@@ -428,7 +467,7 @@ the caller (rather than using the functions' return values, which are now simple
 Booleans to indicate success or failure).
 
 The value passed to the functions in this first parameter can be a
-straight-forward filehandle (C<FH>) or any of the following:
+straightforward filehandle (C<FH>) or any of the following:
 
 =over 4
 
@@ -456,10 +495,10 @@ message to this effect.
 
 The "oflags" and "shflags", as well as the "pmode" flags used by C<_sopen()>,
 are all made available to Perl by this module, and are all exported by default.
-Clearly this module will only build against a Microsoft C runtime, so only the
-flags known to that system [as of version 6.0] are exported, rather than
-re-exporting all of the C<O_*> and C<S_I*> flags from the Fcntl module like, for
-example, IO::File does.  In any case, Fcntl does not know about the
+Clearly this module will only build on "native" (i.e. non-Cygwin) Microsoft
+Windows platforms, so only the flags found on such systems are exported, rather
+than re-exporting all of the C<O_*> and C<S_I*> flags from the Fcntl module
+like, for example, IO::File does.  In any case, Fcntl does not know about the
 Microsoft-specific C<_O_SHORT_LIVED> and C<SH_*> flags.  (The C<_O_SHORT_LIVED>
 flag is exported (like the C<_fsopen()> and C<_sopen()> functions themselves)
 I<without> the leading "_" character.)
@@ -468,7 +507,10 @@ Both functions can be made to automatically retry opening a file (indefinitely,
 or up to a specified maximum time or number of times, and at a specified
 frequency) if the file could not be opened due to a sharing violation, via the
 L<"Variables"> $Max_Time, $Max_Tries and $Retry_Timeout and the C<INFINITE>
-flag.
+flag.  (This functionality is not available for perls built with the Borland C++
+compiler, due to limitations in that compiler's C run-time library.  A warning
+will be issued when setting these variables using such a perl, and no retries
+will be attempted. See L<"LIMITATIONS"> for more details.)
 
 =head2 Functions
 
@@ -499,7 +541,7 @@ C<undef> and sets $ErrStr if the file could not be opened.
 
 =item C<gensym()>
 
-Returns a new, anonymous, typeglob which can be used as an
+Returns a new, anonymous, typeglob that can be used as an
 L<indirect filehandle|"Indirect Filehandles"> in the first parameter of
 C<fsopen()> and C<sopen()>.
 
@@ -509,7 +551,7 @@ L<"Indirect Filehandles"> for more details.
 
 =item C<new_fh()>
 
-Returns a new, anonymous, typeglob which can be used as an
+Returns a new, anonymous, typeglob that can be used as an
 L<indirect filehandle|"Indirect Filehandles"> in the first parameter of
 C<fsopen()> and C<sopen()>.
 
@@ -626,21 +668,25 @@ Prevents creation of a shared file descriptor.
 
 =item C<O_RANDOM>
 
-Specifies the disk access will be primarily random.
+Specifies the disk access will be primarily random.  (Not supported for perls
+built with the Borland C++ compiler.)
 
 =item C<O_SEQUENTIAL>
 
-Specifies the disk access will be primarily sequential.
+Specifies the disk access will be primarily sequential.  (Not supported for
+perls built with the Borland C++ compiler.)
 
 =item C<O_SHORT_LIVED>
 
 Used with C<O_CREAT>, creates the file such that, if possible, it does not flush
-the file to disk.
+the file to disk.  (Not supported for perls built with the Borland C++
+compiler.)
 
 =item C<O_TEMPORARY>
 
 Used with C<O_CREAT>, creates the file as temporary.  The file will be deleted
-when the last file descriptor attached to it is closed.
+when the last file descriptor attached to it is closed.  (Not supported for
+perls built with the Borland C++ compiler.)
 
 =item C<O_TRUNC>
 
@@ -802,7 +848,7 @@ or C<sopen()> while the file cannot be opened due to a sharing violation
 The $Max_Time variable is generally more useful than $Max_Tries because even
 with a common value of $Retry_Timeout (see below) two processes may retry
 opening a shared file at significantly different rates.  For example, if
-$Retry_Timeout is 0 then a process which can access the file in question on a
+$Retry_Timeout is 0 then a process that can access the file in question on a
 local disk may retry thousands of times per second, while a process on another
 machine trying to open the same file across a network connection may only retry
 once or twice per second.  Clearly, specifying the maximum time that a process
@@ -823,6 +869,11 @@ compatibility with previous versions of this module.
 
 The default values are both C<undef>, i.e. no retries are attempted.
 
+Note: These variables are not supported for perls built with the Borland C++
+compiler, due to limitations in that compiler's C run-time library.  (See
+L<"LIMITATIONS"> for more details.)  A warning will be issued when setting these
+variables using such a perl, and no retries will be attempted.
+
 =item $Retry_Timeout
 
 Specifies the time to wait (in milliseconds) between tries at opening a file
@@ -833,14 +884,19 @@ is raised on any attempt to specify an invalid value.
 
 The default value is 250, i.e. wait for one quarter of a second between tries.
 
+Note: As with $Max_Time and $Max_Tries above, this variable is not supported for
+perls built with the Borland C++ compiler.  (See L<"LIMITATIONS"> for more
+details.)  A warning will be issued when setting it using such a perl, and no
+retries will be attempted.
+
 =back
 
 =head1 DIAGNOSTICS
 
 =head2 Warnings and Error Messages
 
-The following diagnostic messages may be produced by this module.  They are
-classified as follows (a la L<perldiag>):
+This module may produce the following diagnostic messages.  They are classified
+as follows (a la L<perldiag>):
 
     (W) A warning (optional).
     (F) A fatal error (trappable).
@@ -855,6 +911,12 @@ That is not a filehandle, cannot be used as an indirect filehandle, and
 (unlike the Perl built-in C<open()> and C<sysopen()> functions) the function is
 unable to auto-vivify something that can be used as an indirect filehandle in
 such a case.
+
+=item '%s' is not supported with Borland builds
+
+(W) You attempted to set the specified variable, but it is not supported for
+perls built with the Borland C++ compiler.  See L<"LIMITATIONS"> for more
+details.
 
 =item Invalid value for '%s': '%s' is not a natural number
 
@@ -1031,14 +1093,14 @@ This example could be used by a process to both read and write a file (e.g. a
 simple database) and guard against other processes interfering with the reads or
 being interfered with by the writes.
 
-=item Open a file for writing if and only if it doesn't already exist, denying
+=item Open a file for writing if and only if it does not already exist, denying
 write access to other processes:
 
     sopen(FH, $file, O_WRONLY | O_CREAT | O_EXCL, SH_DENYWR, S_IWRITE) or
         die "Can't create '$file' and take write-lock: $ErrStr\n";
 
 This example could be used by a process wishing to take an "advisory lock" on
-some non-file resource that can't be explicitly locked itself by dropping a
+some non-file resource that cannot be explicitly locked itself by dropping a
 "sentinel" file somewhere.  The test for the non-existence of the file and the
 creation of the file is atomic to avoid a "race condition".  The file can be
 written by the process taking the lock and can be read by other processes to
@@ -1098,11 +1160,11 @@ name being used elsewhere.  For example, consider this:
 
 The problem here is that when you open a filehandle that is already open it is
 closed first, so calling "C<fsopen(FH, ...)>" in C<my_sub()> causes the
-filehandle C<FH> which is already open in the caller to be closed first so that
+filehandle C<FH> that is already open in the caller to be closed first so that
 C<my_sub()> can use it.  When C<my_sub()> returns the caller will now find that
 C<FH> is closed, causing the next read in the C<while { ... }> loop to fail.
 (Or even worse, the caller would end up mistakenly reading from the wrong file
-if C<my_sub()> hadn't closed C<FH> before returning!)
+if C<my_sub()> had not closed C<FH> before returning!)
 
 =head2 Localized Typeglobs and the C<*foo{THING}> Notation
 
@@ -1119,10 +1181,10 @@ question within C<my_sub()>:
 
 but this has the unfortunate side-effect of localizing all the other members of
 that typeglob as well, so if the caller had global variables $FH, @FH or %FH, or
-even a subroutine C<FH()>, which C<my_sub()> needed then it no longer
-has access to them either.  (It does, on the other hand, have the rather nicer
-side-effect that the filehandle is automatically closed when the localized
-typeglob goes out of scope, so the "C<close FH;>" above is no longer necessary.)
+even a subroutine C<FH()>, that C<my_sub()> needed then it no longer has access
+to them either.  (It does, on the other hand, have the rather nicer side-effect
+that the filehandle is automatically closed when the localized typeglob goes out
+of scope, so the "C<close FH;>" above is no longer necessary.)
 
 This problem can also be addressed by using the so-called C<*foo{THING}> syntax.
 C<*foo{THING}> returns a reference to the THING member of the C<*foo> typeglob.
@@ -1130,7 +1192,7 @@ For example, C<*foo{SCALAR}> is equivalent to C<\$foo>, and C<*foo{CODE}> is
 equivalent to C<\&foo>.  C<*foo{IO}> (or the older, now out-of-fashion notation
 C<*foo{FILEHANDLE}>) yields the actual internal IO::Handle object that the
 C<*foo> typeglob contains, so with this we can localize just the IO object, not
-the whole typeglob, so that we don't accidentally hide more than we meant to:
+the whole typeglob, so that we do not accidentally hide more than we meant to:
 
     sub my_sub($) {
         local *FH{IO};
@@ -1142,10 +1204,10 @@ the whole typeglob, so that we don't accidentally hide more than we meant to:
 
 However, this has a drawback as well: C<*FH{IO}> only works if C<FH> has already
 been used as a filehandle (or some other IO handle), because C<*foo{THING}>
-returns C<undef> if that particular THING hasn't been seen by the compiler yet
+returns C<undef> if that particular THING has not been seen by the compiler yet
 (with the exception of when THING is C<SCALAR>, which is treated differently).
 This is fine in the example above, but would not necessarily have been if the
-caller of C<my_sub()> hadn't used the filehandle C<FH> first, so this approach
+caller of C<my_sub()> had not used the filehandle C<FH> first, so this approach
 would be no good if C<my_sub()> was to be put in a module to be used by other
 callers too.
 
@@ -1189,7 +1251,7 @@ that we saw above with filehandles.  The remainder of the above, however,
 (namely, an anonymous typeglob in a scalar variable, or a suitable IO object)
 finally give us the answer that we have been looking for.
 
-So we can now write C<my_sub()> like this:
+Therefore, we can now write C<my_sub()> like this:
 
     sub my_sub($) {
         # Create "my $fh" here: see below
@@ -1241,21 +1303,21 @@ to create "C<my $fh>" above.
 =head2 The First-Class Filehandle Trick
 
 Finally, there is another way to get an anonymous typeglob in a scalar variable
-which is even leaner and meaner than using C<Symbol::gensym()>: the "First-Class
+that is even leaner and meaner than using C<Symbol::gensym()>: the "First-Class
 Filehandle Trick".  It is described in an article by Mark-Jason Dominus called
-"Seven Useful Uses of Local" which first appeared in The Perl Journal, and can
+"Seven Useful Uses of Local", which first appeared in The Perl Journal and can
 also be found (at the time of writing) on his website at the URL
 F<http://perl.plover.com/local.html>.  It consists simply of the following:
 
     my $fh = do { local *FH };
 
 It works like this: the C<do { ... }> block simply executes the commands within
-the block and returns the value of the last one.  So in this case, the global
-C<*FH> typeglob is temporarily replaced with a new glob that is C<local()> to
-the C<do { ... }> block.  The new, C<local()>, C<*FH> typeglob then goes out of
-scope (i.e. is no longer accessible by that name) but is not destroyed because
-it gets returned from the C<do { ... }> block.  It is this, now anonymous,
-typeglob that gets assigned to "C<my $fh>", exactly as we wanted.
+the block and returns the value of the last one.  Therefore, in this case, the
+global C<*FH> typeglob is temporarily replaced with a new glob that is
+C<local()> to the C<do { ... }> block.  The new, C<local()>, C<*FH> typeglob
+then goes out of scope (i.e. is no longer accessible by that name) but is not
+destroyed because it gets returned from the C<do { ... }> block.  It is this,
+now anonymous, typeglob that gets assigned to "C<my $fh>", exactly as we wanted.
 
 Note that it is important that the typeglob itself, not a reference to it, is
 returned from the C<do { ... }> block.  This is because references to localized
@@ -1273,7 +1335,7 @@ both being references to the same typeglob (namely, C<*FH>) so that the two
 filehandles would then clash.
 
 If this trick is used only once within a script running under "C<use warnings;>"
-that doesn't mention C<*FH> or any of its members anywhere else then a warning
+that does not mention C<*FH> or any of its members anywhere else then a warning
 like the following will be produced:
 
     Name "main::FH" used only once: possible typo at ...
@@ -1306,11 +1368,11 @@ outputs the warning:
 
 If several filehandles are being used in this way then it can be confusing to
 have them all referred to by the same name.  (Do not be alarmed by this, though:
-they are completely different anonymous filehandles which just happen to be
+they are completely different anonymous filehandles, which just happen to be
 referred to by their original, but actually now out-of-scope, names.)  If this
 is a problem then consider using C<Symbol::gensym()> instead (see above): that
-function uses a different name ('GEN0', 'GEN1', 'GEN2', ...) to generate each
-anonymous typeglob from.
+function generates each anonymous typeglob from a different name (namely,
+'GEN0', 'GEN1', 'GEN2', ...).
 
 =head2 Auto-Vivified Filehandles
 
@@ -1427,7 +1489,7 @@ C<$Retry_Timeout>.
 
 =head1 COMPATIBILITY
 
-Prior to version 2.00 of this module, C<fsopen()> and C<sopen()> both created a
+Before version 2.00 of this module, C<fsopen()> and C<sopen()> both created a
 filehandle and returned it to the caller.  (C<undef> was returned instead on
 failure.)
 
@@ -1443,11 +1505,63 @@ WILL NEED TO BE MODIFIED.>
 
 =head1 KNOWN BUGS
 
-I<None>.
+=over 4
+
+=item *
+
+The following test failures are expected with perls built in the default
+configuration with the Borland C++ compiler:
+
+    t\06_fsopen_access.t tests 25 or 26, 30 or 31, 35 or 36
+
+(Exactly which tests fail varies according to which version of Perl is being
+used.)
+
+These failures are the result of outstanding problems with large file support in
+perls built with the Borland C++ compiler, and can be rectified by rebuilding
+perl with large file support disabled (by commenting out the line:
+
+    USE_LARGE_FILES *= define
+
+in F<win32/makefile.mk>) or by using a perl built with a different compiler.
+
+=back
+
+=head1 LIMITATIONS
+
+=over 4
+
+=item *
+
+As noted in several places above, the functionality to automatically retry
+opening a file if it could not be opened due to a sharing violation is not
+available for perls built with the Borland C++ compiler, due to limitations in
+that compiler's C run-time library.
+
+Specifically, the problem lies with the particular C run-time library,
+F<cw32mti.lib>, used when building perl.  A simple test program written in C
+shows that (as of Borland C++ 5.5.1) it does not set the Win32 last error code
+(as returned by the Win32 API function C<GetLastError()>) after a failed CRT
+function call.  There is actually no guarantee that it should be set because it
+is only really intended to be used after a failed Win32 API function call, but
+it does generally seem to be set by the Microsoft C run-time libraries and this
+module uses that fact to detect when a sharing violation has occurred, namely,
+when the last error code is ERROR_SHARING_VIOLATION.
+
+At least one other Borland C run-time library, F<cw32i.lib>, does set the Win32
+last error code after a failed CRT function call, so this may be a bug in the
+Borland C run-time library used by perl.  If so, and if it is fixed in some
+later version of Borland C++, then this functionality will, of course, be
+enabled for those versions.
+
+See the exchanges between myself and Jan Dubois on the "perl5-porters" mailing
+list, 30 Jan-01 Feb 2006, for more details on all of this.
+
+=back
 
 =head1 FEEDBACK
 
-Patches, bug reports, suggestions or any other feedback are welcome.
+Patches, bug reports, suggestions or any other feedback is welcome.
 
 Bugs can be reported on the CPAN Request Tracker at
 F<http://rt.cpan.org/NoAuth/ReportBug.html?Queue=Win32-SharedFileOpen>.
@@ -1480,7 +1594,7 @@ L<Win32API::File>.
 In particular, the Win32API::File module (part of the "libwin32" distribution)
 contains an interface to a (lower level) Win32 API function,
 L<C<CreateFile()>|Win32API::File/CreateFile>, which provides similar (and more)
-capabilities but using a completely different set of arguments which are
+capabilities but using a completely different set of arguments that are
 unfamiliar to unseasoned Microsoft developers.  A more Perl-friendly wrapper
 function, L<C<createFile()>|Win32API::File/createFile>, is also provided but
 does not entirely alleviate the pain.
@@ -1514,7 +1628,7 @@ Steve Hay E<lt>shay@cpan.orgE<gt>
 
 =head1 COPYRIGHT
 
-Copyright (C) 2001-2005 Steve Hay.  All rights reserved.
+Copyright (C) 2001-2006 Steve Hay.  All rights reserved.
 
 =head1 LICENCE
 
@@ -1524,11 +1638,11 @@ License or the Artistic License, as specified in the F<LICENCE> file.
 
 =head1 VERSION
 
-Version 3.34
+Version 3.35
 
 =head1 DATE
 
-02 Sep 2005
+14 Feb 2006
 
 =head1 HISTORY
 
