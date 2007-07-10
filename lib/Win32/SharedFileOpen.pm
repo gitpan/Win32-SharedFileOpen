@@ -6,7 +6,7 @@
 #   Module providing functions to open a file for shared reading and/or writing.
 #
 # COPYRIGHT
-#   Copyright (C) 2001-2006 Steve Hay.  All rights reserved.
+#   Copyright (C) 2001-2007 Steve Hay.  All rights reserved.
 #
 # LICENCE
 #   You may distribute under the terms of either the GNU General Public License
@@ -116,16 +116,16 @@ BEGIN {
 
     Exporter::export_ok_tags(qw(retry));
     
-    $VERSION = '3.35';
+    $VERSION = '3.36';
 
     # Get the ERROR_SHARING_VIOLATION constant loaded now, otherwise loading it
     # later the first time that we test for an error can actually interfere with
     # the value of $! (which we might also want to test) because the constant is
     # autoloaded by Win32::WinError and the AUTOLOAD() subroutine in that module
     # resets $! in the versions included in libwin32-0.18 and earlier.
-    # Likewise preload some other ERROR_* constants that our use()'rs might
-    # need, otherwise loading them later can similarly interfere with the value
-    # of $^E in libwin32-0.191 and earlier with debug builds of Perl.
+    # Likewise preload some other ERROR_* constants that our use()rs might need,
+    # otherwise loading them later can similarly interfere with the value of $^E
+    # in libwin32-0.191 and earlier with debug builds of Perl.
     ERROR_ACCESS_DENIED;
     ERROR_SHARING_VIOLATION;
     ERROR_FILE_EXISTS;
@@ -1628,7 +1628,7 @@ Steve Hay E<lt>shay@cpan.orgE<gt>
 
 =head1 COPYRIGHT
 
-Copyright (C) 2001-2006 Steve Hay.  All rights reserved.
+Copyright (C) 2001-2007 Steve Hay.  All rights reserved.
 
 =head1 LICENCE
 
@@ -1638,11 +1638,11 @@ License or the Artistic License, as specified in the F<LICENCE> file.
 
 =head1 VERSION
 
-Version 3.35
+Version 3.36
 
 =head1 DATE
 
-14 Feb 2006
+10 Jul 2007
 
 =head1 HISTORY
 

@@ -121,7 +121,7 @@
  * See the exchanges between myself and Nick Ing-Simmons on the "perl-xs"
  * mailing list, 20-24 Jan 2003, for more details on all of this. */
 
-#if(PERL_REVISION == 5 && PERL_VERSION == 6)
+#if (PERL_REVISION == 5 && PERL_VERSION == 6)
 #  if PERL_SUBVERSION == 0
 #    define IoTYPE_RDONLY '<'
 #    define IoTYPE_WRONLY '>'

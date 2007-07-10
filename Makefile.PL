@@ -7,7 +7,7 @@
 #   Makefile creation script.
 #
 # COPYRIGHT
-#   Copyright (C) 2001-2006 Steve Hay.  All rights reserved.
+#   Copyright (C) 2001-2007 Steve Hay.  All rights reserved.
 #
 # LICENCE
 #   You may distribute under the terms of either the GNU General Public License

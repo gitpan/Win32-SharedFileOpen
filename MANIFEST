@@ -1,39 +1,39 @@
-Artistic
-Changes
-Copying
-INSTALL
-LICENCE
-Makefile.PL
-MANIFEST
-MANIFEST.SKIP
-META.yml
-README
-SharedFileOpen.xs
-ppport.h
-typemap
-fallback/const-c.inc
-fallback/const-xs.inc
-inc/Module/AutoInstall.pm
-inc/Module/Install.pm
-inc/Module/Install/AutoInstall.pm
-inc/Module/Install/Base.pm
-inc/Module/Install/Can.pm
-inc/Module/Install/Include.pm
-inc/Module/Install/Makefile.pm
-inc/Module/Install/MakeMaker.pm
-inc/Module/Install/Metadata.pm
-inc/Module/Install/PRIVATE.pm
-lib/Win32/SharedFileOpen.pm
-t/01_constants.t
-t/02_gensym.t
-t/03_new_fh.t
-t/04_fsopen_fh_arg.t
-t/05_sopen_fh_arg.t
-t/06_fsopen_access.t
-t/07_sopen_access.t
-t/08_fsopen_share.t
-t/09_sopen_share.t
-t/10_fsopen_fh_leak.t
-t/11_sopen_fh_leak.t
-t/12_variables.t
-t/13_pod.t
+Artistic                                              The "Artistic License"
+Changes                                               Differences from previous version
+Copying                                               The GNU General Public License
+INSTALL                                               Detailed installation instructions
+LICENCE                                               The Licence
+Makefile.PL                                           Makefile writer
+MANIFEST                                              This list of files
+MANIFEST.SKIP                                         Manifest skip specs
+META.yml                                              Distribution meta-data in YAML
+README                               The Instructions
+SharedFileOpen.xs                    Win32::SharedFileOpen extension external subroutines
+ppport.h                             Perl/Pollution/Portability header
+typemap                              Win32::SharedFileOpen extension interface types
+fallback/const-c.inc                 Win32::SharedFileOpen extension constants fallback file
+fallback/const-xs.inc                Win32::SharedFileOpen extension constants fallback file
+inc/Module/AutoInstall.pm            Module::AutoInstall Perl module
+inc/Module/Install.pm                Module::Install Perl module
+inc/Module/Install/AutoInstall.pm    Module::Install::AutoInstall Perl module
+inc/Module/Install/Base.pm           Module::Install::Base Perl module
+inc/Module/Install/Can.pm            Module::Install::Can Perl module
+inc/Module/Install/Include.pm        Module::Install::Include Perl module
+inc/Module/Install/Makefile.pm       Module::Install::Makefile Perl module
+inc/Module/Install/MakeMaker.pm      Module::Install::MakeMaker Perl module
+inc/Module/Install/Metadata.pm       Module::Install::Metadata Perl module
+inc/Module/Install/PRIVATE.pm        Module::Install::PRIVATE Perl module
+lib/Win32/SharedFileOpen.pm          Win32::SharedFileOpen extension Perl module
+t/01_constants.t                     See if autoloading of constants works
+t/02_gensym.t                        See if gensym() works
+t/03_new_fh.t                        See if new_fh() works
+t/04_fsopen_fh_arg.t                 See if fsopen()s filehandle argument works
+t/05_sopen_fh_arg.t                  See if sopen()s filehandle argument works
+t/06_fsopen_access.t                 See if fsopen() access modes work
+t/07_sopen_access.t                  See if sopen() access modes work
+t/08_fsopen_share.t                  See if fsopen() share modes work
+t/09_sopen_share.t                   See if sopen() share modes work
+t/10_fsopen_fh_leak.t                See if fsopen() leaks filehandles
+t/11_sopen_fh_leak.t                 See if sopen() leaks filehandles
+t/12_variables.t                     See if $ErrStr, $Trace and $Retry variables work
+t/13_pod.t                           See if POD is OK

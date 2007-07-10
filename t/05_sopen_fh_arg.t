@@ -4,7 +4,7 @@
 # t/05_sopen_fh_arg.t
 #
 # DESCRIPTION
-#   Test script to check sopen()'s filehandle argument.
+#   Test script to check sopen()s filehandle argument.
 #
 # COPYRIGHT
 #   Copyright (C) 2002, 2004-2006 Steve Hay.  All rights reserved.

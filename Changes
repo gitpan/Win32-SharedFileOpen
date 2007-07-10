@@ -1,9 +1,24 @@
 ________________________________________________________________________________
 
-                      Win32::SharedFileOpen, Version 3.35
+                      Win32::SharedFileOpen, Version 3.36
 ________________________________________________________________________________
 
 Revision history for Perl extension Win32::SharedFileOpen.
+_________________
+
+v3.36 10 Jul 2007
+
+    - Updated Module::Install::PRIVATE to version 1.05 for Makefile.PL
+      improvements:
+
+      * Fixed the compiler version checking on Win32 for Visual C++ 8.x, which
+        now uses four numbers separated by dots for its compiler version.
+        
+    - Updated Module::Install components from version 0.65 of that distribution.
+
+    - Updated ppport.h using version 3.11 of the Devel::PPPort distribution.
+
+    - Added comments to MANIFEST file.
 _________________
 
 v3.35 14 Feb 2006
@@ -45,7 +60,7 @@ v3.35 14 Feb 2006
 
       * Fixed the handling of user-input relative directory paths so that they
         are converted to absolute paths before use in case the Makefile.PL has
-        changed to another directory in the meantime.
+        changed to another directory in the meantime;
 
       * Renamed lots of methods for a better naming convention.
 
@@ -72,7 +87,7 @@ v3.34 02 Sep 2005
 
       * Relaxed the compiler version checking so that only the major version
         numbers have to match (and also the minor version numbers for VC++ 7 and
-        later, which use CRT DLL's named msvcr70.dll, msvcr71.dll, etc)
+        later, which use CRT DLLs named msvcr70.dll, msvcr71.dll, etc)
         
         (Thanks to Sisyphus <sisyphus1@optusnet.com.au> for drawing attention to
         this problem via the PAR mailing list (par@perl.org));
@@ -116,7 +131,7 @@ v3.32 03 Mar 2005
       * Added code to try to check that on Win32 the same compiler is being used
         to build this module as was used to build Perl itself to avoid problems
         with binaries built by different compiler versions loading different C
-        run-time DLL's.
+        run-time DLLs.
 
     - Added a recommendation for Test::Pod to Makefile.PL to test the POD when
       building these modules.
@@ -132,7 +147,7 @@ _________________
 v3.31 12 Dec 2004
 
     - Moved XSLoader::load() call inside BEGIN subroutine as recommended by the
-      XSLoader manpage.  This means that the XSUB's are now installed before the
+      XSLoader manpage.  This means that the XSUBs are now installed before the
       rest of the Perl module is compiled, and hence their prototypes are now
       known, and can be checked, during the remaining compilation.
 _________________
@@ -211,7 +226,7 @@ v3.18 01 Aug 2004
       relevant standard C library errno or Win32 API last-error code where
       appropriate.
 
-    - Changed return values from the private _fsopen() and _sopen() XSUB's so
+    - Changed return values from the private _fsopen() and _sopen() XSUBs so
       that if they fail when called in list context then they return an empty
       list rather than a single "false" value (which would be seen as "true" in
       list context).  (They are not currently called in list context anyway;
@@ -269,7 +284,7 @@ _________________
 v3.15 24 Sep 2003
 
     - Changed the output of debug information to use warn() rather than simply
-      print()'ing to STDERR to enable the information to be captured by a
+      print()ing to STDERR to enable the information to be captured by a
       $SIG{__WARN__} handler if required.
 
     - Added two tests to exercise the debug output with $Debug to set 2.
@@ -290,7 +305,7 @@ _________________
 
 v3.14 31 Jul 2003
 
-    - Preload some ERROR_* constants that our use()'rs might need, otherwise the
+    - Preload some ERROR_* constants that our use()rs might need, otherwise the
       value of $^E gets interfered with when they are autoloaded by
       Win32::WinError in libwin32-0.191 and earlier when using debug builds of
       Perl.
@@ -306,9 +321,9 @@ v3.13 28 May 2003
 
     - Added new constant, O_RAW, which is an alias for O_BINARY.
 
-    - Removed unnecessary use() of Errno from SharedFileOpen.pm.  It is use()'d
+    - Removed unnecessary use() of Errno from SharedFileOpen.pm.  It is use()d
       by the test suite, though, so left it as a pre-requisite in Makefile.PL,
-      and added other modules use()'d by the test suite too.
+      and added other modules use()d by the test suite too.
 
     - Minor cosmetic changes.
 _________________
@@ -357,11 +372,11 @@ v3.10 25 Jan 2003
         fix building under Perls with PERL_IMPLICIT_CONTEXT enabled;
 
       * Added definitions of PerlIO and PerlIO_importFILE() to fix building with
-        Perl 5.6.x's with PERL_IMPLICIT_SYS enabled;
+        Perl 5.6.x with PERL_IMPLICIT_SYS enabled;
 
       * Changed fclose() and close() calls to PerlSIO_fclose() and
-        PerlLIO_close() calls respectively to fix building with Perl 5.8.0's
-        with PERL_IMPLICIT_SYS enabled.
+        PerlLIO_close() calls respectively to fix building with Perl 5.8.0 with
+        PERL_IMPLICIT_SYS enabled.
 
       This module should now build cleanly with Perl 5.6.0, 5.6.1 and 5.8.0 with
       any combination of PERL_IMPLICIT_CONTEXT and PERL_IMPLICIT_SYS enabled or
@@ -378,7 +393,7 @@ v3.00 02 Nov 2002
 
     - Fixed the fsopen() bug by opening the Perl filehandle in the XS rather
       than passing a file descriptor back from the XS to the Perl and
-      effectively fdopen()'ing that.  Similarly re-coded sopen()'s XS.
+      effectively fdopen()ing that.  Similarly re-coded sopen()s XS.
 
     - Restricted the $Debug variable to only allow non-negative integer values
       like the other global variables.  The value 0 means off, 1 produces the
@@ -395,7 +410,7 @@ v2.12 05 Sep 2002
       * Explicitly quoted Win32::WinError in Makefile.PL, otherwise it now dies
         with an error about 'Bareword not allowed while "strict subs" in use';
 
-      * Explicitly put fdopen()'d Perl filehandle into binary mode because it no
+      * Explicitly put fdopen()d Perl filehandle into binary mode because it no
         longer inherits this mode from the C filehandle opened in the XS.
 
     - Removed use() of AutoLoader since no use was being made of it.
@@ -413,9 +428,9 @@ v2.11 02 Jul 2002
     - Added $Max_Time as a better means than $Max_Tries of controlling when to
       give up retrying when a file cannot be opened due to a sharing violation.
 
-    - Allowed the tie()'d variables to have the undefined value: this is
-      necessary because local()'izing a tie()'d variable currently leaves it
-      tie()'d but initially undefined.  It is also useful anyway to indicate the
+    - Allowed the tie()d variables to have the undefined value: this is
+      necessary because local()izing a tie()d variable currently leaves it
+      tie()d but initially undefined.  It is also useful anyway to indicate the
       variable is not in use.
 
     - Updated documentation for these changes.
@@ -432,7 +447,7 @@ v2.10 20 Jun 2002
 
     - Updated documentation for these changes.
 
-    - Local()'ized the changes made to $! within AUTOLOAD() as per Perl Bug ID
+    - Local()ized the changes made to $! within AUTOLOAD() as per Perl Bug ID
       20020614.002: see http://bugs.perl.org/ for more details.
 _________________
 
