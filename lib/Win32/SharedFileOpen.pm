@@ -6,7 +6,7 @@
 #   Module providing functions to open a file for shared reading and/or writing.
 #
 # COPYRIGHT
-#   Copyright (C) 2001-2007 Steve Hay.  All rights reserved.
+#   Copyright (C) 2001-2008 Steve Hay.  All rights reserved.
 #
 # LICENCE
 #   You may distribute under the terms of either the GNU General Public License
@@ -116,7 +116,7 @@ BEGIN {
 
     Exporter::export_ok_tags(qw(retry));
     
-    $VERSION = '3.36';
+    $VERSION = '3.37';
 
     # Get the ERROR_SHARING_VIOLATION constant loaded now, otherwise loading it
     # later the first time that we test for an error can actually interfere with
@@ -1628,7 +1628,7 @@ Steve Hay E<lt>shay@cpan.orgE<gt>
 
 =head1 COPYRIGHT
 
-Copyright (C) 2001-2007 Steve Hay.  All rights reserved.
+Copyright (C) 2001-2008 Steve Hay.  All rights reserved.
 
 =head1 LICENCE
 
@@ -1638,11 +1638,11 @@ License or the Artistic License, as specified in the F<LICENCE> file.
 
 =head1 VERSION
 
-Version 3.36
+Version 3.37
 
 =head1 DATE
 
-10 Jul 2007
+30 Jun 2008
 
 =head1 HISTORY
 

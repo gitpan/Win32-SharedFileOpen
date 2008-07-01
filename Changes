@@ -1,9 +1,17 @@
 ________________________________________________________________________________
 
-                      Win32::SharedFileOpen, Version 3.36
+                      Win32::SharedFileOpen, Version 3.37
 ________________________________________________________________________________
 
 Revision history for Perl extension Win32::SharedFileOpen.
+_________________
+
+v3.37 30 Jun 2008
+
+    - Added the magic "OS unsupported" phrase to Makefile.PL's die() message so
+      that CPAN Testers report "N/A" rather than "FAIL" on non-Win32 OSes.
+
+    - Updated ppport.h using version 3.14 of the Devel::PPPort distribution.
 _________________
 
 v3.36 10 Jul 2007
