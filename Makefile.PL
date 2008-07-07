@@ -42,15 +42,16 @@ BEGIN {
 #===============================================================================
 
 MAIN: {
-    name           ('Win32-SharedFileOpen');
-    all_from       ('lib/Win32/SharedFileOpen.pm');
-    requires       ('Win32::WinError');
-    build_requires ('Test::More');
-    features       ('POD testing' => [
-        -default   => 0,
-        recommends ('Test::Pod' => '1.00')
+    name          ('Win32-SharedFileOpen');
+    license       ('perl');
+    all_from      ('lib/Win32/SharedFileOpen.pm');
+    requires      ('Win32::WinError');
+    test_requires ('Test::More');
+    feature       ('POD testing' => [
+                   -default    => 0,
+                   'Test::Pod' => '1.00'
     ]);
-    clean_files    ('const-c.inc const-xs.inc');
+    clean_files   ('const-c.inc const-xs.inc');
 
     my $obj = get_shay_private_obj();
     $obj->check_compiler(1);
@@ -60,13 +61,12 @@ MAIN: {
     WriteMakefile(
         dist => {
             DIST_CP  => 'cp',
-            PREOP    => 'chmod -R a+w $(DISTVNAME) && ' .
+            PREOP    => 'C:\\cygwin\\bin\\chmod -R a+w $(DISTVNAME) && ' .
                         'C:\\cygwin\\bin\\find $(DISTVNAME) -type f ' .
-                        '-exec unix2dos {} ; && ' .
-                        'chmod -R a-x+rwX,go-w $(DISTVNAME)',
-            COMPRESS => 'gzip -9fv',
-            SUFFIX   => '.gz',
-            ZIPFLAGS => '-9r'
+                        '-exec C:\\cygwin\\bin\\unix2dos {} ; && ' .
+                        'C:\\cygwin\\bin\\chmod -R a-x+rwX,go-w $(DISTVNAME)',
+            TAR      => 'C:\\cygwin\\bin\\tar',
+            COMPRESS => 'C:\\cygwin\\bin\\gzip --best'
         }
     );
 
