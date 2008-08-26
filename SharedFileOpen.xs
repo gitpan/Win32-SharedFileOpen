@@ -6,7 +6,7 @@
  *   C and XS portions of Win32::SharedFileOpen module.
  *
  * COPYRIGHT
- *   Copyright (C) 2001-2004, 2006 Steve Hay.  All rights reserved.
+ *   Copyright (C) 2001-2004, 2006, 2008 Steve Hay.  All rights reserved.
  *
  * LICENCE
  *   You may distribute under the terms of either the GNU General Public License
@@ -381,7 +381,7 @@ _fsopen(fh, file, mode, shflag)
         PerlIO *pio_fp;
 
         /* Call the MSVC function _fsopen() to get a C file stream. */
-        if ((fp = _fsopen(file, mode, shflag)) != Null(FILE *)) {
+        if ((fp = _fsopen(file, mode, shflag)) != (FILE *)NULL) {
             /* Set the C file stream into "binary" mode if it was not opened
              * that way already.  (See comments above for why.) */
             if (strchr(mode, 'b') == NULL) {
@@ -407,7 +407,7 @@ _fsopen(fh, file, mode, shflag)
             /* Call the Perl API function PerlIO_importFILE() to get a PerlIO
              * file stream.  Use the new "binary" mode string to be sure that it
              * is still in "binary" mode. */
-            if ((pio_fp = PerlIO_importFILE(fp, binmode)) != Nullfp) {
+            if ((pio_fp = PerlIO_importFILE(fp, binmode)) != (PerlIO *)NULL) {
                 /* Store the PerlIO file stream in the IO member of the supplied
                  * glob (i.e. the Perl filehandle (or indirect filehandle)
                  * passed to us). */
@@ -485,7 +485,7 @@ _sopen(fh, file, oflag, shflag, ...)
             /* Call the Perl API function PerlIO_fdopen() to get a PerlIO file
              * stream.  Use the new "binary" mode string to be sure that it is
              * still in "binary" mode. */
-            if ((pio_fp = PerlIO_fdopen(fd, binmode)) != Nullfp) {
+            if ((pio_fp = PerlIO_fdopen(fd, binmode)) != (PerlIO *)NULL) {
                 /* Store the PerlIO file stream in the IO member of the supplied
                  * glob (i.e. the Perl filehandle (or indirect filehandle)
                  * passed to us). */

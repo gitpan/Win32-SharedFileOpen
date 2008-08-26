@@ -272,11 +272,11 @@ my @names = (qw(O_APPEND O_BINARY O_CREAT O_EXCL O_NOINHERIT O_RANDOM O_RAW
 	       S_IWRITE),
             {name=>"INFINITE", type=>"UV"});
 
-print constant_types(), "\n"; # macro defs
+print constant_types(); # macro defs
 foreach (C_constant ("Win32::SharedFileOpen", 'constant', 'IV', $types, undef, 3, @names) ) {
     print $_, "\n"; # C constant subs
 }
-print "\n#### XS Section:\n";
+print "#### XS Section:\n";
 print XS_constant ("Win32::SharedFileOpen", $types);
 __END__
    */

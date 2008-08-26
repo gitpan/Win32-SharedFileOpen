@@ -1,9 +1,21 @@
 ________________________________________________________________________________
 
-                      Win32::SharedFileOpen, Version 3.38
+                      Win32::SharedFileOpen, Version 3.39
 ________________________________________________________________________________
 
 Revision history for Perl extension Win32::SharedFileOpen.
+_________________
+
+v3.39 25 Aug 2008
+
+    - Updated Module::Install components from version 0.77 of that distribution.
+
+    - Changed the use of "eval { ... };" to test the return value rather than $@
+      since under certain circumstances $@ can end up undefined after a failed
+      eval.
+
+    - Changed all Nullxx macros to (XX *)NULL as per perl change #33051 and
+      various earlier changes.
 _________________
 
 v3.38 06 Jul 2008
