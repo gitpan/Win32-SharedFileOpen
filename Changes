@@ -1,9 +1,15 @@
 ________________________________________________________________________________
 
-                      Win32::SharedFileOpen, Version 3.39
+                      Win32::SharedFileOpen, Version 3.40
 ________________________________________________________________________________
 
 Revision history for Perl extension Win32::SharedFileOpen.
+_________________
+
+v3.40 11 Oct 2009
+
+    - Declare all core module dependencies in the Makefile.PL as well as the
+      existing CPAN module dependencies. (Cf. [cpan #50107].)
 _________________
 
 v3.39 25 Aug 2008
