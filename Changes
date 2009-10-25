@@ -1,9 +1,16 @@
 ________________________________________________________________________________
 
-                      Win32::SharedFileOpen, Version 3.40
+                      Win32::SharedFileOpen, Version 3.41
 ________________________________________________________________________________
 
 Revision history for Perl extension Win32::SharedFileOpen.
+_________________
+
+v3.41 25 Oct 2009
+
+    - Updated Module::Install components from version 0.91 of that distribution.
+
+    - Updated ppport.h using version 3.19 of the Devel::PPPort distribution.
 _________________
 
 v3.40 11 Oct 2009
