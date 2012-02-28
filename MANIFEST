@@ -1,12 +1,12 @@
-Artistic                                              The "Artistic License"
-Changes                                               Differences from previous version
-Copying                                               The GNU General Public License
-INSTALL                                               Detailed installation instructions
-LICENCE                                               The Licence
-Makefile.PL                                           Makefile writer
-MANIFEST                                              This list of files
-MANIFEST.SKIP                                         Manifest skip specs
-META.yml                                              Distribution meta-data in YAML
+Artistic                             The "Artistic License"
+Changes                              Differences from previous version
+Copying                              The GNU General Public License
+INSTALL                              Detailed installation instructions
+LICENCE                              The Licence
+Makefile.PL                          Makefile writer
+MANIFEST                             This list of files
+MANIFEST.SKIP                        Manifest skip specs
+META.yml                             Distribution meta-data in YAML
 README                               The Instructions
 SharedFileOpen.xs                    Win32::SharedFileOpen extension external subroutines
 ppport.h                             Perl/Pollution/Portability header

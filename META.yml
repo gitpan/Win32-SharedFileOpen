@@ -4,7 +4,7 @@ author:
   - 'Steve Hay <shay@cpan.org>'
 build_requires:
   Errno: 0
-  ExtUtils::MakeMaker: 6.42
+  ExtUtils::MakeMaker: 6.6302
   FileHandle: 0
   IO::File: 0
   IO::Handle: 0
@@ -13,7 +13,7 @@ configure_requires:
   Carp: 0
   Config: 0
   Cwd: 0
-  ExtUtils::MakeMaker: 6.42
+  ExtUtils::MakeMaker: 6.6302
   File::Basename: 0
   File::Copy: 0
   File::Find: 0
@@ -28,7 +28,8 @@ configure_requires:
   vars: 0
   warnings: 0
 distribution_type: module
-generated_by: 'Module::Install version 0.91'
+dynamic_config: 1
+generated_by: 'Module::Install version 1.04'
 license: perl
 meta-spec:
   url: http://module-build.sourceforge.net/META-spec-v1.4.html
@@ -41,9 +42,10 @@ no_index:
 requires:
   Exporter: 0
   Symbol: 0
+  Test::Pod: 1.00
   Win32::WinError: 0
   XSLoader: 0
   perl: 5.6.0
 resources:
   license: http://dev.perl.org/licenses/
-version: 3.41
+version: 3.42
