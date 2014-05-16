@@ -1,9 +1,85 @@
 ________________________________________________________________________________
 
-                      Win32::SharedFileOpen, Version 3.44
+                      Win32::SharedFileOpen, Version 4.00
 ________________________________________________________________________________
 
 Revision history for Perl extension Win32::SharedFileOpen.
+_________________
+
+v4.00 16 May 2014
+
+    - Fixed occasional test failures in t/10_fsopen_fh_leak.t and
+      t/11_sopen_fh_leak.t by avoiding the problem of trying to open a file with
+      a pending delete.  Also avoided similar possible test failures in
+      t/06_fsopen_access.t, t/07_sopen_access.t and t/12_variables.pod.
+
+    - Added support for the 'R', 'S', 'T' and 'D' characters in the mode string
+      argument to fsopen().  These were added to the Microsoft C library
+      function _fsopen() in Visual Studio 2012 (VC11), but we can support them
+      regardless of which compiler is being used (except for Borland C++) since
+      we are emulating the function now.
+
+    - The functionality to automatically retry opening a file if it could not be
+      opened due to a sharing violation now works for perls built with the
+      Borland C++ compiler as a result of now emulating the _fsopen() and
+      _sopen() functions.  The known bug in various t\06_fsopen_access.t tests
+      failing with Borland C++ is also resolved by the same change.
+
+    - Rewrote most of the XS code to emulate, rather than directly expose, the
+      Microsoft C library functions _fsopen() and _sopen().
+
+      This has been done using the Win32 API function CreateFile() and Perl's
+      own exported win32_open_osfhandle() function so that the file descriptors
+      thus opened are in the same C RTL DLL as that loaded by perl and hence
+      work when imported into PerlIO.  This change means that we can now support
+      building this module with a different compiler to that which was used to
+      build perl, something that previously failed because the Microsoft-
+      specific _fsopen() and _sopen() functions (unlike standard stdio and lowio
+      functions) are not redefined to call the versions in perl's C RTL DLL, and
+      therefore opened file descriptors in a different C RTL DLL if this module
+      was built by a compiler that used a different C RTL DLL.
+
+      It appears that using different compilers (and hence potentially different
+      C RTL DLLs) is safe now that the potential problem in doing so has been
+      removed, so the rudimentary checks on the compiler versions in Makefile.PL
+      have been removed too.  Note, however, that there is still a compatibility
+      problem when building this module with Visual Studio .NET 2002/2003 (VC7)
+      or earlier if your perl was built with Visual Studio 2005 (VC8) or later:
+      see [perl #121448].  However, that is quite an unlikely scenario, so it is
+      not worth checking for in Makefile.PL.
+
+    - Changed all PerlLIO_*() function calls to the corresponding lowio
+      functions (and removed all PerlSIO_*() function calls, which should
+      likewise have been the corresponding stdio functions): they should be
+      redefined as necessary by perl's header files anyway, which is indeed the
+      case in perl-5.8.1 and above, at least -- see the exchanges between myself
+      and Jan Dubois on the "perl5-porters" mailing list, 04-05 Mar 2010, for
+      more details on this.
+
+    - Added $Trace to @EXPORT_OK as requested by Denby Angus
+      <Denby.Angus@kisters.com.au>.
+
+    - Uploaded source code to GitHub and included repository URLS in meta data.
+
+    - Included META.json file in addition to META.yml.
+
+    - Simplified Makefile.PL commands for making a new distribution archive.
+
+    - Bumped minimum required ExtUtils::MakeMaker version to 6.66 to allow
+      building with 64-bit perl (otherwise the build fails with errors about
+      fakethr.h and perlsfio.h).
+
+    - Reverted to plain old ExtUtils::MakeMaker for building, now that that's
+      more fully maintained again.  Module::Install has virtually died a death,
+      and Module::Build is no better either.  Require a fairly recent version
+      (6.64) to ensure that all parameters used are supported, to save jumping
+      through hoops to support earlier versions.  (This should not be a problem
+      since ExtUtils::MakeMaker 6.64 is easily installed into Perl 5.8.1 and
+      above, that being the whole point of the new choice of minimum supported
+      Perl version.)
+
+    - Bumped minimum required Perl version from 5.6.0 to 5.8.1.  This is in line
+      with the minimum requirement of the "Perl Toolchain".
 _________________
 
 v3.44 08 Jul 2013
@@ -35,7 +111,7 @@ _________________
 v3.40 11 Oct 2009
 
     - Declare all core module dependencies in the Makefile.PL as well as the
-      existing CPAN module dependencies. (Cf. [cpan #50107].)
+      existing CPAN module dependencies.  (Cf. [cpan #50107].)
 _________________
 
 v3.39 25 Aug 2008
@@ -79,8 +155,9 @@ v3.36 10 Jul 2007
     - Updated Module::Install::PRIVATE to version 1.05 for Makefile.PL
       improvements:
 
-      * Fixed the compiler version checking on Win32 for Visual C++ 8.x, which
-        now uses four numbers separated by dots for its compiler version.
+      * Fixed the compiler version checking on Win32 for Visual Studio 2005
+       (VC8), which now uses four numbers separated by dots for its compiler
+       version.
         
     - Updated Module::Install components from version 0.65 of that distribution.
 
@@ -103,15 +180,15 @@ v3.35 14 Feb 2006
 
       * Disabled the $Max_Time, $Max_Tries and $Retry_Timeout variables'
         functionality for Borland C++ builds since these depend on $^E (the
-        Win32 last error code) being set after a CRT function call, but Borland
-        C++'s CRT (at least, the one used by perl) does not do this;
+        Win32 last error code) being set after a C library function call, but
+        Borland C++'s C RTL (at least, the one used by perl) does not do this;
 
       * Skipped various tests of things that are not supported with Borland C++
         builds, namely: the use of the $Max_Time, $Max_Tries and $Retry_Timeout
-        variables, the setting of $^E after a CRT function call, and the use of
-        the O_TEMPORARY flag.
+        variables, the setting of $^E after a C library function call, and the
+        use of the O_TEMPORARY flag.
 
-      This module should now build (and test) cleanly with Perls built using
+      This module should now build (and test) cleanly with perls built using
       Borland C++ and dmake, except for a couple of known test failures detailed
       in the KNOWN BUGS section of the manpage.
 
@@ -154,8 +231,9 @@ v3.34 02 Sep 2005
       improvements:
 
       * Relaxed the compiler version checking so that only the major version
-        numbers have to match (and also the minor version numbers for VC++ 7 and
-        later, which use CRT DLLs named msvcr70.dll, msvcr71.dll, etc)
+        numbers have to match (and also the minor version numbers for Visual
+        Studio .NET 2002/2003 (VC7) and later, which use C RTL DLLs named
+        msvcr70.dll, msvcr71.dll, etc)
         
         (Thanks to Sisyphus <sisyphus1@optusnet.com.au> for drawing attention to
         this problem via the PAR mailing list (par@perl.org));
@@ -197,9 +275,9 @@ v3.32 03 Mar 2005
       improvements:
 
       * Added code to try to check that on Win32 the same compiler is being used
-        to build this module as was used to build Perl itself to avoid problems
+        to build this module as was used to build perl itself to avoid problems
         with binaries built by different compiler versions loading different C
-        run-time DLLs.
+        RTL DLLs.
 
     - Added a recommendation for Test::Pod to Makefile.PL to test the POD when
       building these modules.
@@ -258,13 +336,14 @@ _________________
 v3.19 08 Aug 2004
 
     - Added a note to the INSTALL file that if possible the same compiler should
-      be used to build this module as was used to build Perl itself.
+      be used to build this module as was used to build perl itself.
 
       This module does not function correctly when built using the free Visual
-      C++ Toolkit 2003 compiler in conjunction with a Perl (e.g. ActivePerl
-      Build 810) that was built using Visual C++ 6.0.  (Passing CRT resources
-      between the msvcr71.dll and msvcrt.dll C run-time libraries used by those
-      compilers respectively does not work.)
+      C++ Toolkit 2003 compiler in conjunction with a perl (e.g. ActivePerl
+      Build 810) that was built using Visual C++ 6.0.  (Passing file
+      descriptors, errno and other such resources between the different C RTL
+      DLLs used by those compilers (msvcr71.dll and msvcrt.dll respectively)
+      does not work.)
 _________________
 
 v3.18 01 Aug 2004
@@ -276,18 +355,18 @@ v3.18 01 Aug 2004
     - Updated Module::Install components from version 0.35 of that distribution
       and changed Makefile.PL to use abstract_from() now that it is fixed.
 
-    - Changed INSTALL document and Makefile.PL to remove requirement for
-      Microsoft Visual C++, and mention dmake.
+    - Changed INSTALL document and Makefile.PL to remove requirement for Visual
+      C++, and mention dmake.
 
     - Fixes for building under MinGW:
 
       * Added declarations of O_RAW and _fsopen(), which are missing from some
         versions of MinGW;
 
-      * Changed a "#else if" to the more correct "#elif" since GCC does not
-        tolerate the former like VC++ does.
+      * Changed a "#else if" to the more correct "#elif" since gcc does not
+        tolerate the former like Visual C++ does.
 
-      This module should now build cleanly with Perls built using MinGW and
+      This module should now build cleanly with perls built using MinGW and
       dmake.
 
     - Improved warning and error messages to include the message string for the
@@ -376,7 +455,7 @@ v3.14 31 Jul 2003
     - Preload some ERROR_* constants that our use()rs might need, otherwise the
       value of $^E gets interfered with when they are autoloaded by
       Win32::WinError in libwin32-0.191 and earlier when using debug builds of
-      Perl.
+      perl.
 
     - Added META.yml (courtesy of ExtUtils::MakeMaker 6.11).
 _________________
@@ -433,11 +512,11 @@ _________________
 
 v3.10 25 Jan 2003
 
-    - Fixes for building under Perls with PERL_IMPLICIT_CONTEXT and/or
+    - Fixes for building under perls with PERL_IMPLICIT_CONTEXT and/or
       PERL_IMPLICIT_SYS enabled (e.g. ActivePerl):
 
       * Added missing pTHX/aTHX macros to debug() function definition/calls to
-        fix building under Perls with PERL_IMPLICIT_CONTEXT enabled;
+        fix building under perls with PERL_IMPLICIT_CONTEXT enabled;
 
       * Added definitions of PerlIO and PerlIO_importFILE() to fix building with
         Perl 5.6.x with PERL_IMPLICIT_SYS enabled;
@@ -516,7 +595,7 @@ v2.10 20 Jun 2002
     - Updated documentation for these changes.
 
     - Local()ized the changes made to $! within AUTOLOAD() as per Perl Bug ID
-      20020614.002: see http://bugs.perl.org/ for more details.
+      20020614.002: see http://rt.perl.org/ for more details.
 _________________
 
 v2.00 27 May 2002

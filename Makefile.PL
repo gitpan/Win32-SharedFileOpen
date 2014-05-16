@@ -7,7 +7,7 @@
 #   Makefile creation script.
 #
 # COPYRIGHT
-#   Copyright (C) 2001-2008, 2012 Steve Hay.  All rights reserved.
+#   Copyright (C) 2001-2008, 2012, 2014 Steve Hay.  All rights reserved.
 #
 # LICENCE
 #   You may distribute under the terms of either the GNU General Public License
@@ -15,23 +15,23 @@
 #
 #===============================================================================
 
-use 5.006000;
+use 5.008001;
 
 use strict;
 use warnings;
 
-use inc::Module::Install;
-
 use Config qw(%Config);
+use ExtUtils::MakeMaker 6.66;
+use ExtUtils::MakeMaker qw(WriteMakefile);
 use File::Copy qw(copy);
-use File::Spec::Functions qw(catfile updir);
+use File::Spec::Functions qw(catfile);
 
 #===============================================================================
 # INITIALIZATION
 #===============================================================================
 
 BEGIN {
-    unless ($^O =~ /MSWin32/i) {
+    if ($^O ne 'MSWin32') {
         die qq{OS unsupported: This module requires a "native" } .
             qq{(i.e. non-Cygwin) Microsoft Windows platform.\n};
     }
@@ -42,56 +42,72 @@ BEGIN {
 #===============================================================================
 
 MAIN: {
-    name               ('Win32-SharedFileOpen');
-    license            ('perl');
-    all_from           ('lib/Win32/SharedFileOpen.pm');
-    configure_requires ('Carp');
-    configure_requires ('Config');
-    configure_requires ('Cwd');
-    configure_requires ('ExtUtils::MakeMaker');
-    configure_requires ('File::Basename');
-    configure_requires ('File::Copy');
-    configure_requires ('File::Find');
-    configure_requires ('File::Path');
-    configure_requires ('File::Spec');
-    configure_requires ('File::Spec::Functions');
-    configure_requires ('FindBin');
-    configure_requires ('Getopt::Long');
-    configure_requires ('Pod::Usage');
-    configure_requires ('Text::Wrap');
-    configure_requires ('parent');
-    configure_requires ('strict');
-    configure_requires ('vars');
-    configure_requires ('warnings');
-    test_requires      ('Errno');
-    test_requires      ('FileHandle');
-    test_requires      ('IO::File');
-    test_requires      ('IO::Handle');
-    test_requires      ('Test::More');
-    requires           ('Exporter');
-    requires           ('Symbol');
-    requires           ('Win32::WinError');
-    requires           ('XSLoader');
-    feature            ('POD testing' => [
-                        -default    => 0,
-                        'Test::Pod' => '1.00'
-    ]);
-    clean_files        ('const-c.inc const-xs.inc');
-
-    my $obj = get_shay_private_obj();
-    $obj->check_compiler(1);
-
-    auto_install();
-
     WriteMakefile(
+        NAME          => 'Win32::SharedFileOpen',
+        ABSTRACT_FROM => 'lib/Win32/SharedFileOpen.pm',
+        AUTHOR        => 'Steve Hay <shay@cpan.org>',
+        LICENSE       => 'perl_5',
+        VERSION_FROM  => 'lib/Win32/SharedFileOpen.pm',
+
+        META_MERGE => {
+            'meta-spec' => {
+                version => 2
+            },
+
+            no_index => {
+                package => 'Win32::SharedFileOpen::_NaturalNumber'
+            },
+
+            resources => {
+                repository => {
+                    type => 'git',
+                    url  => 'git://github.com/steve-m-hay/Win32-SharedFileOpen.git',
+                    web  => 'https://github.com/steve-m-hay/Win32-SharedFileOpen'
+                }
+            }
+        },
+
+        MIN_PERL_VERSION => '5.008001',
+
+        CONFIGURE_REQUIRES => {
+            'Config'                => 0,
+            'ExtUtils::MakeMaker'   => '6.66',
+            'File::Copy'            => 0,
+            'File::Spec::Functions' => 0,
+            'strict'                => 0,
+            'warnings'              => 0
+        },
+
+        TEST_REQUIRES => {
+            'Config'                => 0,
+            'Errno'                 => 0,
+            'FileHandle'            => 0,
+            'IO::File'              => 0,
+            'IO::Handle'            => 0,
+            'Symbol'                => 0,
+            'Test::More'            => 0,
+          # 'Test::Pod'             => '1.00' # Only required for POD testing
+            'Win32::WinError'       => 0,
+            'strict'                => 0,
+            'warnings'              => 0
+        },
+
+        PREREQ_PM => {
+            'Errno'                 => 0,
+            'Exporter'              => 0,
+            'Symbol'                => 0,
+            'Win32::WinError'       => 0,
+            'XSLoader'              => 0
+        },
+
+        clean => {
+            FILES => 'const-*.inc'
+        },
+
         dist => {
-            DIST_CP  => 'cp',
-            PREOP    => 'C:\\cygwin\\bin\\chmod -R a+w $(DISTVNAME) && ' .
-                        'C:\\cygwin\\bin\\find $(DISTVNAME) -type f ' .
-                        '-exec C:\\cygwin\\bin\\unix2dos {} ; && ' .
-                        'C:\\cygwin\\bin\\chmod -R a-x+rwX,go-w $(DISTVNAME)',
-            TAR      => 'C:\\cygwin\\bin\\tar',
-            COMPRESS => 'C:\\cygwin\\bin\\gzip --best'
+            PREOP   => 'find $(DISTVNAME) -type f -print|xargs chmod 0644 && ' .
+                       'find $(DISTVNAME) -type d -print|xargs chmod 0755',
+            TO_UNIX => 'find $(DISTVNAME) -type f -print|xargs unix2dos'
         }
     );
 

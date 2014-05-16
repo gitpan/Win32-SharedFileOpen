@@ -7,7 +7,7 @@
 #   Test script to check sopen()s filehandle argument.
 #
 # COPYRIGHT
-#   Copyright (C) 2002, 2004-2006 Steve Hay.  All rights reserved.
+#   Copyright (C) 2002, 2004-2006, 2014 Steve Hay.  All rights reserved.
 #
 # LICENCE
 #   You may distribute under the terms of either the GNU General Public License
@@ -15,7 +15,7 @@
 #
 #===============================================================================
 
-use 5.006000;
+use 5.008001;
 
 use strict;
 use warnings;
@@ -40,12 +40,10 @@ BEGIN {
 
 MAIN: {
     my $file = 'test.txt';
-    my $err = qr/^sopen\(\) can't use the undefined value/;
+    my $err = qr/^sopen\(\) can't use the undefined value/o;
 
     my($fh, $ret, $errno, $lasterror);
     local *FH;
-
-    unlink $file or die "Can't delete file '$file': $!\n" if -e $file;
 
     eval {
         undef $fh;

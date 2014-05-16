@@ -6,7 +6,7 @@
 #   Module providing functions to open a file for shared reading and/or writing.
 #
 # COPYRIGHT
-#   Copyright (C) 2001-2008, 2013 Steve Hay.  All rights reserved.
+#   Copyright (C) 2001-2008, 2013-2014 Steve Hay.  All rights reserved.
 #
 # LICENCE
 #   You may distribute under the terms of either the GNU General Public License
@@ -16,13 +16,14 @@
 
 package Win32::SharedFileOpen;
 
-use 5.006000;
+use 5.008001;
 
 use strict;
 use warnings;
 
 use Carp qw(croak);
 use Config qw(%Config);
+use Errno qw(EACCES EEXIST EINVAL EMFILE ENOENT);
 use Exporter qw();
 use Symbol qw(gensym qualify_to_ref);
 use Win32::WinError qw(
@@ -38,12 +39,12 @@ use XSLoader qw();
 sub fsopen(*$$$);
 sub sopen(*$$$;$);
 sub new_fh();
+sub _set_errno();
 
 #===============================================================================
 # MODULE INITIALIZATION
 #===============================================================================
 
-my($bcc);
 our(@ISA, @EXPORT, @EXPORT_OK, %EXPORT_TAGS, $VERSION);
 
 BEGIN {
@@ -56,6 +57,7 @@ BEGIN {
     
     @EXPORT_OK = qw(
         $ErrStr
+        $Trace
         gensym
         new_fh
     );
@@ -74,11 +76,9 @@ BEGIN {
             O_WRONLY
     );
 
-    $bcc = $Config{cc} =~ /bcc32/io;
-
     # Borland C++ (as of 5.5.1) doesn't support the following flags, so don't
     # try to export them.
-    if (not $bcc) {
+    if ($Config{cc} !~ /bcc32/io) {
         push @oflags, qw(
             O_RANDOM
             O_SEQUENTIAL
@@ -116,7 +116,7 @@ BEGIN {
 
     Exporter::export_ok_tags(qw(retry));
     
-    $VERSION = '3.44';
+    $VERSION = '4.00';
 
     # Get the ERROR_SHARING_VIOLATION constant loaded now, otherwise loading it
     # later the first time that we test for an error can actually interfere with
@@ -125,7 +125,7 @@ BEGIN {
     # resets $! in the versions included in libwin32-0.18 and earlier.
     # Likewise preload some other ERROR_* constants that our use()rs might need,
     # otherwise loading them later can similarly interfere with the value of $^E
-    # in libwin32-0.191 and earlier with debug builds of Perl.
+    # in libwin32-0.191 and earlier with debug builds of perl.
     ERROR_ACCESS_DENIED;
     ERROR_SHARING_VIOLATION;
     ERROR_FILE_EXISTS;
@@ -163,7 +163,7 @@ sub AUTOLOAD {
     our $AUTOLOAD;
 
     # Get the name of the constant to generate a subroutine for.
-    (my $constant = $AUTOLOAD) =~ s/^.*:://;
+    (my $constant = $AUTOLOAD) =~ s/^.*:://o;
 
     # Avoid deep recursion on AUTOLOAD() if constant() is not defined.
     croak('Unexpected error in AUTOLOAD(): constant() is not defined')
@@ -202,7 +202,6 @@ sub fsopen(*$$$) {
         $tries++;
 
         last if $success
-             or $bcc
              or $^E != ERROR_SHARING_VIOLATION
              or (not defined $Max_Time and not defined $Max_Tries)
              or (defined $Max_Time and $Max_Time != 0 and
@@ -223,19 +222,10 @@ sub fsopen(*$$$) {
     }
 
     if ($success) {
-        # The _fsopen() XS function always opens the filehandle in "binary"
-        # mode, so push a "text" mode layer on top unless "binary" mode is what
-        # was actually asked for.  (See comments in XS file for the reason why.)
-        unless ($mode =~ /b/io) {
-            unless (binmode $fh, ':crlf') {
-                $ErrStr = "Can't push text mode layer on PerlIO stream: $!";
-                return;
-            }
-        }
-
         return 1;
     }
     else {
+        _set_errno();
         return;
     }
 }
@@ -263,7 +253,6 @@ sub sopen(*$$$;$) {
         $tries++;
 
         last if $success
-             or $bcc
              or $^E != ERROR_SHARING_VIOLATION
              or (not defined $Max_Time and not defined $Max_Tries)
              or (defined $Max_Time and $Max_Time != 0 and
@@ -284,19 +273,10 @@ sub sopen(*$$$;$) {
     }
 
     if ($success) {
-        # The _sopen() XS function always opens the filehandle in "binary"
-        # mode, so push a "text" mode layer on top unless "binary" mode is what
-        # was actually asked for.  (See comments in XS file for the reason why.)
-        unless ($oflag & O_BINARY()) {
-            unless (binmode $fh, ':crlf') {
-                $ErrStr = "Can't push text mode layer on PerlIO stream: $!";
-                return;
-            }
-        }
-
         return 1;
     }
     else {
+        _set_errno();
         return;
     }
 }
@@ -307,72 +287,91 @@ sub new_fh() {
 }
 
 #===============================================================================
-# PRIVATE PACKAGE
+# PRIVATE API
+#===============================================================================
+
+sub _set_errno() {
+    # Set $! (which used to be set by calls to the Microsoft C library functions
+    # _fsopen() and _sopen()) from $^E (which is now what is set by a call to
+    # the Win32 API function CreateFile()) for backwards compatibility with
+    # version 3.xx.
+
+    if ($^E == ERROR_ACCESS_DENIED) {
+        $! = EACCES;
+    }
+    elsif ($^E == ERROR_ENVVAR_NOT_FOUND) {
+        $! = EINVAL;
+    }
+    elsif ($^E == ERROR_FILE_EXISTS) {
+        $! = EEXIST;
+    }
+    elsif ($^E == ERROR_FILE_NOT_FOUND) {
+        $! = ENOENT;
+    }
+    elsif ($^E == ERROR_SHARING_VIOLATION) {
+        $! = EACCES;
+    }
+    elsif ($^E == ERROR_TOO_MANY_OPEN_FILES) {
+        $! = EMFILE;
+    }
+}
+
+#===============================================================================
+# PRIVATE CLASS
 #===============================================================================
 
 {
-    package Win32::SharedFileOpen::_NaturalNumber;
 
-    use Carp qw(carp croak);
-    use Config qw(%Config);
+package Win32::SharedFileOpen::_NaturalNumber;
 
-    my($bcc);
+use Carp qw(croak);
 
-    BEGIN {
-        $bcc = $Config{cc} =~ /bcc32/io;
+#-------------------------------------------------------------------------------
+# PUBLIC API
+#-------------------------------------------------------------------------------
+
+sub TIESCALAR {
+    my($class, $value, $name) = @_;
+
+    croak("Usage: tie SCALAR, '$class', SCALARVALUE, SCALARNAME")
+        unless @_ == 3;
+
+    my $self = bless {
+        _name  => $name,
+        _value => undef,
+        _init  => 0
+    }, $class;
+
+    # Use our own STORE() method to store the value to make sure it is valid.
+    $self->STORE($value);
+
+    $self->{_init} = 1;
+
+    return $self;
+}
+
+sub FETCH {
+    my $self = shift;
+    return $self->{_value};
+}
+
+sub STORE {
+    my($self, $value) = @_;
+
+    if (not defined $value) {
+        $self->{_value} = undef;
+    }
+    elsif ($value eq '' or $value =~ /\D/o) {
+        croak("Invalid value for '$self->{_name}': '$value' is not a natural " .
+              "number");
+    }
+    else {
+        $self->{_value} = 0 + $value;
     }
 
-    sub TIESCALAR {
-        my($class, $value, $name) = @_;
+    return $self->{_value};
+}
 
-        croak("Usage: tie SCALAR, '$class', SCALARVALUE, SCALARNAME")
-            unless @_ == 3;
-
-        my $self = bless {
-            _name  => $name,
-            _value => undef,
-            _init  => 0
-        }, $class;
-
-        # Use our own STORE() method to store the value to make sure it is
-        # valid.
-        $self->STORE($value);
-
-        $self->{_init} = 1;
-
-        return $self;
-    }
-
-    sub FETCH {
-        my $self = shift;
-        return $self->{_value};
-    }
-
-    sub STORE {
-        my($self, $value) = @_;
-
-        # See "LIMITATIONS" in the manpage.
-        if ( $bcc and $self->{_init} and
-            ($self->{_name} eq '$Max_Time'  or
-             $self->{_name} eq '$Max_Tries' or
-             $self->{_name} eq '$Retry_Timeout'))
-        {
-            carp("'$self->{_name}' is not supported with Borland builds");
-        }
-
-        if (not defined $value) {
-            $self->{_value} = undef;
-        }
-        elsif ($value eq '' or $value =~ /\D/) {
-            croak("Invalid value for '$self->{_name}': '$value' is not a " .
-                  "natural number");
-        }
-        else {
-            $self->{_value} = 0 + $value;
-        }
-
-        return $self->{_value};
-    }
 }
 
 1;
@@ -423,7 +422,7 @@ Win32::SharedFileOpen - Open a file for shared reading and/or writing
 
 =head1 DESCRIPTION
 
-This module provides a Perl interface to the Microsoft C library functions
+This module provides Perl emulations of the Microsoft C library functions
 C<_fsopen()> and C<_sopen()>.  These functions are counterparts to the standard
 C library functions C<fopen(3)> and C<open(2)> respectively (which are already
 effectively available in Perl as C<open()> and C<sysopen()> respectively), but
@@ -435,7 +434,7 @@ The C<_fsopen()> function, like C<fopen(3)>, takes a file and a "mode string"
 a pointer to a C<FILE> structure, while C<_sopen()>, like C<open(2)>, takes an
 "oflag" (e.g. C<O_RDONLY> and C<O_WRONLY>) instead of the "mode string" and
 returns an C<int> file descriptor (which the Microsoft documentation confusingly
-refers to as a C run-time "file handle", not to be confused here with a Perl
+refers to as a C runtime "file handle", not to be confused here with a Perl
 "filehandle" (or indeed with the operating-system "file handle" returned by the
 Win32 API function C<CreateFile()>!)).  The C<_sopen()> and C<open(2)> functions
 also take another, optional, "pmode" argument (e.g. C<S_IREAD> and C<S_IWRITE>)
@@ -495,22 +494,19 @@ message to this effect.
 
 The "oflags" and "shflags", as well as the "pmode" flags used by C<_sopen()>,
 are all made available to Perl by this module, and are all exported by default.
-Clearly this module will only build on "native" (i.e. non-Cygwin) Microsoft
-Windows platforms, so only the flags found on such systems are exported, rather
-than re-exporting all of the C<O_*> and C<S_I*> flags from the Fcntl module
-like, for example, IO::File does.  In any case, Fcntl does not know about the
-Microsoft-specific C<_O_SHORT_LIVED> and C<SH_*> flags.  (The C<_O_SHORT_LIVED>
-flag is exported (like the C<_fsopen()> and C<_sopen()> functions themselves)
-I<without> the leading "_" character.)
+This module will only build on "native" (i.e. non-Cygwin) Windows platforms, so
+only the flags found on such systems are exported, rather than re-exporting all
+of the C<O_*> and C<S_I*> flags from the Fcntl module like, for example,
+IO::File does.  In any case, Fcntl does not know about the Microsoft-specific
+C<_O_SHORT_LIVED> and C<SH_*> flags.  (The C<_O_SHORT_LIVED> flag is exported
+(like the C<_fsopen()> and C<_sopen()> functions themselves) I<without> the
+leading "_" character.)
 
 Both functions can be made to automatically retry opening a file (indefinitely,
 or up to a specified maximum time or number of times, and at a specified
 frequency) if the file could not be opened due to a sharing violation, via the
 L<"Variables"> $Max_Time, $Max_Tries and $Retry_Timeout and the C<INFINITE>
-flag.  (This functionality is not available for perls built with the Borland C++
-compiler, due to limitations in that compiler's C run-time library.  A warning
-will be issued when setting these variables using such a perl, and no retries
-will be attempted. See L<"LIMITATIONS"> for more details.)
+flag.
 
 =head2 Functions
 
@@ -618,6 +614,35 @@ mode string:
     | 'a+' | O_RDWR | O_CREAT | O_APPEND   |
     +------+-------------------------------+
 
+In addition, the following characters may be appended to the mode string (except
+for perls built with the Borland C++ compiler):
+
+=over 4
+
+=item C<'R'>
+
+Specifies the disk access will be primarily random.  (Equivalent to the
+C<O_RANDOM> flag in the L<$oflag|"O_* Flags"> argument.)
+
+=item C<'S'>
+
+Specifies the disk access will be primarily sequential.  (Equivalent to the
+C<O_SEQUENTIAL> flag in the L<$oflag|"O_* Flags"> argument.)
+
+=item C<'T'>
+
+Used with C<'w'> or C<'w+'>, creates the file such that, if possible, it does
+not flush the file to disk.  (Equivalent to the C<O_SHORT_LIVED> flag in the
+L<$oflag|"O_* Flags"> argument.)
+
+=item C<'D'>
+
+Used with C<'w'> or C<'w+'>, creates the file as temporary.  The file will be
+deleted when the last file descriptor attached to it is closed.  (Equivalent to
+the C<O_TEMPORARY> flag in the L<$oflag|"O_* Flags"> argument.)
+
+=back
+
 See also L<"Text and Binary Modes">.
 
 =head2 O_* Flags
@@ -721,9 +746,8 @@ C<binmode()> in the usual way.
 
 =item C<'b'>
 
-Text/binary modes are specified for C<fsopen()> by inserting a C<'t'> or a
-C<'b'> respectively into the L<$mode|"Mode Strings"> string, immediately
-following the C<'r'>, C<'w'> or C<'a'>, for example:
+Text/binary modes are specified for C<fsopen()> by appending a C<'t'> or a
+C<'b'> respectively to the L<$mode|"Mode Strings"> string, for example:
 
     my $fh = fsopen($file, 'wt', SH_DENYNO);
 
@@ -869,11 +893,6 @@ compatibility with previous versions of this module.
 
 The default values are both C<undef>, i.e. no retries are attempted.
 
-Note: These variables are not supported for perls built with the Borland C++
-compiler, due to limitations in that compiler's C run-time library.  (See
-L<"LIMITATIONS"> for more details.)  A warning will be issued when setting these
-variables using such a perl, and no retries will be attempted.
-
 =item $Retry_Timeout
 
 Specifies the time to wait (in milliseconds) between tries at opening a file
@@ -883,11 +902,6 @@ The value must be a natural number (i.e. a non-negative integer); an exception
 is raised on any attempt to specify an invalid value.
 
 The default value is 250, i.e. wait for one quarter of a second between tries.
-
-Note: As with $Max_Time and $Max_Tries above, this variable is not supported for
-perls built with the Borland C++ compiler.  (See L<"LIMITATIONS"> for more
-details.)  A warning will be issued when setting it using such a perl, and no
-retries will be attempted.
 
 =back
 
@@ -912,11 +926,20 @@ That is not a filehandle, cannot be used as an indirect filehandle, and
 unable to auto-vivify something that can be used as an indirect filehandle in
 such a case.
 
-=item '%s' is not supported with Borland builds
+=item Invalid mode '%s' for opening file '%s'
 
-(W) You attempted to set the specified variable, but it is not supported for
-perls built with the Borland C++ compiler.  See L<"LIMITATIONS"> for more
-details.
+(F) An invalid mode string was passed to C<fsopen()> when trying to open the
+specified file.
+
+=item Invalid oflag '%s' for opening file '%s'
+
+(F) An invalid C<O_*> flag was passed to C<sopen()> (or constructed from the
+mode string passed to C<fsopen()> when trying to open the specified file.
+
+=item Invalid shflag '%s' for opening file '%s'
+
+(F) An invalid C<SH_*> flag was passed to C<fsopen()> or C<sopen()> when trying
+to open the specified file.
 
 =item Invalid value for '%s': '%s' is not a natural number
 
@@ -941,13 +964,7 @@ type.
 
 =item Unknown IoTYPE '%s'
 
-(I) The PerlIO stream associated with the C file stream opened by one of the
-Microsoft C library functions C<_fsopen()> or C<_sopen()> is of an unknown type.
-
-=item Unknown mode '%s'
-
-(I) The PerlIO stream associated with the C file stream opened by one of the
-Microsoft C library functions C<_fsopen()> or C<_sopen()> is in an unknown mode.
+(I) The PerlIO stream's read/write type has been set to an unknown value.
 
 =item Usage: tie SCALAR, '%s', SCALARVALUE, SCALARNAME
 
@@ -968,44 +985,43 @@ they fail.  The possible values are as follows:
 
 =over 4
 
-=item Can't get PerlIO file stream from C file %s for file '%s': %s
+=item Can't get C file descriptor for C file object handle for file '%s': %s
 
-A PerlIO file stream could not be obtained from the C file descriptor or stream
-for the specified file.  The system error message corresponding to the standard
-C library C<errno> variable may also be given.
+A C file descriptor could not be obtained from the C file object handle for the
+specified file.  The system error message corresponding to the standard C
+library C<errno> variable is also given.
 
-=item Can't open C file %s for file '%s': %s
+=item Can't get PerlIO file stream for C file descriptor for file '%s': %s
 
-A C file descriptor or stream could not be opened for the specified file.  The
-system error message corresponding to the standard C library C<errno> variable
-is also given.
+A PerlIO file stream could not be obtained from the C file descriptor for the
+specified file.  The system error message corresponding to the standard C
+library C<errno> variable may also be given.
 
-=item Can't set binary mode on C file descriptor for file '%s': %s
+=item Can't open C file object handle for file '%s': %s
 
-The C file descriptor for the specified file could not be set in "binary" mode.
-The system error message corresponding to the standard C library C<errno>
-variable is also given.
+A C file object handle could not be opened for the specified file.  The system
+error message corresponding to the Win32 API last error code is also given.
 
 =back
 
 In some cases, the functions may also leave the Perl Special Variables C<$!>
 and/or C<$^E> set to values indicating the cause of the error when they fail;
-C<$!> will be incorporated into the $ErrStr message in such cases as indicated
-above.  The possible values of each are as follows (C<$!> shown first, C<$^E>
-underneath):
+one or the other of these will be incorporated into the $ErrStr message in such
+cases, as indicated above.  The possible values of each are as follows (C<$!>
+shown first, C<$^E> underneath):
 
 =over 4
 
-=item EACCES (Permission denied) [1]
+=item C<EACCES> (Permission denied) [1]
 
-=item ERROR_ACCESS_DENIED (Access is denied)
+=item C<ERROR_ACCESS_DENIED> (Access is denied)
 
 The $file is a directory, or is a read-only file and an attempt was made to open
 it for writing.
 
-=item EACCES (Permission denied) [2]
+=item C<EACCES> (Permission denied) [2]
 
-=item ERROR_SHARING_VIOLATION (The process cannot access the file because it is
+=item C<ERROR_SHARING_VIOLATION> (The process cannot access the file because it is
 being used by another process.)
 
 The $file cannot be opened because another process already has it open and is
@@ -1015,29 +1031,29 @@ This is, of course, the error that other processes will get when trying to open
 a file in a certain access mode when we have already opened the same file with a
 sharing mode that denies other processes that access mode.
 
-=item EEXIST (File exists)
+=item C<EEXIST> (File exists)
 
-=item ERROR_FILE_EXISTS (The file exists)
+=item C<ERROR_FILE_EXISTS> (The file exists)
 
 [C<sopen()> only.]  The $oflag included C<O_CREAT | O_EXCL>, and the $file
 already exists.
 
-=item EINVAL (Invalid argument)
+=item C<EINVAL> (Invalid argument)
 
-=item ERROR_ENVVAR_NOT_FOUND (The system could not find the environment option
+=item C<ERROR_ENVVAR_NOT_FOUND> (The system could not find the environment option
 that was entered)
 
 The $oflag or $shflag argument was invalid.
 
-=item EMFILE (Too many open files)
+=item C<EMFILE> (Too many open files)
 
-=item ERROR_TOO_MANY_OPEN_FILES (The system cannot open the file)
+=item C<ERROR_TOO_MANY_OPEN_FILES> (The system cannot open the file)
 
 The maximum number of file descriptors has been reached.
 
-=item ENOENT (No such file or directory)
+=item C<ENOENT> (No such file or directory)
 
-=item ERROR_FILE_NOT_FOUND (The system cannot find the file specified)
+=item C<ERROR_FILE_NOT_FOUND> (The system cannot find the file specified)
 
 The filename or path in $file was not found.
 
@@ -1440,7 +1456,8 @@ C<INFINITE>;
 C<$ErrStr>,
 C<$Max_Time>,
 C<$Max_Tries>,
-C<$Retry_Timeout>.
+C<$Retry_Timeout>,
+C<$Trace>.
 
 =item Export Tags
 
@@ -1503,77 +1520,21 @@ or failure.
 B<THIS IS AN INCOMPATIBLE CHANGE.  EXISTING SOFTWARE THAT USES THESE FUNCTIONS
 WILL NEED TO BE MODIFIED.>
 
-=head1 KNOWN BUGS
-
-=over 4
-
-=item *
-
-The following test failures are expected with perls built in the default
-configuration with the Borland C++ compiler:
-
-    t\06_fsopen_access.t tests 25 or 26, 30 or 31, 35 or 36
-
-(Exactly which tests fail varies according to which version of Perl is being
-used.)
-
-These failures are the result of outstanding problems with large file support in
-perls built with the Borland C++ compiler, and can be rectified by rebuilding
-perl with large file support disabled (by commenting out the line:
-
-    USE_LARGE_FILES *= define
-
-in F<win32/makefile.mk>) or by using a perl built with a different compiler.
-
-=back
-
-=head1 LIMITATIONS
-
-=over 4
-
-=item *
-
-As noted in several places above, the functionality to automatically retry
-opening a file if it could not be opened due to a sharing violation is not
-available for perls built with the Borland C++ compiler, due to limitations in
-that compiler's C run-time library.
-
-Specifically, the problem lies with the particular C run-time library,
-F<cw32mti.lib>, used when building perl.  A simple test program written in C
-shows that (as of Borland C++ 5.5.1) it does not set the Win32 last error code
-(as returned by the Win32 API function C<GetLastError()>) after a failed CRT
-function call.  There is actually no guarantee that it should be set because it
-is only really intended to be used after a failed Win32 API function call, but
-it does generally seem to be set by the Microsoft C run-time libraries and this
-module uses that fact to detect when a sharing violation has occurred, namely,
-when the last error code is ERROR_SHARING_VIOLATION.
-
-At least one other Borland C run-time library, F<cw32i.lib>, does set the Win32
-last error code after a failed CRT function call, so this may be a bug in the
-Borland C run-time library used by perl.  If so, and if it is fixed in some
-later version of Borland C++, then this functionality will, of course, be
-enabled for those versions.
-
-See the exchanges between myself and Jan Dubois on the "perl5-porters" mailing
-list, 30 Jan-01 Feb 2006, for more details on all of this.
-
-=back
-
 =head1 FEEDBACK
 
 Patches, bug reports, suggestions or any other feedback is welcome.
 
 Bugs can be reported on the CPAN Request Tracker at
-F<http://rt.cpan.org/NoAuth/ReportBug.html?Queue=Win32-SharedFileOpen>.
+F<https://rt.cpan.org/Public/Bug/Report.html?Queue=Win32-SharedFileOpen>.
 
 Open bugs on the CPAN Request Tracker can be viewed at
-F<http://rt.cpan.org/NoAuth/Bugs.html?Dist=Win32-SharedFileOpen>.
+F<https://rt.cpan.org/Public/Dist/Display.html?Status=Active;Dist=Win32-SharedFileOpen>.
 
-Please test this distribution.  See CPAN Testers at F<http://testers.cpan.org/>
-for details of how to get involved.
+Please test this distribution.  See CPAN Testers Reports at
+F<http://www.cpantesters.org/> for details of how to get involved.
 
-Previous test results on CPAN Testers can be viewed at
-F<http://testers.cpan.org/search?request=dist&dist=Win32-SharedFileOpen>.
+Previous test results on CPAN Testers Reports can be viewed at
+F<http://www.cpantesters.org/distro/W/Win32-SharedFileOpen.html>.
 
 Please rate this distribution on CPAN Ratings at
 F<http://cpanratings.perl.org/rate/?distribution=Win32-SharedFileOpen>.
@@ -1601,18 +1562,25 @@ does not entirely alleviate the pain.
 
 =head1 ACKNOWLEDGEMENTS
 
+The C<Win32SharedFileOpen_StrWinError()> function used by the XS code is based
+on the C<win32_str_os_error()> function in Perl (version 5.19.10).
+
 Some of the XS code used in the re-write for version 3.00 is based on that in
 the standard library module VMS::Stdio (version 2.3), written by Charles Bailey.
 
 Thanks to Nick Ing-Simmons for help in getting this XS to build under different
-flavours of Perl (all "stable" Perls from 5.6.0 onwards, both with and without
-PERL_IMPLICIT_CONTEXT and/or PERL_IMPLICIT_SYS enabled, are now supported), and
-for help in fixing a text mode/binary mode bug in the fsopen() function.
+flavours of Perl (e.g. both with and without PERL_IMPLICIT_CONTEXT and/or
+PERL_IMPLICIT_SYS enabled), and for help in fixing a text mode/binary mode bug
+in the fsopen() function.
 
 =head1 AVAILABILITY
 
 The latest version of this module is available from CPAN (see
 L<perlmodlib/"CPAN"> for details) at
+
+F<https://metacpan.org/release/Win32-SharedFileOpen> or
+
+F<http://search.cpan.org/dist/Win32-SharedFileOpen/> or
 
 F<http://www.cpan.org/authors/id/S/SH/SHAY/> or
 
@@ -1628,7 +1596,7 @@ Steve Hay E<lt>shay@cpan.orgE<gt>
 
 =head1 COPYRIGHT
 
-Copyright (C) 2001-2008, 2013 Steve Hay.  All rights reserved.
+Copyright (C) 2001-2008, 2013-2014 Steve Hay.  All rights reserved.
 
 =head1 LICENCE
 
@@ -1638,11 +1606,11 @@ License or the Artistic License, as specified in the F<LICENCE> file.
 
 =head1 VERSION
 
-Version 3.44
+Version 4.00
 
 =head1 DATE
 
-08 Jul 2013
+16 May 2014
 
 =head1 HISTORY
 

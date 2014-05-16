@@ -1,6 +1,6 @@
 ________________________________________________________________________________
 
-                      Win32::SharedFileOpen, Version 3.44
+                      Win32::SharedFileOpen, Version 4.00
 ________________________________________________________________________________
 
 NAME
@@ -43,7 +43,7 @@ SYNOPSIS
 
 DESCRIPTION
 
-    This module provides a Perl interface to the Microsoft C library functions
+    This module provides Perl emulations of the Microsoft C library functions
     _fsopen() and _sopen().  These functions are counterparts to the standard C
     library functions fopen(3) and open(2) respectively (which are already
     effectively available in Perl as open() and sysopen() respectively), but are
@@ -71,7 +71,7 @@ INSTALLATION
 
 COPYRIGHT
 
-    Copyright (C) 2001-2008, 2013 Steve Hay.  All rights reserved.
+    Copyright (C) 2001-2008, 2013-2014 Steve Hay.  All rights reserved.
 
 LICENCE
 
