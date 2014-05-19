@@ -87,6 +87,7 @@ MAIN: {
             'Symbol'                => 0,
             'Test::More'            => 0,
           # 'Test::Pod'             => '1.00' # Only required for POD testing
+            'Time::HiRes'           => 0,
             'Win32::WinError'       => 0,
             'strict'                => 0,
             'warnings'              => 0
@@ -96,6 +97,7 @@ MAIN: {
             'Errno'                 => 0,
             'Exporter'              => 0,
             'Symbol'                => 0,
+            'Time::HiRes'           => 0,
             'Win32::WinError'       => 0,
             'XSLoader'              => 0
         },

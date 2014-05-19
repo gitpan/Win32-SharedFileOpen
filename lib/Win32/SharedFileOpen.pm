@@ -26,6 +26,7 @@ use Config qw(%Config);
 use Errno qw(EACCES EEXIST EINVAL EMFILE ENOENT);
 use Exporter qw();
 use Symbol qw(gensym qualify_to_ref);
+use Time::HiRes qw(time);
 use Win32::WinError qw(
     ERROR_ACCESS_DENIED
     ERROR_SHARING_VIOLATION
@@ -116,7 +117,7 @@ BEGIN {
 
     Exporter::export_ok_tags(qw(retry));
     
-    $VERSION = '4.00';
+    $VERSION = '4.01';
 
     # Get the ERROR_SHARING_VIOLATION constant loaded now, otherwise loading it
     # later the first time that we test for an error can actually interfere with
@@ -1606,11 +1607,11 @@ License or the Artistic License, as specified in the F<LICENCE> file.
 
 =head1 VERSION
 
-Version 4.00
+Version 4.01
 
 =head1 DATE
 
-16 May 2014
+19 May 2014
 
 =head1 HISTORY
 

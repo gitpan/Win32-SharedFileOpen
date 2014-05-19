@@ -11,6 +11,7 @@ build_requires:
   IO::Handle: '0'
   Symbol: '0'
   Test::More: '0'
+  Time::HiRes: '0'
   Win32::WinError: '0'
   strict: '0'
   warnings: '0'
@@ -38,9 +39,10 @@ requires:
   Errno: '0'
   Exporter: '0'
   Symbol: '0'
+  Time::HiRes: '0'
   Win32::WinError: '0'
   XSLoader: '0'
   perl: '5.008001'
 resources:
   repository: git://github.com/steve-m-hay/Win32-SharedFileOpen.git
-version: '4.00'
+version: '4.01'

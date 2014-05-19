@@ -1,9 +1,15 @@
 ________________________________________________________________________________
 
-                      Win32::SharedFileOpen, Version 4.00
+                      Win32::SharedFileOpen, Version 4.01
 ________________________________________________________________________________
 
 Revision history for Perl extension Win32::SharedFileOpen.
+_________________
+
+v4.01 19 May 2014
+
+    - Changed all time() calls to Time::HiRes::time() calls to improve accuracy
+      and (hopefully) to fix occasional test failures in t/12_variables.t.
 _________________
 
 v4.00 16 May 2014

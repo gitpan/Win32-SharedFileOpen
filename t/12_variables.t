@@ -22,6 +22,7 @@ use warnings;
 
 use Config qw(%Config);
 use Test::More tests => 45;
+use Time::HiRes qw(time);
 
 sub new_filename();
 sub stderr(;$);
@@ -61,8 +62,9 @@ BEGIN {
 
 MAIN: {
     my $err  = qr/^Invalid value for '(.*?)': '(.*?)' is not a natural number/o;
+    my $tol = 0.02; # Resolution is often around 1ms-15ms, so allow 20ms.
 
-    my($file, $fh1, $fh2, $output, $ret, $start, $finish, $time);
+    my($file, $fh1, $fh2, $output, $ret, $start, $finish, $time, $max_time);
 
     local $SIG{__WARN__} = \&stderr;
 
@@ -185,7 +187,7 @@ MAIN: {
         $ret = fsopen($fh2, $file, 'r', SH_DENYNO);
         $finish = time;
         $time = $finish - $start;
-        ok($time >= 1 && $time < 2,
+        ok($time > $Max_Time - $tol && $time < $Max_Time + $Retry_Timeout + $tol,
            'fsopen() tried for 1 second with $Max_Time == 1') or
            diag("\$time = '$time'");
 
@@ -196,7 +198,7 @@ MAIN: {
         $ret = fsopen($fh2, $file, 'r', SH_DENYNO);
         $finish = time;
         $time = $finish - $start;
-        ok($time >= 3 && $time < 4,
+        ok($time > $Max_Time - $tol && $time < $Max_Time + $Retry_Timeout + $tol,
            'fsopen() tried for 3 seconds with $Max_Time == 3') or
            diag("\$time = '$time'");
 
@@ -212,7 +214,7 @@ MAIN: {
         $ret = sopen($fh2, $file, O_RDONLY, SH_DENYNO);
         $finish = time;
         $time = $finish - $start;
-        ok($time >= 1 && $time < 2,
+        ok($time > $Max_Time - $tol && $time < $Max_Time + $Retry_Timeout + $tol,
            'sopen() tried for 1 second with $Max_Time == 1') or
            diag("\$time = '$time'");
 
@@ -223,7 +225,7 @@ MAIN: {
         $ret = sopen($fh2, $file, O_RDONLY, SH_DENYNO);
         $finish = time;
         $time = $finish - $start;
-        ok($time >= 3 && $time < 4,
+        ok($time > $Max_Time - $tol && $time < $Max_Time + $Retry_Timeout + $tol,
            'sopen() tried for 3 seconds with $Max_Time == 3') or
            diag("\$time = '$time'");
 
@@ -357,6 +359,7 @@ MAIN: {
 
         $Max_Tries = 5;
         $Retry_Timeout = 250;
+        $max_time = ($Max_Tries - 1) * $Retry_Timeout / 1000;
 
         $file = new_filename();
 
@@ -368,24 +371,26 @@ MAIN: {
         $ret = fsopen($fh2, $file, 'r', SH_DENYNO);
         $finish = time;
         $time = $finish - $start;
-        ok($time >= 1 && $time < 2,
+        ok($time > $max_time - $tol && $time < $max_time + $tol,
            'fsopen() tried for 1 second with $Retry_Timeout == 250') or
            diag("\$time = '$time'");
 
         $Retry_Timeout = 750;
+        $max_time = ($Max_Tries - 1) * $Retry_Timeout / 1000;
 
         $fh2 = new_fh();
         $start = time;
         $ret = fsopen($fh2, $file, 'r', SH_DENYNO);
         $finish = time;
         $time = $finish - $start;
-        ok($time >= 3 && $time < 4,
+        ok($time > $max_time - $tol && $time < $max_time + $tol,
            'fsopen() tried for 3 seconds with $Retry_Timeout == 750') or
            diag("\$time = '$time'");
 
         close $fh1;
 
         $Retry_Timeout = 250;
+        $max_time = ($Max_Tries - 1) * $Retry_Timeout / 1000;
 
         $fh1 = new_fh();
         sopen($fh1, $file, O_WRONLY | O_CREAT | O_TRUNC, SH_DENYRD, S_IWRITE);
@@ -395,18 +400,19 @@ MAIN: {
         $ret = sopen($fh2, $file, O_RDONLY, SH_DENYNO);
         $finish = time;
         $time = $finish - $start;
-        ok($time >= 1 && $time < 2,
+        ok($time > $max_time - $tol && $time < $max_time + $tol,
            'sopen() tried for 1 second with $Retry_Timeout == 250') or
            diag("\$time = '$time'");
 
         $Retry_Timeout = 750;
+        $max_time = ($Max_Tries - 1) * $Retry_Timeout / 1000;
 
         $fh2 = new_fh();
         $start = time;
         $ret = sopen($fh2, $file, O_RDONLY, SH_DENYNO);
         $finish = time;
         $time = $finish - $start;
-        ok($time >= 3 && $time < 4,
+        ok($time > $max_time - $tol && $time < $max_time + $tol,
            'sopen() tried for 3 seconds with $Retry_Timeout == 750') or
            diag("\$time = '$time'");
 
