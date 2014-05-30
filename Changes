@@ -1,9 +1,14 @@
 ________________________________________________________________________________
 
-                      Win32::SharedFileOpen, Version 4.01
+                      Win32::SharedFileOpen, Version 4.02
 ________________________________________________________________________________
 
 Revision history for Perl extension Win32::SharedFileOpen.
+_________________
+
+v4.02 30 May 2014
+
+    - Simplified repository metadata for cleaner appearance on search.cpan.org.
 _________________
 
 v4.01 19 May 2014
@@ -65,7 +70,7 @@ v4.00 16 May 2014
     - Added $Trace to @EXPORT_OK as requested by Denby Angus
       <Denby.Angus@kisters.com.au>.
 
-    - Uploaded source code to GitHub and included repository URLS in meta data.
+    - Uploaded source code to GitHub and included repository URLs in metadata.
 
     - Included META.json file in addition to META.yml.
 

@@ -13,6 +13,7 @@ build_requires:
   Test::More: '0'
   Time::HiRes: '0'
   Win32::WinError: '0'
+  perl: '5.008001'
   strict: '0'
   warnings: '0'
 configure_requires:
@@ -20,6 +21,7 @@ configure_requires:
   ExtUtils::MakeMaker: '6.66'
   File::Copy: '0'
   File::Spec::Functions: '0'
+  perl: '5.008001'
   strict: '0'
   warnings: '0'
 dynamic_config: 1
@@ -35,6 +37,9 @@ no_index:
     - inc
   package:
     - Win32::SharedFileOpen::_NaturalNumber
+optional_features:
+  podtest:
+    description: 'POD testing'
 requires:
   Errno: '0'
   Exporter: '0'
@@ -44,5 +49,5 @@ requires:
   XSLoader: '0'
   perl: '5.008001'
 resources:
-  repository: git://github.com/steve-m-hay/Win32-SharedFileOpen.git
-version: '4.01'
+  repository: https://github.com/steve-m-hay/Win32-SharedFileOpen.git
+version: '4.02'

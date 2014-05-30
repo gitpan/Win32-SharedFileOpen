@@ -61,8 +61,20 @@ MAIN: {
             resources => {
                 repository => {
                     type => 'git',
-                    url  => 'git://github.com/steve-m-hay/Win32-SharedFileOpen.git',
-                    web  => 'https://github.com/steve-m-hay/Win32-SharedFileOpen'
+                    url  => 'https://github.com/steve-m-hay/Win32-SharedFileOpen.git'
+                }
+            },
+
+            optional_features => {
+                podtest => {
+                    description => 'POD testing',
+                    prereqs => {
+                        test => {
+                            requires => {
+                                'Test::Pod' => '1.00'
+                            }
+                        }
+                    }
                 }
             }
         },
@@ -70,36 +82,38 @@ MAIN: {
         MIN_PERL_VERSION => '5.008001',
 
         CONFIGURE_REQUIRES => {
-            'Config'                => 0,
+            'Config'                => '0',
             'ExtUtils::MakeMaker'   => '6.66',
-            'File::Copy'            => 0,
-            'File::Spec::Functions' => 0,
-            'strict'                => 0,
-            'warnings'              => 0
+            'File::Copy'            => '0',
+            'File::Spec::Functions' => '0',
+            'perl'                  => '5.008001',
+            'strict'                => '0',
+            'warnings'              => '0'
         },
 
         TEST_REQUIRES => {
-            'Config'                => 0,
-            'Errno'                 => 0,
-            'FileHandle'            => 0,
-            'IO::File'              => 0,
-            'IO::Handle'            => 0,
-            'Symbol'                => 0,
-            'Test::More'            => 0,
-          # 'Test::Pod'             => '1.00' # Only required for POD testing
-            'Time::HiRes'           => 0,
-            'Win32::WinError'       => 0,
-            'strict'                => 0,
-            'warnings'              => 0
+            'Config'          => '0',
+            'Errno'           => '0',
+            'FileHandle'      => '0',
+            'IO::File'        => '0',
+            'IO::Handle'      => '0',
+            'Symbol'          => '0',
+            'Test::More'      => '0',
+            'Time::HiRes'     => '0',
+            'Win32::WinError' => '0',
+            'perl'            => '5.008001',
+            'strict'          => '0',
+            'warnings'        => '0'
         },
 
         PREREQ_PM => {
-            'Errno'                 => 0,
-            'Exporter'              => 0,
-            'Symbol'                => 0,
-            'Time::HiRes'           => 0,
-            'Win32::WinError'       => 0,
-            'XSLoader'              => 0
+            'Errno'           => '0',
+            'Exporter'        => '0',
+            'Symbol'          => '0',
+            'Time::HiRes'     => '0',
+            'Win32::WinError' => '0',
+            'XSLoader'        => '0',
+            'perl'            => '5.008001'
         },
 
         clean => {
@@ -107,8 +121,8 @@ MAIN: {
         },
 
         dist => {
-            PREOP   => 'find $(DISTVNAME) -type f -print|xargs chmod 0644 && ' .
-                       'find $(DISTVNAME) -type d -print|xargs chmod 0755',
+            PREOP   => 'find $(DISTVNAME) -type d -print|xargs chmod 0755 && ' .
+                       'find $(DISTVNAME) -type f -print|xargs chmod 0644',
             TO_UNIX => 'find $(DISTVNAME) -type f -print|xargs unix2dos'
         }
     );
